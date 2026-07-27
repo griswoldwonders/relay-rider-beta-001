@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
+    "security:check": "node scripts/check-security-config.mjs && npm audit --omit=dev --audit-level=high",
     "format": "prettier --write ."
   },
   "dependencies": {

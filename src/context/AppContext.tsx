@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserRole, RouteSignal, EVParticipantSignal, UserProfile, GreenRouteCredit } from '../types';
+import { clearLegacySensitiveStorage } from '../security/securityPolicy';
 
 interface AppContextType {
   userRole: UserRole;
@@ -13,6 +14,8 @@ interface AppContextType {
   addEVParticipantSignal: (signal: EVParticipantSignal) => void;
   greenRouteCredits: GreenRouteCredit[];
   addGreenRouteCredit: (credit: GreenRouteCredit) => void;
+  clearSessionData: () => void;
+  storageMode: 'session-memory';
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -24,60 +27,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [evParticipantSignals, setEVParticipantSignals] = useState<EVParticipantSignal[]>([]);
   const [greenRouteCredits, setGreenRouteCredits] = useState<GreenRouteCredit[]>([]);
 
-  // Load from localStorage on mount
+  // Security migration: remove sensitive data persisted by earlier prototype versions.
   useEffect(() => {
-    const savedRole = localStorage.getItem('userRole') as UserRole;
-    const savedProfile = localStorage.getItem('userProfile');
-    const savedSignals = localStorage.getItem('routeSignals');
-    const savedEVSignals = localStorage.getItem('evParticipantSignals');
-    const savedCredits = localStorage.getItem('greenRouteCredits');
-
-    if (savedRole) setUserRole(savedRole);
-    if (savedProfile) setUserProfile(JSON.parse(savedProfile));
-    if (savedSignals) setRouteSignals(JSON.parse(savedSignals));
-    if (savedEVSignals) setEVParticipantSignals(JSON.parse(savedEVSignals));
-    if (savedCredits) setGreenRouteCredits(JSON.parse(savedCredits));
+    clearLegacySensitiveStorage();
   }, []);
 
-  // Save to localStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem('userRole', userRole || '');
-  }, [userRole]);
-
-  useEffect(() => {
-    if (userProfile) {
-      localStorage.setItem('userProfile', JSON.stringify(userProfile));
-    }
-  }, [userProfile]);
-
-  useEffect(() => {
-    localStorage.setItem('routeSignals', JSON.stringify(routeSignals));
-  }, [routeSignals]);
-
-  useEffect(() => {
-    localStorage.setItem('evParticipantSignals', JSON.stringify(evParticipantSignals));
-  }, [evParticipantSignals]);
-
-  useEffect(() => {
-    localStorage.setItem('greenRouteCredits', JSON.stringify(greenRouteCredits));
-  }, [greenRouteCredits]);
-
   const addRouteSignal = (signal: RouteSignal) => {
-    setRouteSignals([...routeSignals, signal]);
+    setRouteSignals(current => [...current, signal]);
   };
 
   const updateRouteSignal = (id: string, updates: Partial<RouteSignal>) => {
-    setRouteSignals(routeSignals.map(signal =>
+    setRouteSignals(current => current.map(signal =>
       signal.id === id ? { ...signal, ...updates } : signal
     ));
   };
 
   const addEVParticipantSignal = (signal: EVParticipantSignal) => {
-    setEVParticipantSignals([...evParticipantSignals, signal]);
+    setEVParticipantSignals(current => [...current, signal]);
   };
 
   const addGreenRouteCredit = (credit: GreenRouteCredit) => {
-    setGreenRouteCredits([...greenRouteCredits, credit]);
+    setGreenRouteCredits(current => [...current, credit]);
+  };
+
+  const clearSessionData = () => {
+    setUserRole(null);
+    setUserProfile(null);
+    setRouteSignals([]);
+    setEVParticipantSignals([]);
+    setGreenRouteCredits([]);
+    clearLegacySensitiveStorage();
   };
 
   return (
@@ -94,6 +73,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addEVParticipantSignal,
         greenRouteCredits,
         addGreenRouteCredit,
+        clearSessionData,
+        storageMode: 'session-memory',
       }}
     >
       {children}
