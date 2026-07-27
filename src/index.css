@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply border-gray-200;
+}
+
+body {
+  @apply bg-white text-gray-900 font-sans;
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  @apply font-bold;
+}
+
+/* Relay Rider Design System */
+
+.container {
+  @apply max-w-md mx-auto px-4;
+}
+
+.btn-primary {
+  @apply w-full py-3 px-4 bg-mobility-green text-white font-semibold rounded-lg transition-all duration-200 hover:bg-opacity-90 active:scale-95;
+}
+
+.btn-secondary {
+  @apply w-full py-3 px-4 bg-soft-gray text-navy font-semibold rounded-lg transition-all duration-200 hover:bg-gray-300 active:scale-95;
+}
+
+.btn-outline {
+  @apply w-full py-3 px-4 border-2 border-navy text-navy font-semibold rounded-lg transition-all duration-200 hover:bg-navy hover:text-white active:scale-95;
+}
+
+.card {
+  @apply bg-white border border-gray-200 rounded-lg p-4 shadow-sm;
+}
+
+.card-highlight {
+  @apply bg-light-green border border-green-200 rounded-lg p-4;
+}
+
+.status-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.status-badge.active {
+  @apply bg-light-green text-mobility-green;
+}
+
+.status-badge.pending {
+  @apply bg-warning-yellow text-yellow-800;
+}
+
+.status-badge.research {
+  @apply bg-light-blue text-blue-700;
+}
+
+.status-badge.inactive {
+  @apply bg-soft-gray text-gray-600;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-mobility-green focus:border-transparent transition-all;
+}
+
+.section-title {
+  @apply text-xl font-bold text-navy mb-4;
+}
+
+.section-subtitle {
+  @apply text-sm text-gray-600 mb-3;
+}
+
+.research-banner {
+  @apply bg-light-blue border border-blue-300 rounded-lg p-4 mb-4;
+}
+
+.research-banner-text {
+  @apply text-sm text-blue-900;
+}
+
+.disclaimer-text {
+  @apply text-xs text-gray-600 mt-2;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
