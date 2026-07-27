@@ -5,7 +5,7 @@ import { RoleSelectionScreen } from './screens/RoleSelectionScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { RoutesScreen } from './screens/RoutesScreen';
 import { MapScreen } from './screens/MapScreen';
-import { WalletScreen } from './screens/WalletScreen';
+import { MarketplaceScreen } from './screens/MarketplaceScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { RouteNeedFlowScreen } from './flows/RouteNeedFlowScreen';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
@@ -17,8 +17,8 @@ type Screen =
   | 'role-selection'
   | 'home'
   | 'routes'
+  | 'marketplace'
   | 'map'
-  | 'wallet'
   | 'profile'
   | 'route-need-flow'
   | 'ev-participant-flow'
@@ -26,9 +26,17 @@ type Screen =
   | 'review-gates'
   | 'partner-console';
 
+const publicPreviewScreens: Screen[] = ['role-selection', 'home', 'marketplace', 'map', 'routes', 'profile'];
+
+const getInitialScreen = (): Screen => {
+  const requestedScreen = new URLSearchParams(window.location.search).get('screen') as Screen | null;
+  return requestedScreen && publicPreviewScreens.includes(requestedScreen) ? requestedScreen : 'role-selection';
+};
+
 function AppContent() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('role-selection');
-  const [currentTab, setCurrentTab] = useState('home');
+  const initialScreen = getInitialScreen();
+  const [currentScreen, setCurrentScreen] = useState<Screen>(initialScreen);
+  const [currentTab, setCurrentTab] = useState<string>(initialScreen === 'role-selection' ? 'home' : initialScreen);
 
   const handleRoleSelect = () => {
     setCurrentScreen('home');
@@ -38,9 +46,9 @@ function AppContent() {
   const handleTabChange = (tab: string) => {
     setCurrentTab(tab);
     if (tab === 'home') setCurrentScreen('home');
-    else if (tab === 'routes') setCurrentScreen('routes');
+    else if (tab === 'marketplace') setCurrentScreen('marketplace');
     else if (tab === 'map') setCurrentScreen('map');
-    else if (tab === 'wallet') setCurrentScreen('wallet');
+    else if (tab === 'routes') setCurrentScreen('routes');
     else if (tab === 'profile') setCurrentScreen('profile');
   };
 
@@ -56,6 +64,10 @@ function AppContent() {
             onStartRouteSignal={() => setCurrentScreen('route-need-flow')}
             onShareEVRoute={() => setCurrentScreen('ev-participant-flow')}
             onSuggestRelayZone={() => setCurrentScreen('map')}
+            onBrowseMatches={() => {
+              setCurrentScreen('marketplace');
+              setCurrentTab('marketplace');
+            }}
             onLearnMore={() => {}}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
@@ -69,16 +81,16 @@ function AppContent() {
         </>
       )}
 
-      {currentScreen === 'map' && (
+      {currentScreen === 'marketplace' && (
         <>
-          <MapScreen onSuggestZone={() => {}} />
+          <MarketplaceScreen />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
 
-      {currentScreen === 'wallet' && (
+      {currentScreen === 'map' && (
         <>
-          <WalletScreen onViewRules={() => {}} />
+          <MapScreen onSuggestZone={() => {}} />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
