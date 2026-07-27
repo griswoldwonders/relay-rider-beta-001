@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, MapPin, Zap, Wallet, User } from 'lucide-react';
+import { Home, Map, Route, Search, User } from 'lucide-react';
 
 interface BottomNavProps {
   currentTab: string;
@@ -9,15 +9,15 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
   const tabs = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'routes', label: 'Routes', icon: MapPin },
-    { id: 'map', label: 'Map', icon: Zap },
-    { id: 'wallet', label: 'Wallet', icon: Wallet },
+    { id: 'marketplace', label: 'Matches', icon: Search },
+    { id: 'map', label: 'Map', icon: Map },
+    { id: 'routes', label: 'Activity', icon: Route },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2">
-      <div className="flex justify-around max-w-md mx-auto">
+    <nav className="m3-navigation-bar">
+      <div className="m3-navigation-bar__inner">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -25,18 +25,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center gap-1 py-2 px-3 rounded-lg transition-colors ${
-                isActive
-                  ? 'text-mobility-green'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`m3-navigation-item ${isActive ? 'is-active' : ''}`}
+              aria-current={isActive ? 'page' : undefined}
             >
-              <Icon size={24} />
-              <span className="text-xs font-medium">{tab.label}</span>
+              <span className="m3-navigation-item__icon"><Icon size={21} strokeWidth={2} /></span>
+              <span>{tab.label}</span>
             </button>
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Zap, MapPinPlus, ChevronRight } from 'lucide-react';
+import { ArrowRight, BatteryCharging, MapPinned, Route, Search, ShieldCheck } from 'lucide-react';
 import { Header } from '../components/Header';
 import { ResearchBetaBanner } from '../components/ResearchBetaBanner';
 import { RouteCard } from '../components/RouteCard';
@@ -10,6 +10,7 @@ interface HomeScreenProps {
   onStartRouteSignal: () => void;
   onShareEVRoute: () => void;
   onSuggestRelayZone: () => void;
+  onBrowseMatches: () => void;
   onLearnMore: () => void;
 }
 
@@ -17,94 +18,72 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartRouteSignal,
   onShareEVRoute,
   onSuggestRelayZone,
+  onBrowseMatches,
   onLearnMore,
 }) => {
   const { routeSignals } = useApp();
 
   return (
-    <div className="min-h-screen bg-white pb-24">
-      <Header title="Welcome to Relay Rider" subtitle="Research beta for cleaner planned corridors." />
+    <div className="min-h-screen bg-[var(--md-sys-color-surface)] pb-28">
+      <Header title="Good morning" subtitle="Pasadena–Eagle Rock–Glendale" />
 
-      <div className="container py-6 space-y-6">
-        {/* Research Beta Banner */}
+      <div className="container py-5 space-y-6">
+        <section className="home-material-hero">
+          <div>
+            <span className="home-material-hero__label"><ShieldCheck size={15} /> Research Beta</span>
+            <h1>Find planned routes already moving your way.</h1>
+            <p>Compare corridor match previews using timing, detour impact, Anchor Points, and EV/hybrid priority.</p>
+          </div>
+          <md-filled-button onClick={onBrowseMatches}>
+            <Search slot="icon" size={17} />
+            Browse match previews
+          </md-filled-button>
+        </section>
+
         <ResearchBetaBanner />
 
-        {/* Main CTA Cards */}
-        <div className="space-y-3">
-          <h2 className="section-title">Get Started</h2>
+        <section>
+          <div className="material-section-heading">
+            <div>
+              <h2>What would you like to do?</h2>
+              <p>Submit a research signal or explore the corridor.</p>
+            </div>
+          </div>
+          <div className="home-action-grid">
 
-          {/* Share a Route Need */}
           <button
             onClick={onStartRouteSignal}
-            className="card text-left hover:shadow-md transition-shadow w-full group"
+            className="home-action-card home-action-card--primary"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-3">
-                <div className="w-10 h-10 bg-light-green rounded-lg flex items-center justify-center flex-shrink-0">
-                  <MapPin size={20} className="text-mobility-green" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-navy">Share a Route Need</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Tell us where you need to go, when, and what Relay Zones work for you.
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400 group-hover:text-navy transition-colors" />
-            </div>
-            <div className="mt-3">
-              <span className="text-xs font-semibold text-mobility-green">Start Route Signal →</span>
-            </div>
+            <span className="home-action-card__icon"><Route size={23} /></span>
+            <h3>Submit route request</h3>
+            <p>Share an area-level corridor need and suggested contribution.</p>
+            <span className="home-action-card__link">Start request <ArrowRight size={16} /></span>
           </button>
 
-          {/* Share an EV/Hybrid Route */}
           <button
             onClick={onShareEVRoute}
-            className="card text-left hover:shadow-md transition-shadow w-full group"
+            className="home-action-card"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-3">
-                <div className="w-10 h-10 bg-light-blue rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Zap size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-navy">Share an EV/Hybrid Route</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Already travel a corridor? Help validate low-detour EV/hybrid route supply.
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400 group-hover:text-navy transition-colors" />
-            </div>
-            <div className="mt-3">
-              <span className="text-xs font-semibold text-blue-600">Share Route Pattern →</span>
-            </div>
+            <span className="home-action-card__icon"><BatteryCharging size={23} /></span>
+            <h3>Post planned route</h3>
+            <p>Share an EV/hybrid route you already expect to drive.</p>
+            <span className="home-action-card__link">Post route <ArrowRight size={16} /></span>
           </button>
 
-          {/* Suggest a Relay Zone */}
           <button
             onClick={onSuggestRelayZone}
-            className="card text-left hover:shadow-md transition-shadow w-full group"
+            className="home-action-card home-action-card--wide"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex gap-3">
-                <div className="w-10 h-10 bg-soft-gray rounded-lg flex items-center justify-center flex-shrink-0">
-                  <MapPinPlus size={20} className="text-navy" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-navy">Suggest a Relay Zone</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Recommend public, visible, route-compatible Access Points.
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400 group-hover:text-navy transition-colors" />
+            <span className="home-action-card__icon"><MapPinned size={23} /></span>
+            <div>
+              <h3>Explore Anchor Points and EV hubs</h3>
+              <p>Open the verified corridor map and suggest a public location for review.</p>
             </div>
-            <div className="mt-3">
-              <span className="text-xs font-semibold text-gray-600">Suggest Location →</span>
-            </div>
+            <ArrowRight size={19} />
           </button>
-        </div>
+          </div>
+        </section>
 
         {/* My Research Signals */}
         {routeSignals.length > 0 && (
