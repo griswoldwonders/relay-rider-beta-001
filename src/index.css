@@ -86,6 +86,68 @@ h1, h2, h3, h4, h5, h6 {
   @apply text-xs text-gray-600 mt-2;
 }
 
+.corridor-map {
+  height: 390px;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgb(209 213 219);
+  border-radius: 1rem;
+  background: rgb(243 244 246);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+  z-index: 0;
+}
+
+.corridor-map .leaflet-control-zoom a {
+  color: #18243c;
+}
+
+.map-marker {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 30%);
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+  transition: transform 160ms ease;
+}
+
+.map-marker--anchor {
+  background: #20a66a;
+}
+
+.map-marker--ev-hub {
+  background: #2563eb;
+}
+
+.map-marker--selected {
+  outline: 3px solid rgb(24 36 60 / 32%);
+  transform: scale(1.18);
+}
+
+.map-popup {
+  display: flex;
+  min-width: 180px;
+  flex-direction: column;
+  gap: 4px;
+  color: #18243c;
+}
+
+.map-popup span {
+  color: #20a66a;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-popup small {
+  color: #4b5563;
+  line-height: 1.35;
+}
+
 /* Animations */
 @keyframes slideUp {
   from {
