@@ -6,6 +6,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { RoutesScreen } from './screens/RoutesScreen';
 import { MapScreen } from './screens/MapScreen';
 import { MarketplaceScreen } from './screens/MarketplaceScreen';
+import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { RouteNeedFlowScreen } from './flows/RouteNeedFlowScreen';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
@@ -23,10 +24,19 @@ type Screen =
   | 'route-need-flow'
   | 'ev-participant-flow'
   | 'privacy-center'
+  | 'security-center'
   | 'review-gates'
   | 'partner-console';
 
-const publicPreviewScreens: Screen[] = ['role-selection', 'home', 'marketplace', 'map', 'routes', 'profile'];
+const publicPreviewScreens: Screen[] = [
+  'role-selection',
+  'home',
+  'marketplace',
+  'map',
+  'routes',
+  'profile',
+  'security-center',
+];
 
 const getInitialScreen = (): Screen => {
   const requestedScreen = new URLSearchParams(window.location.search).get('screen') as Screen | null;
@@ -99,6 +109,7 @@ function AppContent() {
         <>
           <ProfileScreen
             onPrivacyCenter={() => setCurrentScreen('privacy-center')}
+            onSecurityCenter={() => setCurrentScreen('security-center')}
             onReviewGates={() => setCurrentScreen('review-gates')}
             onPartnerConsole={() => setCurrentScreen('partner-console')}
           />
@@ -116,6 +127,10 @@ function AppContent() {
 
       {currentScreen === 'privacy-center' && (
         <PrivacyCenterScreen onBack={() => setCurrentScreen('profile')} />
+      )}
+
+      {currentScreen === 'security-center' && (
+        <SecurityCenterScreen onBack={() => setCurrentScreen('profile')} />
       )}
 
       {currentScreen === 'review-gates' && (

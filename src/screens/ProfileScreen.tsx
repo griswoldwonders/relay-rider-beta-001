@@ -5,18 +5,21 @@ import { ChevronRight } from 'lucide-react';
 
 interface ProfileScreenProps {
   onPrivacyCenter: () => void;
+  onSecurityCenter: () => void;
   onReviewGates: () => void;
   onPartnerConsole: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onPrivacyCenter,
+  onSecurityCenter,
   onReviewGates,
   onPartnerConsole,
 }) => {
   const { userProfile, routeSignals, greenRouteCredits } = useApp();
 
   const menuItems = [
+    { label: 'Security & Privacy', onClick: onSecurityCenter },
     { label: 'Privacy Center', onClick: onPrivacyCenter },
     { label: 'Research Beta Terms', onClick: () => {} },
     { label: 'Report an Issue', onClick: () => {} },

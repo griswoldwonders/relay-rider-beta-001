@@ -224,7 +224,14 @@ Provides global state for:
 - `evParticipantSignals`: Submitted EV/hybrid routes
 - `greenRouteCredits`: Credit activity history
 
-All state persists to localStorage for data retention across sessions.
+Sensitive prototype state is held in memory for the current page session. Earlier
+`localStorage` records are removed at startup. A protected backend is not connected,
+so only mock or non-sensitive demonstration information should be entered.
+
+Security foundations are documented in `SECURITY.md` and
+`docs/SECURITY_ARCHITECTURE.md`. The Supabase migration is a backend blueprint and
+must not be treated as deployed until it is reviewed, applied, and tested in the
+intended project.
 
 ### Demo Data
 Sample corridors, Relay Zones, and route signals are included in `src/data/demoData.ts` for testing.
