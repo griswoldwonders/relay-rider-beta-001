@@ -9,6 +9,7 @@ import {
   ChevronUp,
   Clock3,
   ExternalLink,
+  Footprints,
   Gift,
   Info,
   MapPin,
@@ -17,11 +18,17 @@ import {
   TrainFront,
 } from 'lucide-react';
 import { Header } from '../components/Header';
+import { useApp } from '../context/AppContext';
 import {
   commuteOptions,
-  CommuteOption,
   CommuteOptionFilter,
 } from '../data/commuteOptionsData';
+import {
+  pccDemoProfile,
+  profileFromRouteSignal,
+  rankCommuteOptions,
+  RankedCommuteOption,
+} from '../lib/commuteRanking';
 
 const filters: { id: CommuteOptionFilter | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -37,7 +44,7 @@ function ScoreRing({ score }: { score: number }) {
     <div
       className="score-ring"
       style={{ '--match-score': `${score * 3.6}deg` } as React.CSSProperties}
-      aria-label={`${score}% demo compatibility score`}
+      aria-label={`${score}% personalized compatibility score`}
     >
       <span>{score}</span>
       <small>%</small>
@@ -52,7 +59,7 @@ function OptionCard({
   onExpand,
   onSave,
 }: {
-  option: CommuteOption;
+  option: RankedCommuteOption;
   expanded: boolean;
   saved: boolean;
   onExpand: () => void;
@@ -65,6 +72,7 @@ function OptionCard({
       <div className="market-match-card__top">
         <div>
           <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className="m3-badge m3-badge--green">#{option.rank} RECOMMENDED</span>
             <span className={`m3-badge ${isTransit ? '' : 'm3-badge--green'}`}>
               {isTransit ? 'LOCAL TRANSIT' : 'PLANNED ROUTE'}
             </span>
@@ -73,59 +81,81 @@ function OptionCard({
           <h2>{option.startArea} <ArrowRight size={16} /> {option.endArea}</h2>
           <p>{option.provider} · {option.title}</p>
         </div>
-        {option.fitScore ? <ScoreRing score={option.fitScore} /> : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-light-blue text-blue-700">
-            {option.title.includes('Line') ? <TrainFront size={24} /> : <BusFront size={24} />}
-          </div>
-        )}
+        <ScoreRing score={option.fitScore} />
       </div>
 
       <p className="mt-3 text-sm text-gray-600">{option.subtitle}</p>
 
+      <div className="mt-3 rounded-xl border border-blue-100 bg-light-blue p-3">
+        <p className="text-xs font-semibold text-blue-900">Why it ranked here</p>
+        <p className="mt-1 text-xs leading-relaxed text-blue-900">{option.reasons[0]}</p>
+      </div>
+
       <div className="market-route-line" aria-hidden="true"><span /><i /><span /></div>
 
       <div className="market-facts">
-        <div><Clock3 size={17} /><span><strong>{option.departureWindow}</strong>{option.days}</span></div>
-        <div><MapPin size={17} /><span><strong>Access Point</strong>{option.accessPoint}</span></div>
-        <div><Route size={17} /><span><strong>{isTransit ? 'Transit' : 'Shared corridor'}</strong>{isTransit ? 'Official external service' : 'Simulated planned-route preview'}</span></div>
-        <div>{isTransit ? <BusFront size={17} /> : <BatteryCharging size={17} />}<span><strong>{option.provider}</strong>{isTransit ? 'Local / regional option' : 'EV/hybrid-first program'}</span></div>
+        <div>
+          <Clock3 size={17} />
+          <span><strong>~{option.modeledDurationMinutes} min</strong>{option.scheduleFit} schedule fit</span>
+        </div>
+        <div>
+          <Footprints size={17} />
+          <span><strong>~{option.walkingMinutes} min walk</strong>modeled access time</span>
+        </div>
+        <div>
+          <Route size={17} />
+          <span><strong>{option.transferCount} transfer{option.transferCount === 1 ? '' : 's'}</strong>{option.departureWindow}</span>
+        </div>
+        <div>
+          <MapPin size={17} />
+          <span><strong>Access Point</strong>{option.accessPoint}</span>
+        </div>
       </div>
 
       <div className="market-contribution">
         <div>
           <span>{isTransit ? 'Student fare / program status' : 'College-program cost'}</span>
-          <strong className="text-base">{option.costLabel}</strong>
+          <strong className="text-base">{option.resolvedCostLabel}</strong>
         </div>
-        <p>{isTransit ? 'Verify current fare and eligibility with the operator' : 'No rider payment is requested in the college prototype'}</p>
+        <p>{isTransit ? 'Verify current fare, eligibility, and schedule with the operator' : 'No rider payment is requested in the college prototype'}</p>
       </div>
 
-      {option.benefitLabel && (
+      {option.resolvedBenefitLabel && (
         <div className="mt-3 flex items-start gap-2 rounded-xl border border-green-200 bg-light-green p-3">
           <Gift size={18} className="mt-0.5 flex-shrink-0 text-mobility-green" />
-          <p className="text-xs leading-relaxed text-gray-700">{option.benefitLabel}</p>
+          <p className="text-xs leading-relaxed text-gray-700">{option.resolvedBenefitLabel}</p>
         </div>
       )}
 
-      {option.factors && (
-        <>
-          <button type="button" className="score-disclosure" onClick={onExpand} aria-expanded={expanded}>
-            <span><Info size={16} /> Why this option?</span>
-            {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-          </button>
+      <button type="button" className="score-disclosure" onClick={onExpand} aria-expanded={expanded}>
+        <span><Info size={16} /> Why this option?</span>
+        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+      </button>
 
-          {expanded && (
-            <div className="score-breakdown animate-fade-in">
-              <p className="score-breakdown__label">Prototype compatibility model · administrative review only</p>
-              {option.factors.map(factor => (
-                <div key={factor.label} className="score-factor">
-                  <div><span>{factor.label}</span><strong>{factor.value}%</strong></div>
-                  <div className="score-factor__bar"><span style={{ width: `${factor.value}%` }} /></div>
-                  <small>{factor.detail}</small>
-                </div>
+      {expanded && (
+        <div className="score-breakdown animate-fade-in">
+          <p className="score-breakdown__label">Personalized prototype ranking · modeled, not live routing</p>
+
+          <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
+            <p className="text-xs font-bold text-navy">Recommendation explanation</p>
+            <ul className="mt-2 space-y-1.5">
+              {option.reasons.map(reason => (
+                <li key={reason} className="flex gap-2 text-xs leading-relaxed text-gray-600">
+                  <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0 text-mobility-green" />
+                  <span>{reason}</span>
+                </li>
               ))}
+            </ul>
+          </div>
+
+          {option.factors.map(factor => (
+            <div key={factor.label} className="score-factor">
+              <div><span>{factor.label}</span><strong>{factor.value}%</strong></div>
+              <div className="score-factor__bar"><span style={{ width: `${factor.value}%` }} /></div>
+              <small>{factor.detail}</small>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
 
       <div className="market-actions">
@@ -149,14 +179,28 @@ function OptionCard({
 }
 
 export function CommuteOptionsScreen() {
+  const { routeSignals } = useApp();
   const [activeFilter, setActiveFilter] = useState<CommuteOptionFilter | 'all'>('all');
-  const [expandedId, setExpandedId] = useState<string | null>(commuteOptions[0].id);
+  const [expandedId, setExpandedId] = useState<string | null>('relay-eagle-rock-pcc');
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
-  const options = useMemo(
-    () => activeFilter === 'all' ? commuteOptions : commuteOptions.filter(option => option.filters.includes(activeFilter)),
-    [activeFilter],
+  const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
+  const profile = useMemo(
+    () => latestSignal ? profileFromRouteSignal(latestSignal) : pccDemoProfile,
+    [latestSignal],
   );
+
+  const rankedOptions = useMemo(
+    () => rankCommuteOptions(profile, commuteOptions),
+    [profile],
+  );
+
+  const options = useMemo(() => {
+    if (activeFilter === 'all') return rankedOptions;
+    if (activeFilter === 'best-fit') return rankedOptions.filter(option => option.rank <= 4);
+    if (activeFilter === 'transit') return rankedOptions.filter(option => option.kind === 'transit');
+    return rankedOptions.filter(option => option.filters.includes(activeFilter));
+  }, [activeFilter, rankedOptions]);
 
   const toggleSaved = (id: string) => {
     setSavedIds(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
@@ -164,24 +208,43 @@ export function CommuteOptionsScreen() {
 
   return (
     <div className="min-h-screen bg-[var(--md-sys-color-surface)] pb-28">
-      <Header title="Commute options" subtitle="Compare planned routes with local transit." />
+      <Header title="Commute options" subtitle="Personalized planned-route and local transit ranking." />
 
       <main className="container py-5">
         <section className="market-hero">
-          <div className="market-hero__eyebrow"><TrainFront size={16} /> Shared route + transit</div>
-          <h1>Find the best way to campus.</h1>
-          <p>Compare Relay Rider planned-route previews with LA Metro, Pasadena Transit, Glendale Beeline, and other local connections.</p>
+          <div className="market-hero__eyebrow"><TrainFront size={16} /> Personalized commute bundle</div>
+          <h1>{profile.startingArea} → {profile.destinationArea}</h1>
+          <p>
+            Ranked for {profile.campusAffiliation || 'your institution'} using your origin, destination, travel window,
+            walking tolerance, transit preferences, student-pass status, and incentive interests.
+          </p>
           <div className="market-hero__meta">
-            <span><CheckCircle2 size={15} /> $0 Relay Rider college program</span>
-            <span><Gift size={15} /> Incentive eligible</span>
+            <span><Clock3 size={15} /> {profile.timeWindow || 'Time not set'}</span>
+            <span><Gift size={15} /> Incentive-aware ranking</span>
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-xl border border-blue-200 bg-light-blue p-4">
+          <div className="flex items-start gap-3">
+            <Info size={20} className="mt-0.5 flex-shrink-0 text-blue-800" />
+            <div>
+              <p className="text-sm font-bold text-blue-950">
+                {profile.source === 'submitted' ? 'Using your latest submitted commute signal' : 'PCC demonstration profile'}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-blue-900">
+                {profile.source === 'submitted'
+                  ? `${profile.daysOfWeek.join(', ') || 'Selected days'} · student pass: ${profile.studentTransitPass.replace('-', ' ')}`
+                  : 'Eagle Rock → Pasadena City College at 8:00 AM. Submit a commute need to replace this example with your own ranking.'}
+              </p>
+            </div>
           </div>
         </section>
 
         <section className="market-filter-section" aria-label="Commute option filters">
           <div className="market-section-heading">
             <div>
-              <h2>Available previews</h2>
-              <p>{options.length} options · Pasadena–Eagle Rock–Glendale</p>
+              <h2>Ranked commute bundle</h2>
+              <p>{options.length} shown · scores recalculate from the commute signal</p>
             </div>
           </div>
           <div className="m3-chip-row">
@@ -195,7 +258,9 @@ export function CommuteOptionsScreen() {
 
         <div className="market-notice">
           <ShieldCheck size={19} />
-          <p><strong>Research Beta.</strong> Relay Rider entries are simulated commuter options, not guaranteed transportation. Transit information links to external agencies and should be verified before travel. Student fareless programs depend on school and agency eligibility.</p>
+          <p>
+            <strong>Research Beta.</strong> Ranking, travel time, walking time, transfer count, and schedule fit are modeled demonstration values—not live trip planning or guaranteed transportation. Transit schedules, fares, and student eligibility must be verified with the relevant operator or school. Relay Rider planned-route previews require administrative review before any controlled program use.
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -215,8 +280,10 @@ export function CommuteOptionsScreen() {
           <div className="flex items-start gap-3">
             <Gift size={20} className="mt-0.5 flex-shrink-0 text-mobility-green" />
             <div>
-              <h2 className="font-bold text-navy">Green Route Credits</h2>
-              <p className="mt-1 text-xs leading-relaxed text-gray-700">Eligible research participation, sustainable commute challenges, Access Point feedback, and selected campus-sponsored activities may earn capped promotional credits. Credits are not cash, wages, fares, or guaranteed payments.</p>
+              <h2 className="font-bold text-navy">Incentives are part of the recommendation</h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-700">
+                The prototype boosts options that align with incentive interests selected in the commute intake, such as Green Route Credits, transit participation rewards, campus commute challenges, EV/clean-route recognition, and Access Point feedback. Benefits remain capped, promotional, program-dependent, and are not cash, fares, wages, or guaranteed payments.
+              </p>
             </div>
           </div>
         </div>
