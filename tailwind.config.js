@@ -7,12 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: '#0f2a3d',
-        'mobility-green': '#1f8a5b',
-        'light-green': '#e7f5ee',
-        'light-blue': '#eaf3f8',
-        'soft-gray': '#f5f7f8',
-        'warning-yellow': '#fff7d6',
+        navy: '#004449',
+        'mobility-green': '#004449',
+        'light-green': '#d7ffc2',
+        'light-blue': '#f0efff',
+        'soft-gray': '#f4f1df',
+        'warning-yellow': '#fff2b8',
+        parchment: '#fffef0',
+        iris: '#483cff',
+        lagoon: '#004449',
+        lime: '#0bff80',
+      },
+      boxShadow: {
+        paper: 'rgba(0, 0, 0, 0.04) 0px 2px 8px 0px',
       },
     },
   },
