@@ -6,6 +6,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { RoutesScreen } from './screens/RoutesScreen';
 import { MapScreen } from './screens/MapScreen';
 import { CommuteOptionsScreen } from './screens/CommuteOptionsScreen';
+import { CommuterMatchesScreen } from './screens/CommuterMatchesScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { RouteNeedFlowScreen } from './flows/RouteNeedFlowScreen';
@@ -17,6 +18,7 @@ type Screen =
   | 'role-selection'
   | 'home'
   | 'routes'
+  | 'matches'
   | 'options'
   | 'map'
   | 'profile'
@@ -29,6 +31,7 @@ type Screen =
 const publicPreviewScreens: Screen[] = [
   'role-selection',
   'home',
+  'matches',
   'options',
   'map',
   'routes',
@@ -54,9 +57,9 @@ function AppContent() {
   const handleTabChange = (tab: string) => {
     setCurrentTab(tab);
     if (tab === 'home') setCurrentScreen('home');
+    else if (tab === 'matches') setCurrentScreen('matches');
     else if (tab === 'options') setCurrentScreen('options');
     else if (tab === 'map') setCurrentScreen('map');
-    else if (tab === 'routes') setCurrentScreen('routes');
     else if (tab === 'profile') setCurrentScreen('profile');
   };
 
@@ -69,10 +72,21 @@ function AppContent() {
           <HomeScreen
             onStartRouteSignal={() => setCurrentScreen('route-need-flow')}
             onShareEVRoute={() => setCurrentScreen('ev-participant-flow')}
-            onSuggestRelayZone={() => setCurrentScreen('map')}
+            onSuggestRelayZone={() => {
+              setCurrentScreen('map');
+              setCurrentTab('map');
+            }}
+            onBrowseMatches={() => {
+              setCurrentScreen('matches');
+              setCurrentTab('matches');
+            }}
             onBrowseOptions={() => {
               setCurrentScreen('options');
               setCurrentTab('options');
+            }}
+            onBrowseActivity={() => {
+              setCurrentScreen('routes');
+              setCurrentTab('routes');
             }}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
@@ -82,6 +96,13 @@ function AppContent() {
       {currentScreen === 'routes' && (
         <>
           <RoutesScreen onViewSignal={() => {}} />
+          <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
+        </>
+      )}
+
+      {currentScreen === 'matches' && (
+        <>
+          <CommuterMatchesScreen />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
