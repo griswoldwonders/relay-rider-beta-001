@@ -163,6 +163,7 @@ export function sessionDemandZones(signals: RouteSignal[]): CommuterDemandZone[]
     const destination = resolveArea(signal.destinationArea);
     const accessPointWilling = signal.relayZoneType.length > 0 ? 1 : 0;
     const evPreference = signal.evPreference === 'any' ? 0 : 1;
+    const destinationLabel = destination?.label ?? (signal.destinationArea || 'Destination area not resolved');
 
     return [{
       id: `session-demand-${signal.id}`,
@@ -174,7 +175,7 @@ export function sessionDemandZones(signals: RouteSignal[]): CommuterDemandZone[]
       accessPointWillingCount: accessPointWilling,
       evHybridPreferenceCount: evPreference,
       parkingPressure: signal.modeled?.parkingPressure ?? 'medium',
-      topDestinations: [destination?.label ?? signal.destinationArea || 'Destination area not resolved'],
+      topDestinations: [destinationLabel],
       source: 'session' as const,
     }];
   });
