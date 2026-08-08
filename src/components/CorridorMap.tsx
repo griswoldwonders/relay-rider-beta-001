@@ -65,8 +65,8 @@ export function CorridorMap({ locations, selectedId, onSelect }: CorridorMapProp
     if (!map || !layer) return;
 
     layer.clearLayers();
-
     const bounds = L.latLngBounds([]);
+
     locations.forEach(location => {
       const marker = L.marker([location.lat, location.lng], {
         icon: markerIcon(location, location.id === selectedId),
@@ -82,7 +82,7 @@ export function CorridorMap({ locations, selectedId, onSelect }: CorridorMapProp
       popup.appendChild(title);
 
       const type = document.createElement('span');
-      type.textContent = location.kind === 'ev-hub' ? 'EV charging hub' : 'Candidate Anchor Point';
+      type.textContent = location.kind === 'ev-hub' ? 'EV charging hub' : location.type;
       popup.appendChild(type);
 
       const address = document.createElement('small');
@@ -97,9 +97,7 @@ export function CorridorMap({ locations, selectedId, onSelect }: CorridorMapProp
       if (location.id === selectedId) marker.openPopup();
     });
 
-    if (locations.length > 0) {
-      map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
-    }
+    if (locations.length > 0) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
   }, [locations, onSelect, selectedId]);
 
   return (
@@ -107,7 +105,7 @@ export function CorridorMap({ locations, selectedId, onSelect }: CorridorMapProp
       ref={mapElement}
       className="corridor-map"
       role="region"
-      aria-label="Interactive map of candidate Anchor Points and verified EV charging hubs"
+      aria-label="Interactive map of candidate Access Points, transit locations, and verified EV charging hubs"
     />
   );
 }
