@@ -96,7 +96,7 @@ function OptionCard({
           <span>{isTransit ? 'Student fare / program status' : 'College-program cost'}</span>
           <strong className="text-base">{option.costLabel}</strong>
         </div>
-        <p>No bid or contribution request</p>
+        <p>{isTransit ? 'Verify current fare and eligibility with the operator' : 'No rider payment is requested in the college prototype'}</p>
       </div>
 
       {option.benefitLabel && (
