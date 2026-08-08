@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BatteryCharging, Gift, MapPinned, Route, Search, ShieldCheck, TrainFront } from 'lucide-react';
+import { ArrowRight, BatteryCharging, BusFront, Clock3, Gift, MapPinned, Route, ShieldCheck, Sparkles, TrainFront } from 'lucide-react';
 import { Header } from '../components/Header';
 import { ResearchBetaBanner } from '../components/ResearchBetaBanner';
 import { RouteCard } from '../components/RouteCard';
@@ -21,87 +21,119 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { routeSignals, greenRouteCredits } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
+  const origin = latestSignal?.startingArea || 'Eagle Rock';
+  const destination = latestSignal?.destinationArea || 'Pasadena City College';
+  const timeWindow = latestSignal?.timeWindow || 'Arrive around 8:00 AM';
+  const school = latestSignal?.campusAffiliation || 'PCC demo profile';
 
   return (
-    <div className="min-h-screen bg-[var(--color-parchment)] pb-28">
-      <Header title="Your commute" subtitle="Pasadena · Eagle Rock · Glendale" />
+    <div className="min-h-screen bg-[var(--color-parchment)] pb-32">
+      <Header title="Your commute" subtitle="Plan, compare, and save campus options." />
 
-      <div className="container py-6 space-y-8">
-        <section className="home-material-hero">
-          <div>
-            <span className="home-material-hero__label"><ShieldCheck size={15} /> Research Beta</span>
-            <h1>Better ways to <span className="accent-word">campus.</span></h1>
-            <p>Compare planned shared routes with Metro and local transit using your school, schedule, walking tolerance, and commute preferences.</p>
+      <div className="container mobile-dashboard-shell">
+        <section className="commute-planner-card">
+          <div className="commute-planner-card__topline">
+            <span><Sparkles size={15} /> Plan my commute</span>
+            <span className="compact-status-pill"><ShieldCheck size={12} /> Research beta</span>
           </div>
-          <md-filled-button onClick={onBrowseOptions}>
-            <Search slot="icon" size={17} />
-            Explore commute options
-          </md-filled-button>
+          <h1>{origin} <span>→</span> {destination}</h1>
+          <p>Set your school, travel window, walking tolerance, transit preferences, and program interests. Relay Rider will rank a commute bundle around your inputs.</p>
+
+          <div className="commute-input-pills" aria-label="Current commute profile summary">
+            <span><TrainFront size={14} /> {school}</span>
+            <span><Clock3 size={14} /> {timeWindow}</span>
+            <span><BusFront size={14} /> Transit + planned routes</span>
+          </div>
+
+          <button type="button" className="commute-primary-action" onClick={onStartRouteSignal}>
+            <Sparkles size={18} />
+            <span>{latestSignal ? 'Update commute profile' : 'Set up my commute'}</span>
+          </button>
         </section>
 
         <ResearchBetaBanner />
 
-        <section className="card-highlight">
-          <div className="flex items-start gap-3">
-            <Gift size={22} className="mt-0.5 flex-shrink-0 text-navy" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-semibold text-navy tracking-wide">College commuter benefits</h2>
-                <span className="rounded-full border border-lagoon/20 bg-parchment px-3 py-1 text-xs font-semibold text-navy">{totalCredits} credits</span>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-gray-700">
-                Relay Rider planned-route participation is modeled at $0 for eligible college participants. Green Route Credits may recognize eligible research participation, sustainable commute challenges, and Access Point feedback. Credits are promotional and not cash or guaranteed payments.
-              </p>
+        <section>
+          <div className="mobile-section-heading">
+            <div>
+              <span className="mobile-section-kicker">Today</span>
+              <h2>Your commute snapshot</h2>
+            </div>
+            <button type="button" className="text-link-button" onClick={onBrowseOptions}>See options <ArrowRight size={14} /></button>
+          </div>
+
+          <div className="commute-metric-grid">
+            <button type="button" className="commute-metric-card commute-metric-card--violet" onClick={onBrowseOptions}>
+              <span className="commute-metric-card__icon"><TrainFront size={18} /></span>
+              <strong>{latestSignal ? 'Ranked' : '4'}</strong>
+              <small>commute options</small>
+            </button>
+            <button type="button" className="commute-metric-card commute-metric-card--yellow" onClick={onBrowseOptions}>
+              <span className="commute-metric-card__icon"><BusFront size={18} /></span>
+              <strong>$0*</strong>
+              <small>college-program route</small>
+            </button>
+            <button type="button" className="commute-metric-card commute-metric-card--mint" onClick={onSuggestRelayZone}>
+              <span className="commute-metric-card__icon"><MapPinned size={18} /></span>
+              <strong>Access</strong>
+              <small>points + transit hubs</small>
+            </button>
+            <div className="commute-metric-card commute-metric-card--peach">
+              <span className="commute-metric-card__icon"><Gift size={18} /></span>
+              <strong>{totalCredits}</strong>
+              <small>Green Route Credits</small>
             </div>
           </div>
+          <p className="micro-disclaimer">*Relay Rider participation is modeled at $0 for eligible college participants. Transit fares and pass eligibility remain operator- and school-controlled.</p>
+        </section>
+
+        <section className="benefit-dashboard-card">
+          <div className="benefit-dashboard-card__header">
+            <div>
+              <span className="mobile-section-kicker">Benefits</span>
+              <h2>College commute program</h2>
+            </div>
+            <span className="benefit-credit-pill"><Gift size={14} /> {totalCredits} credits</span>
+          </div>
+          <div className="benefit-progress-row">
+            <div><strong>Transit participation</strong><span>Preference-aware</span></div>
+            <div><strong>Clean-route activity</strong><span>Program dependent</span></div>
+            <div><strong>Access Point feedback</strong><span>Eligible research signal</span></div>
+          </div>
+          <p>Green Route Credits are capped promotional participation benefits. They are not cash, fares, wages, or guaranteed payments.</p>
         </section>
 
         <section>
-          <div className="material-section-heading">
+          <div className="mobile-section-heading">
             <div>
-              <h2>Build your commute</h2>
-              <p>Start with your need, then compare compatible options.</p>
+              <span className="mobile-section-kicker">Shortcuts</span>
+              <h2>What do you want to do?</h2>
             </div>
           </div>
 
-          <div className="home-action-grid">
-            <button onClick={onStartRouteSignal} className="home-action-card home-action-card--primary">
-              <span className="home-action-card__icon"><Route size={22} /></span>
-              <h3>Share commute need</h3>
-              <p>Tell us your school, origin, destination, travel window, transit preferences, and incentive interests.</p>
-              <span className="home-action-card__link">Start profile <ArrowRight size={16} /></span>
+          <div className="compact-action-grid">
+            <button type="button" onClick={onBrowseOptions} className="compact-action-card compact-action-card--lavender">
+              <span><TrainFront size={20} /></span>
+              <strong>Compare options</strong>
+              <small>Rank Metro, local transit, and Relay Rider previews.</small>
             </button>
-
-            <button onClick={onShareEVRoute} className="home-action-card">
-              <span className="home-action-card__icon"><BatteryCharging size={22} /></span>
-              <h3>Register planned route</h3>
-              <p>Share an EV/hybrid route you already intend to travel and your acceptable detour range.</p>
-              <span className="home-action-card__link">Register route <ArrowRight size={16} /></span>
+            <button type="button" onClick={onShareEVRoute} className="compact-action-card compact-action-card--mint">
+              <span><BatteryCharging size={20} /></span>
+              <strong>Planned EV route</strong>
+              <small>Register a route you already intend to drive.</small>
             </button>
-
-            <button onClick={onBrowseOptions} className="home-action-card home-action-card--wide">
-              <span className="home-action-card__icon"><TrainFront size={22} /></span>
-              <div className="min-w-0 flex-1">
-                <h3>Compare commute options</h3>
-                <p>See ranked Metro, local transit, and Relay Rider planned-route previews side by side.</p>
-              </div>
-              <ArrowRight size={19} />
-            </button>
-
-            <button onClick={onSuggestRelayZone} className="home-action-card home-action-card--wide">
-              <span className="home-action-card__icon"><MapPinned size={22} /></span>
-              <div className="min-w-0 flex-1">
-                <h3>Explore Access Points</h3>
-                <p>Review public transit hubs, candidate coordination points, and EV charging locations.</p>
-              </div>
-              <ArrowRight size={19} />
+            <button type="button" onClick={onSuggestRelayZone} className="compact-action-card compact-action-card--peach compact-action-card--wide">
+              <span><MapPinned size={20} /></span>
+              <div><strong>Explore the corridor map</strong><small>Transit hubs, candidate Access Points, and EV charging locations.</small></div>
+              <ArrowRight size={18} />
             </button>
           </div>
         </section>
 
         {routeSignals.length > 0 && (
           <section>
-            <h2 className="section-title">My commute signals</h2>
+            <div className="mobile-section-heading"><div><span className="mobile-section-kicker">Activity</span><h2>My commute signals</h2></div></div>
             <div className="space-y-4">
               {routeSignals.map(signal => (
                 <RouteCard
@@ -120,9 +152,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {routeSignals.length === 0 && (
           <section>
-            <h2 className="section-title">Example commute signals</h2>
+            <div className="mobile-section-heading"><div><span className="mobile-section-kicker">Preview</span><h2>Example commute signals</h2></div></div>
             <div className="space-y-4">
-              {sampleRouteSignals.map((signal, idx) => (
+              {sampleRouteSignals.slice(0, 2).map((signal, idx) => (
                 <RouteCard
                   key={idx}
                   corridor={signal.corridor}
