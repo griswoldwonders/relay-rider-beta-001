@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BatteryCharging, BusFront, Clock3, Gift, MapPinned, Route, ShieldCheck, Sparkles, TrainFront } from 'lucide-react';
+import { ArrowRight, BatteryCharging, BusFront, Clock3, Gift, ListChecks, MapPinned, ShieldCheck, Sparkles, TrainFront, UsersRound } from 'lucide-react';
 import { Header } from '../components/Header';
 import { ResearchBetaBanner } from '../components/ResearchBetaBanner';
 import { RouteCard } from '../components/RouteCard';
@@ -11,6 +11,8 @@ interface HomeScreenProps {
   onShareEVRoute: () => void;
   onSuggestRelayZone: () => void;
   onBrowseOptions: () => void;
+  onBrowseMatches: () => void;
+  onBrowseActivity: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -18,6 +20,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onShareEVRoute,
   onSuggestRelayZone,
   onBrowseOptions,
+  onBrowseMatches,
+  onBrowseActivity,
 }) => {
   const { routeSignals, greenRouteCredits } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
@@ -29,7 +33,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-[var(--color-parchment)] pb-32">
-      <Header title="Your commute" subtitle="Plan, compare, and save campus options." />
+      <Header title="Your commute" subtitle="Plan, compare, and browse compatible campus options." />
 
       <div className="container mobile-dashboard-shell">
         <section className="commute-planner-card">
@@ -38,7 +42,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <span className="compact-status-pill"><ShieldCheck size={12} /> Research beta</span>
           </div>
           <h1>{origin} <span>→</span> {destination}</h1>
-          <p>Set your school, travel window, walking tolerance, transit preferences, and program interests. Relay Rider will rank a commute bundle around your inputs.</p>
+          <p>Set your school, travel window, walking tolerance, transit preferences, and program interests. Relay Rider will rank a commute bundle and compatible planned-route previews around your inputs.</p>
 
           <div className="commute-input-pills" aria-label="Current commute profile summary">
             <span><TrainFront size={14} /> {school}</span>
@@ -60,19 +64,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <span className="mobile-section-kicker">Today</span>
               <h2>Your commute snapshot</h2>
             </div>
-            <button type="button" className="text-link-button" onClick={onBrowseOptions}>See options <ArrowRight size={14} /></button>
+            <button type="button" className="text-link-button" onClick={onBrowseMatches}>See matches <ArrowRight size={14} /></button>
           </div>
 
           <div className="commute-metric-grid">
-            <button type="button" className="commute-metric-card commute-metric-card--violet" onClick={onBrowseOptions}>
-              <span className="commute-metric-card__icon"><TrainFront size={18} /></span>
-              <strong>{latestSignal ? 'Ranked' : '4'}</strong>
-              <small>commute options</small>
+            <button type="button" className="commute-metric-card commute-metric-card--violet" onClick={onBrowseMatches}>
+              <span className="commute-metric-card__icon"><UsersRound size={18} /></span>
+              <strong>4</strong>
+              <small>commuter match previews</small>
             </button>
             <button type="button" className="commute-metric-card commute-metric-card--yellow" onClick={onBrowseOptions}>
-              <span className="commute-metric-card__icon"><BusFront size={18} /></span>
-              <strong>$0*</strong>
-              <small>college-program route</small>
+              <span className="commute-metric-card__icon"><TrainFront size={18} /></span>
+              <strong>Ranked</strong>
+              <small>multimodal options</small>
             </button>
             <button type="button" className="commute-metric-card commute-metric-card--mint" onClick={onSuggestRelayZone}>
               <span className="commute-metric-card__icon"><MapPinned size={18} /></span>
@@ -85,7 +89,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <small>Green Route Credits</small>
             </div>
           </div>
-          <p className="micro-disclaimer">*Relay Rider participation is modeled at $0 for eligible college participants. Transit fares and pass eligibility remain operator- and school-controlled.</p>
+          <p className="micro-disclaimer">Commuter matches are modeled previews only. Swiping or saving does not accept, activate, or guarantee transportation.</p>
         </section>
 
         <section className="benefit-dashboard-card">
@@ -113,15 +117,25 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
 
           <div className="compact-action-grid">
-            <button type="button" onClick={onBrowseOptions} className="compact-action-card compact-action-card--lavender">
+            <button type="button" onClick={onBrowseMatches} className="compact-action-card compact-action-card--lavender">
+              <span><UsersRound size={20} /></span>
+              <strong>Browse matches</strong>
+              <small>Swipe through compatible planned-route previews.</small>
+            </button>
+            <button type="button" onClick={onBrowseOptions} className="compact-action-card compact-action-card--mint">
               <span><TrainFront size={20} /></span>
               <strong>Compare options</strong>
               <small>Rank Metro, local transit, and Relay Rider previews.</small>
             </button>
-            <button type="button" onClick={onShareEVRoute} className="compact-action-card compact-action-card--mint">
+            <button type="button" onClick={onShareEVRoute} className="compact-action-card compact-action-card--peach">
               <span><BatteryCharging size={20} /></span>
               <strong>Planned EV route</strong>
               <small>Register a route you already intend to drive.</small>
+            </button>
+            <button type="button" onClick={onBrowseActivity} className="compact-action-card compact-action-card--lavender">
+              <span><ListChecks size={20} /></span>
+              <strong>Activity</strong>
+              <small>Review commute signals and planned routes.</small>
             </button>
             <button type="button" onClick={onSuggestRelayZone} className="compact-action-card compact-action-card--peach compact-action-card--wide">
               <span><MapPinned size={20} /></span>

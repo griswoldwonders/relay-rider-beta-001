@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Map, Route, Sparkles, User } from 'lucide-react';
+import { Home, Map, Sparkles, User, UsersRound } from 'lucide-react';
 
 interface BottomNavProps {
   currentTab: string;
@@ -9,9 +9,9 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange }) => {
   const tabs = [
     { id: 'home', label: 'Home', icon: Home },
-    { id: 'map', label: 'Map', icon: Map },
+    { id: 'matches', label: 'Matches', icon: UsersRound },
     { id: 'options', label: 'Plan', icon: Sparkles, primary: true },
-    { id: 'routes', label: 'Activity', icon: Route },
+    { id: 'map', label: 'Map', icon: Map },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
