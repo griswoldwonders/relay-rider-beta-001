@@ -5,6 +5,7 @@ import './material'
 import './index.css'
 import './mobile-reference.css'
 import './commuter-matches.css'
+import './onboarding-deck.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

@@ -9,7 +9,7 @@ import { CommuteOptionsScreen } from './screens/CommuteOptionsScreen';
 import { CommuterMatchesScreen } from './screens/CommuterMatchesScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { RouteNeedFlowScreen } from './flows/RouteNeedFlowScreen';
+import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
 import { ReviewGatesScreen } from './screens/ReviewGatesScreen';
@@ -49,9 +49,12 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState<Screen>(initialScreen);
   const [currentTab, setCurrentTab] = useState<string>(initialScreen === 'role-selection' ? 'home' : initialScreen);
 
-  const handleRoleSelect = () => {
-    setCurrentScreen('home');
-    setCurrentTab('home');
+  const handleRoleSelect = (role: string) => {
+    if (role === 'ev-participant') {
+      setCurrentScreen('ev-participant-flow');
+      return;
+    }
+    setCurrentScreen('route-need-flow');
   };
 
   const handleTabChange = (tab: string) => {
@@ -132,7 +135,18 @@ function AppContent() {
         </>
       )}
 
-      {currentScreen === 'route-need-flow' && <RouteNeedFlowScreen onComplete={() => setCurrentScreen('home')} />}
+      {currentScreen === 'route-need-flow' && (
+        <CommuterOnboardingFlow
+          onCancel={() => {
+            setCurrentScreen('home');
+            setCurrentTab('home');
+          }}
+          onComplete={() => {
+            setCurrentScreen('options');
+            setCurrentTab('options');
+          }}
+        />
+      )}
       {currentScreen === 'ev-participant-flow' && <EVParticipantFlowScreen onComplete={() => setCurrentScreen('home')} />}
       {currentScreen === 'privacy-center' && <PrivacyCenterScreen onBack={() => setCurrentScreen('profile')} />}
       {currentScreen === 'security-center' && <SecurityCenterScreen onBack={() => setCurrentScreen('profile')} />}
