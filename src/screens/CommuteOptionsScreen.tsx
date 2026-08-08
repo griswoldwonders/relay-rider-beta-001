@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ArrowRight,
-  BatteryCharging,
   Bookmark,
-  BusFront,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -68,15 +66,12 @@ function OptionCard({
   const isTransit = option.kind === 'transit';
 
   return (
-    <article className="market-match-card">
+    <article className={`market-match-card ${option.rank === 1 ? 'market-match-card--top' : ''}`}>
       <div className="market-match-card__top">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="m3-badge m3-badge--green">#{option.rank} RECOMMENDED</span>
-            <span className={`m3-badge ${isTransit ? '' : 'm3-badge--green'}`}>
-              {isTransit ? 'LOCAL TRANSIT' : 'PLANNED ROUTE'}
-            </span>
-            <span className="m3-badge">{option.status}</span>
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="m3-badge m3-badge--green">#{option.rank} recommended</span>
+            <span className="m3-badge">{isTransit ? 'Local transit' : 'Planned route'}</span>
           </div>
           <h2>{option.startArea} <ArrowRight size={16} /> {option.endArea}</h2>
           <p>{option.provider} · {option.title}</p>
@@ -84,11 +79,11 @@ function OptionCard({
         <ScoreRing score={option.fitScore} />
       </div>
 
-      <p className="mt-3 text-sm text-gray-600">{option.subtitle}</p>
+      <p className="mt-4 text-sm leading-relaxed text-gray-600">{option.subtitle}</p>
 
-      <div className="mt-3 rounded-xl border border-blue-100 bg-light-blue p-3">
-        <p className="text-xs font-semibold text-blue-900">Why it ranked here</p>
-        <p className="mt-1 text-xs leading-relaxed text-blue-900">{option.reasons[0]}</p>
+      <div className="trip-profile-band">
+        <p className="!mt-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-iris">Why it ranked here</p>
+        <p>{option.reasons[0]}</p>
       </div>
 
       <div className="market-route-line" aria-hidden="true"><span /><i /><span /></div>
@@ -115,14 +110,14 @@ function OptionCard({
       <div className="market-contribution">
         <div>
           <span>{isTransit ? 'Student fare / program status' : 'College-program cost'}</span>
-          <strong className="text-base">{option.resolvedCostLabel}</strong>
+          <strong>{option.resolvedCostLabel}</strong>
         </div>
-        <p>{isTransit ? 'Verify current fare, eligibility, and schedule with the operator' : 'No rider payment is requested in the college prototype'}</p>
+        <p>{isTransit ? 'Verify fare, eligibility, and schedule with the operator' : 'No rider payment requested in this prototype'}</p>
       </div>
 
       {option.resolvedBenefitLabel && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-green-200 bg-light-green p-3">
-          <Gift size={18} className="mt-0.5 flex-shrink-0 text-mobility-green" />
+        <div className="mt-4 flex items-start gap-2 rounded-3xl border border-green-200 bg-light-green p-4">
+          <Gift size={18} className="mt-0.5 flex-shrink-0 text-navy" />
           <p className="text-xs leading-relaxed text-gray-700">{option.resolvedBenefitLabel}</p>
         </div>
       )}
@@ -136,12 +131,12 @@ function OptionCard({
         <div className="score-breakdown animate-fade-in">
           <p className="score-breakdown__label">Personalized prototype ranking · modeled, not live routing</p>
 
-          <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
-            <p className="text-xs font-bold text-navy">Recommendation explanation</p>
-            <ul className="mt-2 space-y-1.5">
+          <div className="mb-4 rounded-3xl border border-gray-200 bg-white p-4">
+            <p className="text-xs font-semibold text-navy">Recommendation explanation</p>
+            <ul className="mt-3 space-y-2">
               {option.reasons.map(reason => (
                 <li key={reason} className="flex gap-2 text-xs leading-relaxed text-gray-600">
-                  <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0 text-mobility-green" />
+                  <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0 text-navy" />
                   <span>{reason}</span>
                 </li>
               ))}
@@ -164,7 +159,7 @@ function OptionCard({
           {saved ? 'Saved option' : 'Save option'}
         </md-outlined-button>
         {option.sourceUrl ? (
-          <a href={option.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700">
+          <a href={option.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1 text-xs font-semibold text-iris">
             Verify with {option.sourceLabel} <ExternalLink size={13} />
           </a>
         ) : (
@@ -207,31 +202,29 @@ export function CommuteOptionsScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--md-sys-color-surface)] pb-28">
-      <Header title="Commute options" subtitle="Personalized planned-route and local transit ranking." />
+    <div className="min-h-screen bg-[var(--color-parchment)] pb-28">
+      <Header title="Commute options" subtitle="A ranked bundle built around your commute." />
 
-      <main className="container py-5">
+      <main className="container py-6">
         <section className="market-hero">
           <div className="market-hero__eyebrow"><TrainFront size={16} /> Personalized commute bundle</div>
-          <h1>{profile.startingArea} → {profile.destinationArea}</h1>
+          <h1>{profile.startingArea} → <span className="accent-word">{profile.destinationArea}</span></h1>
           <p>
             Ranked for {profile.campusAffiliation || 'your institution'} using your origin, destination, travel window,
             walking tolerance, transit preferences, student-pass status, and incentive interests.
           </p>
           <div className="market-hero__meta">
             <span><Clock3 size={15} /> {profile.timeWindow || 'Time not set'}</span>
-            <span><Gift size={15} /> Incentive-aware ranking</span>
+            <span><Gift size={15} /> Incentive-aware</span>
           </div>
         </section>
 
-        <section className="mt-4 rounded-xl border border-blue-200 bg-light-blue p-4">
+        <section className="trip-profile-band">
           <div className="flex items-start gap-3">
-            <Info size={20} className="mt-0.5 flex-shrink-0 text-blue-800" />
+            <Info size={19} className="mt-0.5 flex-shrink-0 text-iris" />
             <div>
-              <p className="text-sm font-bold text-blue-950">
-                {profile.source === 'submitted' ? 'Using your latest submitted commute signal' : 'PCC demonstration profile'}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-blue-900">
+              <strong>{profile.source === 'submitted' ? 'Using your latest commute signal' : 'PCC demonstration profile'}</strong>
+              <p>
                 {profile.source === 'submitted'
                   ? `${profile.daysOfWeek.join(', ') || 'Selected days'} · student pass: ${profile.studentTransitPass.replace('-', ' ')}`
                   : 'Eagle Rock → Pasadena City College at 8:00 AM. Submit a commute need to replace this example with your own ranking.'}
@@ -263,7 +256,7 @@ export function CommuteOptionsScreen() {
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {options.map(option => (
             <OptionCard
               key={option.id}
@@ -276,13 +269,13 @@ export function CommuteOptionsScreen() {
           ))}
         </div>
 
-        <div className="mt-5 rounded-xl border border-green-200 bg-light-green p-4">
+        <div className="mt-6 card-highlight">
           <div className="flex items-start gap-3">
-            <Gift size={20} className="mt-0.5 flex-shrink-0 text-mobility-green" />
+            <Gift size={20} className="mt-0.5 flex-shrink-0 text-navy" />
             <div>
-              <h2 className="font-bold text-navy">Incentives are part of the recommendation</h2>
-              <p className="mt-1 text-xs leading-relaxed text-gray-700">
-                The prototype boosts options that align with incentive interests selected in the commute intake, such as Green Route Credits, transit participation rewards, campus commute challenges, EV/clean-route recognition, and Access Point feedback. Benefits remain capped, promotional, program-dependent, and are not cash, fares, wages, or guaranteed payments.
+              <h2 className="font-semibold text-navy">Incentives are part of the recommendation</h2>
+              <p className="mt-2 text-xs leading-relaxed text-gray-700">
+                The prototype boosts options that align with incentive interests selected in commute intake, such as Green Route Credits, transit participation rewards, campus commute challenges, EV/clean-route recognition, and Access Point feedback. Benefits remain capped, promotional, program-dependent, and are not cash, fares, wages, or guaranteed payments.
               </p>
             </div>
           </div>
