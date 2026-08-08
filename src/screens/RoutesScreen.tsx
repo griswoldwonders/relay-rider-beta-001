@@ -12,17 +12,16 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
   const [activeTab, setActiveTab] = useState<'needs' | 'ev' | 'saved' | 'drafts'>('needs');
 
   const tabs = [
-    { id: 'needs', label: 'My Route Needs' },
-    { id: 'ev', label: 'EV/Hybrid Routes' },
-    { id: 'saved', label: 'Saved Corridors' },
+    { id: 'needs', label: 'My Commute Needs' },
+    { id: 'ev', label: 'Planned EV/Hybrid Routes' },
+    { id: 'saved', label: 'Saved Options' },
     { id: 'drafts', label: 'Drafts' },
   ];
 
   return (
     <div className="min-h-screen bg-white pb-24">
-      <Header title="Routes" subtitle="Your submitted signals and saved corridors" />
+      <Header title="Activity" subtitle="Your commute signals, planned routes, and saved options" />
 
-      {/* Tab Navigation */}
       <div className="sticky top-16 bg-white border-b border-gray-200 px-4 py-3 z-10">
         <div className="max-w-md mx-auto flex gap-2 overflow-x-auto">
           {tabs.map(tab => (
@@ -30,9 +29,7 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-mobility-green text-white'
-                  : 'bg-soft-gray text-gray-700 hover:bg-gray-300'
+                activeTab === tab.id ? 'bg-mobility-green text-white' : 'bg-soft-gray text-gray-700 hover:bg-gray-300'
               }`}
             >
               {tab.label}
@@ -42,15 +39,12 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
       </div>
 
       <div className="container py-6">
-        {/* My Route Needs */}
         {activeTab === 'needs' && (
           <div className="space-y-3">
             {routeSignals.length === 0 ? (
               <div className="card text-center py-8">
-                <p className="text-gray-600 mb-4">No route needs submitted yet</p>
-                <p className="text-xs text-gray-500">
-                  Share your first route need to get started with research signals.
-                </p>
+                <p className="text-gray-600 mb-4">No commute needs submitted yet</p>
+                <p className="text-xs text-gray-500">Share a commute need to compare planned-route and local transit options.</p>
               </div>
             ) : (
               routeSignals.map(signal => (
@@ -69,15 +63,12 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
           </div>
         )}
 
-        {/* EV/Hybrid Routes */}
         {activeTab === 'ev' && (
           <div className="space-y-3">
             {evParticipantSignals.length === 0 ? (
               <div className="card text-center py-8">
-                <p className="text-gray-600 mb-4">No EV/hybrid routes shared yet</p>
-                <p className="text-xs text-gray-500">
-                  Share your route pattern to help validate EV/hybrid corridor supply.
-                </p>
+                <p className="text-gray-600 mb-4">No planned EV/hybrid routes registered yet</p>
+                <p className="text-xs text-gray-500">Register an existing route to help validate low-detour corridor supply.</p>
               </div>
             ) : (
               evParticipantSignals.map(signal => (
@@ -89,18 +80,9 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Vehicle</span>
-                      <span className="text-xs font-medium text-navy">{signal.vehicleType.toUpperCase()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Max Detour</span>
-                      <span className="text-xs font-medium text-navy">{signal.maxDetour}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-600">Status</span>
-                      <span className="text-xs font-medium text-mobility-green">{signal.status.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
-                    </div>
+                    <div className="flex justify-between items-center"><span className="text-xs text-gray-600">Vehicle</span><span className="text-xs font-medium text-navy">{signal.vehicleType.toUpperCase()}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-xs text-gray-600">Max Detour</span><span className="text-xs font-medium text-navy">{signal.maxDetour}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-xs text-gray-600">Status</span><span className="text-xs font-medium text-mobility-green">{signal.status.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span></div>
                   </div>
                 </div>
               ))
@@ -108,19 +90,8 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
           </div>
         )}
 
-        {/* Saved Corridors */}
-        {activeTab === 'saved' && (
-          <div className="card text-center py-8">
-            <p className="text-gray-600">No saved corridors yet</p>
-          </div>
-        )}
-
-        {/* Drafts */}
-        {activeTab === 'drafts' && (
-          <div className="card text-center py-8">
-            <p className="text-gray-600">No draft signals yet</p>
-          </div>
-        )}
+        {activeTab === 'saved' && <div className="card text-center py-8"><p className="text-gray-600">No saved commute options yet</p></div>}
+        {activeTab === 'drafts' && <div className="card text-center py-8"><p className="text-gray-600">No draft signals yet</p></div>}
       </div>
     </div>
   );

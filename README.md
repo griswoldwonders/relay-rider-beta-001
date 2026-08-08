@@ -1,331 +1,122 @@
-# Relay Rider - EV/Hybrid Commuter Route Coordination Platform
-## Research Beta Prototype
+# Relay Rider — College Commuter Coordination Prototype
 
-A mobile-first React application for collecting commuter route-interest signals and EV/hybrid route patterns to validate corridor demand for future sustainable transportation pilots.
+Relay Rider is a mobile-first research-beta prototype for comparing **planned shared-route options, local transit, Access Points, EV/hybrid participation, and commuter incentives** for institution-sponsored mobility programs.
 
----
+Relay Rider is **not** a taxi, ride-hailing, live dispatch, instant-pickup, or guaranteed transportation service.
 
-## Project Overview
+## Current prototype direction
 
-**Relay Rider** is a **closed-pilot research-beta platform** (not a rideshare or ride-hailing service) that:
+The participant experience is intentionally simple:
 
-- Collects **route-interest signals** from commuters seeking sustainable corridor options
-- Gathers **EV/hybrid route patterns** from existing vehicle operators
-- Identifies **Relay Zone candidates** (public, visible Access Points)
-- Calculates **corridor fit scores** based on overlap, time compatibility, and detour tolerance
-- Provides **Green Route Credits** (promotional beta rewards, not fares or driver earnings)
-- Maintains strict **research-beta framing** throughout the experience
+- **I need a commute option** — submit a commute need, campus affiliation, schedule, transit preferences, Access Point preferences, and incentive interests.
+- **I already drive an EV/hybrid route** — register a route the participant already plans to travel, including schedule and detour comfort.
 
----
+The earlier organization and browsing roles have been removed from the participant onboarding flow.
 
-## Key Features
+## College commuter model
 
-### 1. **Multi-Role User Experience**
-- **Route Need Users**: Submit commute requirements and preferences
-- **EV/Hybrid Participants**: Share existing route patterns and vehicle info
-- **Organization Partners**: Access corridor insights and research packages
-- **Explorers**: Browse without submitting personal information
+Relay Rider planned-route participation is shown as **$0 for eligible college participants** in this prototype. There is no rider bid, proposed fare, or payment marketplace in the participant experience.
 
-### 2. **Route Signal Flows**
-- **Route Need Flow** (6 steps): Corridor, timing, Relay Zone preference, route-bid signal, EV preference, privacy settings
-- **EV Participant Flow** (5 steps): Vehicle info, route pattern, detour tolerance, Relay Zone types, review willingness
+Third-party transit fares are separate from Relay Rider. Student fareless access depends on the school and transit agency. The prototype surfaces eligibility-oriented language for programs such as GoPass but directs users to verify eligibility with the school or agency.
 
-### 3. **Relay Zone Management**
-- Browse candidate Access Points by corridor and type
-- View review status (candidate, needs partner, needs safety, needs property, needs legal)
-- Track suggestion counts and required reviews
-- Filter by corridor and zone type
+## Commute options
 
-### 4. **Green Wallet System**
-- Track promotional beta credits (not fares, wages, or carbon offsets)
-- View pending, approved, redeemed, and expired credits
-- Display credit rules and restrictions
-- Manual approval workflow
+The **Commute Options** screen compares two categories:
 
-### 5. **Research-Beta Framing**
-- Consistent disclaimers on all forms
-- Clear messaging that this is NOT live transportation
-- No payment processing, live dispatch, or driver activation
-- Emphasis on data collection for pilot planning
+### Relay Rider planned-route previews
 
-### 6. **Partner Console**
-- Corridor demand snapshots
-- Route signal analysis
-- Relay Zone suggestions overview
-- Parking pressure indicators
-- EV/hybrid participation metrics
-- Research package offerings
+- Existing planned routes only
+- EV/hybrid-first participation
+- Compatibility score and match explanation
+- Modeled detour impact
+- Public Access Point fit
+- Administrative review status
+- $0 college-program cost for eligible participants
+- No live route activation in the research beta
 
----
+### Local transit
 
-## Project Structure
+The prototype includes examples and official verification links for:
 
-```
-relay_rider_user_app/
-├── src/
-│   ├── App.tsx                          # Main app router and state management
-│   ├── main.tsx                         # React entry point
-│   ├── index.css                        # Global styles and design tokens
-│   ├── types.ts                         # TypeScript interfaces
-│   │
-│   ├── components/                      # Reusable UI components
-│   │   ├── BottomNav.tsx               # Mobile bottom navigation
-│   │   ├── Header.tsx                  # Page header with back button
-│   │   ├── ResearchBetaBanner.tsx      # Research beta disclaimer
-│   │   ├── StatusBadge.tsx             # Status indicator badge
-│   │   └── RouteCard.tsx               # Route signal card
-│   │
-│   ├── screens/                         # Full-page screens
-│   │   ├── RoleSelectionScreen.tsx     # Initial role selection
-│   │   ├── HomeScreen.tsx              # Main dashboard
-│   │   ├── RoutesScreen.tsx            # View submitted signals
-│   │   ├── MapScreen.tsx               # Relay Zone browser
-│   │   ├── WalletScreen.tsx            # Green Route Credits
-│   │   ├── ProfileScreen.tsx           # User account & preferences
-│   │   ├── PrivacyCenterScreen.tsx     # Privacy controls
-│   │   ├── ReviewGatesScreen.tsx       # Pilot readiness checklist
-│   │   └── PartnerConsoleScreen.tsx    # Organization dashboard
-│   │
-│   ├── flows/                           # Multi-step form flows
-│   │   ├── RouteNeedFlowScreen.tsx     # 6-step route interest form
-│   │   └── EVParticipantFlowScreen.tsx # 5-step EV route form
-│   │
-│   ├── context/                         # React context & state
-│   │   └── AppContext.tsx              # Global app state management
-│   │
-│   └── data/                            # Demo data
-│       └── demoData.ts                 # Sample corridors, zones, signals
-│
-├── index.html                           # HTML entry point
-├── package.json                         # Dependencies
-├── tsconfig.json                        # TypeScript config
-├── vite.config.ts                       # Vite build config
-├── tailwind.config.js                   # Tailwind CSS config
-├── postcss.config.js                    # PostCSS config
-└── .npmrc                               # NPM config
-```
+- LA Metro Bus Line 180
+- LA Metro A Line
+- Pasadena Transit
+- Glendale Beeline
 
----
+Transit entries are external transportation options, not Relay Rider-operated services. Schedules, fares, service changes, and student eligibility must be verified with the transit operator.
 
-## Design System
+## Incentives
 
-### Color Palette
-- **Navy** (`#0f2a3d`): Primary brand color, institutional trust
-- **Mobility Green** (`#1f8a5b`): Sustainable action, primary CTA
-- **Light Green** (`#e7f5ee`): Background for positive states
-- **Light Blue** (`#eaf3f8`): Background for informational states
-- **Soft Gray** (`#f5f7f8`): Neutral backgrounds
-- **Warning Yellow** (`#fff7d6`): Important disclaimers
+Relay Rider includes **Green Route Credits** as capped promotional participation benefits. They may be used in the prototype to recognize activities such as:
 
-### Typography
-- **Headlines**: Poppins (600, 700, 800 weight) - bold, distinctive
-- **Body**: Inter (400, 500, 600, 700) - readable, professional
+- Completing a qualified commute profile
+- Sustainable commute challenges
+- Transit participation
+- Access Point feedback
+- EV/clean-route participation or recognition
 
-### Components
-- **Buttons**: Primary (green), Secondary (gray), Outline (navy)
-- **Cards**: Soft shadows, rounded corners, consistent spacing
-- **Status Badges**: Color-coded (active, pending, research, inactive)
-- **Forms**: Full-width inputs, clear labels, validation feedback
+Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or direct charging reimbursements**.
 
----
+## Core screens
 
-## Installation & Setup
+- Role Selection
+- Home
+- Commute Options
+- Corridor Map
+- Commute Activity
+- Profile / Incentives
+- Commute Need Intake
+- Planned EV/Hybrid Route Registration
+- Privacy Center
+- Security Center
+- Review Gates
 
-### Prerequisites
-- Node.js 22.x
-- pnpm 10.x
+## Corridor map
 
-### Steps
+The prototype uses Leaflet and OpenStreetMap to display real public locations and EV charging infrastructure across the Pasadena–Eagle Rock–Glendale corridor. Candidate Access Points are research signals only and require site-rule, visibility, lighting, accessibility, partner, legal, insurance, and field review before controlled program use.
+
+## Technology
+
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- Material Web
+- Leaflet / OpenStreetMap
+- Framer Motion
+- React Hook Form + Zod
+
+## Local development
 
 ```bash
-# 1. Extract the archive
-tar -xzf relay_rider_prototype.tar.gz
-cd relay_rider_user_app
-
-# 2. Install dependencies
-pnpm install
-
-# 3. Start development server
-pnpm dev
-
-# 4. Open in browser
-# Navigate to http://localhost:5173
+npm install
+npm run check
+npm run build
+npm run dev
 ```
 
-### Build for Production
+## Research-beta guardrails
 
-```bash
-pnpm build
-pnpm preview
-```
+The prototype must not imply:
 
----
-
-## Key Screens & Flows
-
-### 1. Role Selection Screen
-Users choose their participation type:
-- Route Need (submit commute requirements)
-- EV/Hybrid Participant (share existing route)
-- Organization (view corridor insights)
-- Exploring (browse without data submission)
-
-### 2. Home Screen
-Main dashboard with:
-- Research beta notice
-- Three main CTAs (Share Route Need, Share EV/Hybrid Route, Suggest Relay Zone)
-- Example route signals
-- Quick access to Green Wallet and Partner Console
-
-### 3. Route Need Flow (6 Steps)
-1. **Corridor & Area**: Select corridor and starting/destination areas
-2. **Timing**: Choose days of week, time window, travel pattern
-3. **Relay Zones**: Select preferred zone types
-4. **Route-Bid Signal**: Indicate willingness-to-participate price range
-5. **Preferences**: EV preference, walking distance, privacy settings
-6. **Review & Submit**: Confirm details and consent
-
-### 4. EV Participant Flow (5 Steps)
-1. **Vehicle Info**: Type, make, model, year
-2. **Route Pattern**: Starting area, destination, days, time window
-3. **Detour Comfort**: Max detour tolerance, preferred zone types
-4. **Review Willingness**: Which background/insurance reviews are acceptable
-5. **Submit**: Confirm and submit signal
-
-### 5. Map Screen (Relay Zones)
-- Browse candidate Access Points
-- Filter by corridor and zone type
-- View review status and requirements
-- See suggestion counts and notes
-
-### 6. Wallet Screen (Green Route Credits)
-- View pending/approved/redeemed/expired credits
-- See activity history with dates
-- Display credit rules and restrictions
-- No cash-out, no route activation
-
-### 7. Partner Console
-- Corridor demand overview
-- Route signal analysis
-- Relay Zone suggestions
-- Parking pressure data
-- EV/hybrid participation metrics
-- Research package pricing
-
----
-
-## State Management
-
-### AppContext
-Provides global state for:
-- `userRole`: Current user type
-- `userProfile`: User account info
-- `routeSignals`: Submitted route-interest signals
-- `evParticipantSignals`: Submitted EV/hybrid routes
-- `greenRouteCredits`: Credit activity history
-
-Sensitive prototype state is held in memory for the current page session. Earlier
-`localStorage` records are removed at startup. A protected backend is not connected,
-so only mock or non-sensitive demonstration information should be entered.
-
-Security foundations are documented in `SECURITY.md` and
-`docs/SECURITY_ARCHITECTURE.md`. The Supabase migration is a backend blueprint and
-must not be treated as deployed until it is reviewed, applied, and tested in the
-intended project.
-
-### Demo Data
-Sample corridors, Relay Zones, and route signals are included in `src/data/demoData.ts` for testing.
-
----
-
-## Important Terminology
-
-### ✓ Use These Terms
-- Route participant
-- Co-commuter
-- Planned route
-- Route-join request
-- Safe Relay Point / Relay Zone
-- Corridor match
-- Research beta
-- Partner dashboard
-- Green Route Credit (promotional beta reward)
-
-### ✗ Avoid These Terms
-- Book a ride
-- Fare
-- Driver earnings
-- Go online
-- Ride request
+- Guaranteed transportation
 - Live dispatch
-- Taxi
-- Uber / Lyft
-- Passenger fare
-- On-demand pickup
-- Rideshare
+- Instant pickup
+- Automatic payment
+- Driver earnings
+- Public ride-hailing
+- Unreviewed school transportation
+- Guaranteed safety
+- Guaranteed emissions reductions
 
----
+Future operational activation requires legal, insurance, privacy, accessibility, safety, program-rule, and operational review.
 
-## Research-Beta Framing
+## Data handling
 
-All screens include clear messaging that:
-- This is **NOT a live transportation service**
-- No payments, fares, or driver compensation
-- No live route activation or dispatch
-- Data collection for **pilot-readiness planning only**
-- Future controlled pilots require legal, insurance, safety, privacy, accessibility, and operational review
+Sensitive prototype state is held in session memory. Earlier persisted sensitive records are cleared at startup. The Supabase directory is a backend blueprint and must not be treated as deployed until reviewed, applied, and tested in the intended project.
 
----
-
-## Development Notes
-
-### Adding New Screens
-1. Create component in `src/screens/`
-2. Add route handler in `App.tsx`
-3. Update navigation as needed
-4. Follow existing styling patterns
-
-### Modifying Demo Data
-Edit `src/data/demoData.ts` to:
-- Add/remove corridors
-- Update Relay Zone suggestions
-- Modify sample route signals
-
-### Styling
-- Use Tailwind utilities from `index.css`
-- Reference design tokens (colors, spacing, typography)
-- Keep mobile-first approach
-- Test on 375px viewport width
-
----
-
-## Browser Support
-
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- Mobile browsers (iOS Safari, Chrome Mobile)
-
----
-
-## Future Enhancements
-
-- Backend API integration for data persistence
-- Real map integration (Google Maps API)
-- User authentication (Manus OAuth)
-- Notification system
-- Admin review panel for signal moderation
-- Export/reporting for partners
-- Accessibility improvements (WCAG 2.1 AA)
-
----
+See `SECURITY.md` and `docs/SECURITY_ARCHITECTURE.md` for the current security foundation.
 
 ## License
 
-Proprietary - Common Pathways Technologies
-
----
-
-## Support
-
-For questions or issues, contact the development team at Common Pathways Technologies.
+Repository licensing and public-source status should be reviewed before production use. Common Pathways Technologies retains responsibility for product, legal, regulatory, and operational decisions.

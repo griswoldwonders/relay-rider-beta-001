@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Zap, Building2, Eye } from 'lucide-react';
+import { MapPin, Zap } from 'lucide-react';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 
@@ -13,31 +13,17 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ onRole
   const roles = [
     {
       id: 'route-need',
-      title: 'I need a route',
-      description: 'Share your commute need and help validate cleaner corridor options.',
+      title: 'I need a commute option',
+      description: 'Share your commute need to compare free college-program route previews and local transit options.',
       icon: MapPin,
       color: 'text-mobility-green',
     },
     {
       id: 'ev-participant',
       title: 'I already drive an EV/hybrid route',
-      description: 'Share routes you already travel and help validate future low-detour coordination.',
+      description: 'Register a route you already plan to travel and help validate low-detour commuter coordination.',
       icon: Zap,
       color: 'text-blue-600',
-    },
-    {
-      id: 'organization',
-      title: 'I represent an organization',
-      description: 'View corridor demand, Relay Zone signals, and pilot-readiness insights.',
-      icon: Building2,
-      color: 'text-navy',
-    },
-    {
-      id: 'exploring',
-      title: 'I\'m exploring',
-      description: 'Preview the research beta without submitting information.',
-      icon: Eye,
-      color: 'text-gray-600',
     },
   ];
 
@@ -48,7 +34,7 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ onRole
 
   return (
     <div className="min-h-screen bg-white pb-24">
-      <Header title="How would you like to use Relay Rider?" subtitle="Choose your role" />
+      <Header title="How would you like to use Relay Rider?" subtitle="Choose your participation type" />
 
       <div className="container py-6 space-y-4">
         {roles.map(role => {
@@ -72,10 +58,12 @@ export const RoleSelectionScreen: React.FC<RoleSelectionScreenProps> = ({ onRole
           );
         })}
 
-        <div className="pt-4">
-          <button className="btn-primary">
-            Continue
-          </button>
+        <div className="rounded-xl border border-green-200 bg-light-green p-4">
+          <p className="text-sm font-semibold text-navy">College commuter program</p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-700">
+            Relay Rider route participation is shown as $0 for eligible college participants in this research prototype.
+            Third-party transit fares and student pass eligibility are controlled by each transit agency and school.
+          </p>
         </div>
       </div>
     </div>

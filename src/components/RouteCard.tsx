@@ -29,10 +29,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({
   };
 
   return (
-    <div
-      onClick={onClick}
-      className="card cursor-pointer hover:shadow-md transition-shadow"
-    >
+    <div onClick={onClick} className="card cursor-pointer hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-3">
         <div>
           <h3 className="font-bold text-navy">{corridor}</h3>
@@ -51,16 +48,14 @@ export const RouteCard: React.FC<RouteCardProps> = ({
           <span className="text-xs font-medium text-navy">{routeFit}</span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-xs text-gray-600">Relay Zone</span>
+          <span className="text-xs text-gray-600">Access Point</span>
           <span className="text-xs font-medium text-navy">{relayZonePreference}</span>
         </div>
       </div>
 
       {greenRouteCredit > 0 && (
         <div className="bg-light-green border border-green-200 rounded p-2 text-center">
-          <p className="text-xs font-semibold text-mobility-green">
-            +${greenRouteCredit} Green Route Credit
-          </p>
+          <p className="text-xs font-semibold text-mobility-green">+{greenRouteCredit} Green Route Credits</p>
         </div>
       )}
     </div>

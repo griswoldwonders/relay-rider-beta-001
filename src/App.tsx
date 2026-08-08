@@ -5,33 +5,31 @@ import { RoleSelectionScreen } from './screens/RoleSelectionScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { RoutesScreen } from './screens/RoutesScreen';
 import { MapScreen } from './screens/MapScreen';
-import { MarketplaceScreen } from './screens/MarketplaceScreen';
+import { CommuteOptionsScreen } from './screens/CommuteOptionsScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { RouteNeedFlowScreen } from './flows/RouteNeedFlowScreen';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
 import { ReviewGatesScreen } from './screens/ReviewGatesScreen';
-import { PartnerConsoleScreen } from './screens/PartnerConsoleScreen';
 
 type Screen =
   | 'role-selection'
   | 'home'
   | 'routes'
-  | 'marketplace'
+  | 'options'
   | 'map'
   | 'profile'
   | 'route-need-flow'
   | 'ev-participant-flow'
   | 'privacy-center'
   | 'security-center'
-  | 'review-gates'
-  | 'partner-console';
+  | 'review-gates';
 
 const publicPreviewScreens: Screen[] = [
   'role-selection',
   'home',
-  'marketplace',
+  'options',
   'map',
   'routes',
   'profile',
@@ -56,7 +54,7 @@ function AppContent() {
   const handleTabChange = (tab: string) => {
     setCurrentTab(tab);
     if (tab === 'home') setCurrentScreen('home');
-    else if (tab === 'marketplace') setCurrentScreen('marketplace');
+    else if (tab === 'options') setCurrentScreen('options');
     else if (tab === 'map') setCurrentScreen('map');
     else if (tab === 'routes') setCurrentScreen('routes');
     else if (tab === 'profile') setCurrentScreen('profile');
@@ -64,9 +62,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-white">
-      {currentScreen === 'role-selection' && (
-        <RoleSelectionScreen onRoleSelect={handleRoleSelect} />
-      )}
+      {currentScreen === 'role-selection' && <RoleSelectionScreen onRoleSelect={handleRoleSelect} />}
 
       {currentScreen === 'home' && (
         <>
@@ -74,11 +70,10 @@ function AppContent() {
             onStartRouteSignal={() => setCurrentScreen('route-need-flow')}
             onShareEVRoute={() => setCurrentScreen('ev-participant-flow')}
             onSuggestRelayZone={() => setCurrentScreen('map')}
-            onBrowseMatches={() => {
-              setCurrentScreen('marketplace');
-              setCurrentTab('marketplace');
+            onBrowseOptions={() => {
+              setCurrentScreen('options');
+              setCurrentTab('options');
             }}
-            onLearnMore={() => {}}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
@@ -91,9 +86,9 @@ function AppContent() {
         </>
       )}
 
-      {currentScreen === 'marketplace' && (
+      {currentScreen === 'options' && (
         <>
-          <MarketplaceScreen />
+          <CommuteOptionsScreen />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
@@ -111,35 +106,16 @@ function AppContent() {
             onPrivacyCenter={() => setCurrentScreen('privacy-center')}
             onSecurityCenter={() => setCurrentScreen('security-center')}
             onReviewGates={() => setCurrentScreen('review-gates')}
-            onPartnerConsole={() => setCurrentScreen('partner-console')}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
 
-      {currentScreen === 'route-need-flow' && (
-        <RouteNeedFlowScreen onComplete={() => setCurrentScreen('home')} />
-      )}
-
-      {currentScreen === 'ev-participant-flow' && (
-        <EVParticipantFlowScreen onComplete={() => setCurrentScreen('home')} />
-      )}
-
-      {currentScreen === 'privacy-center' && (
-        <PrivacyCenterScreen onBack={() => setCurrentScreen('profile')} />
-      )}
-
-      {currentScreen === 'security-center' && (
-        <SecurityCenterScreen onBack={() => setCurrentScreen('profile')} />
-      )}
-
-      {currentScreen === 'review-gates' && (
-        <ReviewGatesScreen onBack={() => setCurrentScreen('profile')} />
-      )}
-
-      {currentScreen === 'partner-console' && (
-        <PartnerConsoleScreen onBack={() => setCurrentScreen('profile')} />
-      )}
+      {currentScreen === 'route-need-flow' && <RouteNeedFlowScreen onComplete={() => setCurrentScreen('home')} />}
+      {currentScreen === 'ev-participant-flow' && <EVParticipantFlowScreen onComplete={() => setCurrentScreen('home')} />}
+      {currentScreen === 'privacy-center' && <PrivacyCenterScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'security-center' && <SecurityCenterScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'review-gates' && <ReviewGatesScreen onBack={() => setCurrentScreen('profile')} />}
     </div>
   );
 }

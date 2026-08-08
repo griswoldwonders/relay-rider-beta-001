@@ -1,15 +1,18 @@
-export type UserRole = 'route-need' | 'ev-participant' | 'organization' | 'exploring' | null;
+export type UserRole = 'route-need' | 'ev-participant' | null;
 
 export interface RouteSignal {
   id: string;
   corridor: string;
   startingArea: string;
   destinationArea: string;
+  campusAffiliation: string;
   daysOfWeek: string[];
   timeWindow: string;
   routeType: 'recurring' | 'occasional' | 'event' | 'medical' | 'campus' | 'other';
   relayZoneType: string[];
-  routeBidSignal: string;
+  transitOptions: string[];
+  studentTransitPass: 'yes' | 'no' | 'not-sure';
+  incentiveInterests: string[];
   evPreference: 'ev-only' | 'hybrid-ev' | 'any';
   maxWalkingDistance: string;
   privacyPreference: string;
