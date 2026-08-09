@@ -36,12 +36,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <Sparkles size={20} className="mt-0.5 flex-shrink-0 text-navy" />
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-navy">Participation snapshot</p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-3xl border border-lagoon/20 bg-parchment p-4 text-center">
+              <div className="profile-benefit-bubbles">
+                <div className="profile-benefit-bubble profile-benefit-bubble--lavender">
                   <div className="text-2xl font-semibold text-navy">{routeSignals.length}</div>
                   <p className="mt-1 text-xs text-gray-600">Commute signals</p>
                 </div>
-                <div className="rounded-3xl border border-lagoon/20 bg-parchment p-4 text-center">
+                <div className="profile-benefit-bubble profile-benefit-bubble--peach">
                   <div className="flex items-center justify-center gap-1 text-2xl font-semibold text-navy"><Gift size={20} />{totalCredits}</div>
                   <p className="mt-1 text-xs text-gray-600">Green Route Credits</p>
                 </div>
