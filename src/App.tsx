@@ -13,6 +13,8 @@ import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
 import { ReviewGatesScreen } from './screens/ReviewGatesScreen';
+import { GreenWalletOnboardingFlow } from './flows/GreenWalletOnboardingFlow';
+import { WalletScreen } from './screens/WalletScreen';
 
 type Screen =
   | 'role-selection'
@@ -26,7 +28,9 @@ type Screen =
   | 'ev-participant-flow'
   | 'privacy-center'
   | 'security-center'
-  | 'review-gates';
+  | 'review-gates'
+  | 'wallet-onboarding'
+  | 'wallet';
 
 const publicPreviewScreens: Screen[] = [
   'role-selection',
@@ -37,6 +41,8 @@ const publicPreviewScreens: Screen[] = [
   'routes',
   'profile',
   'security-center',
+  'wallet-onboarding',
+  'wallet',
 ];
 
 const getInitialScreen = (): Screen => {
@@ -91,6 +97,7 @@ function AppContent() {
               setCurrentScreen('routes');
               setCurrentTab('routes');
             }}
+            onOpenGreenWallet={() => setCurrentScreen('wallet-onboarding')}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
@@ -130,6 +137,7 @@ function AppContent() {
             onPrivacyCenter={() => setCurrentScreen('privacy-center')}
             onSecurityCenter={() => setCurrentScreen('security-center')}
             onReviewGates={() => setCurrentScreen('review-gates')}
+            onOpenGreenWallet={() => setCurrentScreen('wallet-onboarding')}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
@@ -151,6 +159,13 @@ function AppContent() {
       {currentScreen === 'privacy-center' && <PrivacyCenterScreen onBack={() => setCurrentScreen('profile')} />}
       {currentScreen === 'security-center' && <SecurityCenterScreen onBack={() => setCurrentScreen('profile')} />}
       {currentScreen === 'review-gates' && <ReviewGatesScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'wallet-onboarding' && (
+        <GreenWalletOnboardingFlow
+          onBack={() => setCurrentScreen('profile')}
+          onComplete={() => setCurrentScreen('wallet')}
+        />
+      )}
+      {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
     </div>
   );
 }

@@ -1,145 +1,45 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
-import { DollarSign } from 'lucide-react';
+import '../green-wallet.css';
 
-interface WalletScreenProps {
-  onViewRules: () => void;
-}
+interface WalletScreenProps { onBack: () => void; }
 
-export const WalletScreen: React.FC<WalletScreenProps> = ({ onViewRules }) => {
+export const WalletScreen: React.FC<WalletScreenProps> = ({ onBack }) => {
   const { greenRouteCredits } = useApp();
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'redeemed' | 'expired'>('pending');
-
-  const tabs = [
-    { id: 'pending', label: 'Pending' },
-    { id: 'approved', label: 'Approved' },
-    { id: 'redeemed', label: 'Redeemed' },
-    { id: 'expired', label: 'Expired' },
+  const demoCredits = greenRouteCredits.length ? greenRouteCredits : [
+    { activity: 'Planned-route check-in', amount: 120, status: 'approved' as const, date: 'Aug 7' },
+    { activity: 'Campus commute challenge', amount: 180, status: 'pending' as const, date: 'Aug 5' },
+    { activity: 'Access Point preference', amount: 80, status: 'approved' as const, date: 'Aug 2' },
   ];
-
-  const filteredCredits = greenRouteCredits.filter(credit => credit.status === activeTab);
-
-  const totalPending = greenRouteCredits
-    .filter(c => c.status === 'pending')
-    .reduce((sum, c) => sum + c.amount, 0);
-
-  const totalApproved = greenRouteCredits
-    .filter(c => c.status === 'approved')
-    .reduce((sum, c) => sum + c.amount, 0);
-
-  const sampleActivities = [
-    { activity: 'Route interest profile submitted', amount: 3, status: 'pending' as const },
-    { activity: 'EV/hybrid route pattern submitted', amount: 5, status: 'pending' as const },
-    { activity: 'Feedback call completed', amount: 10, status: 'approved' as const },
-    { activity: 'Relay Zone suggestion reviewed', amount: 2, status: 'pending' as const },
-  ];
-
-  const displayCredits = greenRouteCredits.length > 0 ? greenRouteCredits : sampleActivities;
+  const approved = demoCredits.filter(c => c.status === 'approved').reduce((sum, credit) => sum + credit.amount, 0);
+  const pending = demoCredits.filter(c => c.status === 'pending').reduce((sum, credit) => sum + credit.amount, 0);
 
   return (
-    <div className="min-h-screen bg-white pb-24">
-      <Header title="Green Wallet" subtitle="Promotional beta rewards for research participation." />
-
-      <div className="container py-6 space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="card text-center">
-            <div className="text-2xl font-bold text-mobility-green">${totalPending}</div>
-            <p className="text-xs text-gray-600 mt-1">Pending Credits</p>
-          </div>
-          <div className="card text-center">
-            <div className="text-2xl font-bold text-blue-600">${totalApproved}</div>
-            <p className="text-xs text-gray-600 mt-1">Approved Credits</p>
-          </div>
+    <div className="green-wallet-screen">
+      <Header title="Green Route Wallet" subtitle="Institution-sponsored promotional program benefits" />
+      <div className="container green-wallet-shell">
+        <button type="button" onClick={onBack} className="text-link-button self-start"><ArrowLeft size={15} /> Back to profile</button>
+        <section className="green-wallet-balance">
+          <div className="green-wallet-balance__top"><span>Available balance</span><small>Demo program</small></div>
+          <strong>{approved.toLocaleString()} credits</strong>
+          <p>Approved promotional program benefits</p>
+        </section>
+        <div className="green-wallet-status-grid">
+          <div className="green-wallet-status-card green-wallet-status-card--approved"><span>Approved</span><strong>{approved}</strong></div>
+          <div className="green-wallet-status-card green-wallet-status-card--pending"><span>Pending review</span><strong>{pending}</strong></div>
         </div>
-
-        {/* Important Framing */}
-        <div className="bg-warning-yellow border border-yellow-400 rounded-lg p-4">
-          <p className="text-xs text-yellow-900">
-            <strong>Green Route Credits</strong> are capped promotional beta rewards funded by Relay Rider or partners. They are not fares, wages, driver earnings, government carbon credits, certified offsets, or LCFS payouts.
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex gap-2 overflow-x-auto">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-mobility-green text-white'
-                  : 'bg-soft-gray text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {tab.label}
-            </button>
+        <h2 className="green-wallet-section-title">Recent activity</h2>
+        <div className="green-wallet-activity-list">
+          {demoCredits.map((credit, index) => (
+            <div className="green-wallet-activity" key={`${credit.activity}-${index}`}>
+              <div><strong>{credit.activity}</strong><small>{credit.status === 'approved' ? 'Approved' : 'Pending review'} • {credit.date}</small></div>
+              <span>+{credit.amount}</span>
+            </div>
           ))}
         </div>
-
-        {/* Credit Activities */}
-        <div className="space-y-3">
-          {filteredCredits.length === 0 ? (
-            <div className="card text-center py-8">
-              <p className="text-gray-600">No {activeTab} credits yet</p>
-            </div>
-          ) : (
-            filteredCredits.map((credit, idx) => (
-              <div key={idx} className="card">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-medium text-navy text-sm">{credit.activity}</p>
-                    <p className="text-xs text-gray-600 mt-1">{credit.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DollarSign size={16} className="text-mobility-green" />
-                    <span className="font-bold text-mobility-green">{credit.amount}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Credit Rules */}
-        <div className="space-y-3">
-          <h3 className="section-title">Credit Rules</h3>
-          <div className="card space-y-2">
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">Manual approval required</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">No cash-out</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">No route activation</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">One profile reward per user</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">Rewards subject to beta cap</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">Credits may expire</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-green-600 font-bold">✓</span>
-              <span className="text-sm text-gray-700">Rewards are for research participation only</span>
-            </div>
-          </div>
-        </div>
-
-        <button onClick={onViewRules} className="btn-secondary">
-          View Full Credit Rules
-        </button>
+        <div className="green-wallet-disclosure"><ShieldCheck size={15} className="mb-2" /><strong>Program disclosure</strong><br />Green Route Credits are capped promotional or institution-sponsored benefits. They are not cash, wages, fares, guaranteed payments, certified carbon credits, or automatic charging rewards. Eligibility depends on program rules and administrative review.</div>
       </div>
     </div>
   );

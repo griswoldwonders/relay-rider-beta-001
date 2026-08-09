@@ -13,6 +13,7 @@ interface HomeScreenProps {
   onBrowseOptions: () => void;
   onBrowseMatches: () => void;
   onBrowseActivity: () => void;
+  onOpenGreenWallet: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -22,6 +23,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onBrowseOptions,
   onBrowseMatches,
   onBrowseActivity,
+  onOpenGreenWallet,
 }) => {
   const { routeSignals, greenRouteCredits } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
@@ -92,7 +94,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <p className="micro-disclaimer">Commuter matches are modeled previews only. Swiping or saving does not accept, activate, or guarantee transportation.</p>
         </section>
 
-        <section className="benefit-dashboard-card">
+        <button type="button" className="benefit-dashboard-card w-full text-left" onClick={onOpenGreenWallet}>
           <div className="benefit-dashboard-card__header">
             <div>
               <span className="mobile-section-kicker">Benefits</span>
@@ -106,7 +108,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div><strong>Access Point feedback</strong><span>Eligible research signal</span></div>
           </div>
           <p>Green Route Credits are capped promotional participation benefits. They are not cash, fares, wages, or guaranteed payments.</p>
-        </section>
+          <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-iris">Open Green Route Wallet <ArrowRight size={14} /></span>
+        </button>
 
         <section>
           <div className="mobile-section-heading">

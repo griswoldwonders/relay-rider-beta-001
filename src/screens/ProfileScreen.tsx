@@ -7,17 +7,20 @@ interface ProfileScreenProps {
   onPrivacyCenter: () => void;
   onSecurityCenter: () => void;
   onReviewGates: () => void;
+  onOpenGreenWallet: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onPrivacyCenter,
   onSecurityCenter,
   onReviewGates,
+  onOpenGreenWallet,
 }) => {
   const { userProfile, routeSignals, greenRouteCredits } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
 
   const menuItems = [
+    { label: 'Green Route Wallet', onClick: onOpenGreenWallet },
     { label: 'Security & Privacy', onClick: onSecurityCenter },
     { label: 'Privacy Center', onClick: onPrivacyCenter },
     { label: 'Program Review Gates', onClick: onReviewGates },
