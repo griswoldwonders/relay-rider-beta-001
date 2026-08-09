@@ -89,6 +89,7 @@
 .green-wallet-onboarding__actions > p { display: flex; align-items: flex-start; justify-content: center; gap: 6px; margin-bottom: 11px; color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.45; text-align: center; }
 .green-wallet-onboarding__actions > p svg { flex: 0 0 auto; margin-top: 1px; }
 .green-wallet-primary-button { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; color: var(--color-parchment); background: var(--color-electric-iris); font-size: 14px; font-weight: 800; box-shadow: 0 8px 20px rgb(72 60 255 / 18%); }
+.green-wallet-primary-button:disabled { cursor: not-allowed; opacity: .38; box-shadow: none; }
 .green-wallet-skip-button { display: block; margin: 12px auto 0; padding: 7px 12px; color: var(--color-muted-lagoon); font-size: 11px; font-weight: 700; }
 
 .green-wallet-screen { min-height: 100vh; padding-bottom: 32px; background: var(--color-parchment); }
@@ -113,12 +114,97 @@
 .green-wallet-activity > span { flex: 0 0 auto; color: var(--color-electric-iris); font-size: 12px; font-weight: 800; }
 .green-wallet-disclosure { padding: 16px; border-radius: 20px; color: var(--color-deep-lagoon); background: var(--mobile-yellow-soft); font-size: 10px; line-height: 1.5; }
 
+.green-wallet-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.green-wallet-heading-row > span { color: var(--color-electric-iris); font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.green-wallet-benefit-list { display: grid; gap: 10px; }
+.green-wallet-benefit-card { display: grid; width: 100%; grid-template-columns: 50px 1fr auto; align-items: center; gap: 13px; padding: 17px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 26px; text-align: left; box-shadow: inset 0 1px 0 rgb(255 255 255 / 78%), 0 10px 24px rgb(0 68 73 / 9%); transition: transform 170ms ease, box-shadow 170ms ease; }
+.green-wallet-benefit-card:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 rgb(255 255 255 / 82%), 0 14px 30px rgb(0 68 73 / 12%); }
+.green-wallet-benefit-card:active { transform: translateY(1px) scale(.985); }
+.green-wallet-benefit-card--charging { background: linear-gradient(145deg, #d7ffc2 0%, #ecffe4 62%, #dcecff 100%); }
+.green-wallet-benefit-card__icon { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 18px; color: var(--color-parchment); background: linear-gradient(155deg, #675cff, var(--color-electric-iris) 65%, #3528da); box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%), 0 7px 16px rgb(72 60 255 / 25%); }
+.green-wallet-benefit-card__copy { min-width: 0; }
+.green-wallet-benefit-card__copy small { display: block; color: var(--color-electric-iris); font-size: 8px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; }
+.green-wallet-benefit-card__copy strong { display: block; margin-top: 4px; font-size: 14px; }
+.green-wallet-benefit-card__copy > span { display: block; margin-top: 5px; color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.4; }
+.green-wallet-benefit-card__action { display: inline-flex; align-items: center; gap: 4px; color: var(--color-electric-iris); font-size: 9px; font-weight: 850; white-space: nowrap; }
+.green-wallet-benefit-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.green-wallet-benefit-mini { display: flex; min-height: 96px; align-items: flex-start; gap: 9px; padding: 15px; border: 1px solid rgb(255 255 255 / 68%); border-radius: 23px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 76%), 0 8px 18px rgb(0 68 73 / 7%); }
+.green-wallet-benefit-mini--lavender { background: linear-gradient(150deg, #f1edff, var(--mobile-lavender-soft)); }
+.green-wallet-benefit-mini--peach { background: linear-gradient(150deg, #fff4ec, var(--mobile-peach-soft)); }
+.green-wallet-benefit-mini svg { flex: 0 0 auto; color: var(--color-electric-iris); }
+.green-wallet-benefit-mini strong { display: block; font-size: 11px; line-height: 1.25; }
+.green-wallet-benefit-mini small { display: block; margin-top: 5px; color: var(--color-muted-lagoon); font-size: 8px; line-height: 1.35; }
+
+.charging-benefit-flow { min-height: 100vh; padding: 18px 16px 28px; color: var(--color-deep-lagoon); background: radial-gradient(circle at 100% 100%, rgb(215 255 194 / 72%), transparent 33%), radial-gradient(circle at 0 0, rgb(220 236 255 / 68%), transparent 31%), var(--color-parchment); }
+.charging-benefit-flow__header { display: grid; max-width: 420px; margin: 0 auto; grid-template-columns: 42px 1fr auto; align-items: center; gap: 10px; }
+.charging-benefit-flow__header > div { min-width: 0; }
+.charging-benefit-flow__header > div span { display: block; color: var(--color-muted-lagoon); font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.charging-benefit-flow__header > div strong { display: block; margin-top: 2px; font-size: 15px; letter-spacing: -.025em; }
+.charging-benefit-demo-pill { padding: 7px 9px; border-radius: 999px; color: var(--color-deep-lagoon); background: var(--mobile-yellow); font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.charging-benefit-progress { display: grid; max-width: 420px; margin: 17px auto 0; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.charging-benefit-progress span { height: 4px; border-radius: 999px; background: rgb(0 68 73 / 12%); }
+.charging-benefit-progress span.is-active { background: var(--color-electric-iris); }
+.charging-benefit-deck { position: relative; max-width: 420px; min-height: 600px; margin: 22px auto 0; perspective: 1200px; }
+.charging-benefit-deck__layer,
+.charging-benefit-card { position: absolute; inset: 0; border-radius: 34px; }
+.charging-benefit-deck__layer { border: 1px solid rgb(0 68 73 / 8%); background: rgb(255 254 240 / 72%); box-shadow: var(--shadow-sm); }
+.charging-benefit-deck__layer--back { transform: translateY(20px) scale(.94) rotate(-1deg); opacity: .42; }
+.charging-benefit-deck__layer--middle { transform: translateY(10px) scale(.97) rotate(1deg); opacity: .72; }
+.charging-benefit-card { z-index: 2; display: flex; overflow-y: auto; flex-direction: column; padding: 25px 22px 22px; border: 1px solid rgb(0 68 73 / 9%); box-shadow: 0 13px 34px rgb(0 68 73 / 10%); scrollbar-width: none; backface-visibility: hidden; }
+.charging-benefit-card::-webkit-scrollbar { display: none; }
+.charging-benefit-card--details { background: linear-gradient(155deg, #d7ffc2, #eaffe0 58%, #dcecff); }
+.charging-benefit-card--location { background: linear-gradient(155deg, #dcecff, #eef6ff 58%, #e4ddff); }
+.charging-benefit-card--confirm { background: linear-gradient(155deg, #e4ddff, #f2efff 58%, #ffe2cd); }
+.charging-benefit-card--pending { background: linear-gradient(155deg, #fff0a8, #fff8d8 62%, #ffe2cd); }
+.charging-benefit-card--approved { background: linear-gradient(155deg, #d7ffc2, #eeffe7 62%, #fff0a8); }
+.charging-benefit-card__icon { display: grid; width: 58px; height: 58px; margin-bottom: 21px; place-items: center; border-radius: 20px; color: var(--color-parchment); background: var(--color-deep-lagoon); box-shadow: inset 0 1px 0 rgb(255 255 255 / 24%), 0 8px 18px rgb(0 68 73 / 18%); }
+.charging-benefit-card h1 { max-width: 350px; margin-top: 7px; font-size: clamp(27px, 7.4vw, 35px); font-weight: 750; letter-spacing: -.05em; line-height: 1.03; }
+.charging-benefit-card__intro { margin-top: 13px; color: rgb(0 68 73 / 72%); font-size: 12px; line-height: 1.5; }
+.charging-benefit-facts { display: grid; margin-top: 18px; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.charging-benefit-facts > div { padding: 13px; border-radius: 18px; background: rgb(255 254 240 / 66%); }
+.charging-benefit-facts > div:last-child { grid-column: 1 / -1; }
+.charging-benefit-facts span,
+.charging-confirmation-list span { display: block; color: var(--color-muted-lagoon); font-size: 8px; text-transform: uppercase; }
+.charging-benefit-facts strong,
+.charging-confirmation-list strong { display: block; margin-top: 4px; font-size: 11px; line-height: 1.35; }
+.charging-benefit-safety-note { display: grid; margin-top: auto; grid-template-columns: 20px 1fr; gap: 9px; padding: 14px; border-radius: 18px; background: rgb(255 254 240 / 72%); }
+.charging-benefit-safety-note svg { color: var(--color-electric-iris); }
+.charging-benefit-safety-note p { color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.45; }
+.charging-location-list { display: grid; gap: 10px; margin-top: 20px; }
+.charging-location-card { display: grid; grid-template-columns: 42px 1fr 20px; align-items: center; gap: 10px; padding: 13px; border: 1px solid rgb(0 68 73 / 12%); border-radius: 21px; text-align: left; background: rgb(255 254 240 / 62%); transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.charging-location-card.is-selected { border-color: var(--color-electric-iris); background: rgb(255 254 240 / 90%); box-shadow: 0 8px 18px rgb(72 60 255 / 12%); transform: translateY(-1px); }
+.charging-location-card__marker { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 15px; background: var(--mobile-mint); }
+.charging-location-card strong { display: block; font-size: 12px; }
+.charging-location-card small { display: block; margin-top: 4px; color: var(--color-muted-lagoon); font-size: 8px; line-height: 1.4; }
+.charging-location-card__check { color: transparent; }
+.charging-location-card.is-selected .charging-location-card__check { color: var(--color-electric-iris); }
+.charging-confirmation-list { display: grid; gap: 8px; margin-top: 20px; }
+.charging-confirmation-list > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 12px 13px; border-radius: 17px; background: rgb(255 254 240 / 68%); }
+.charging-confirmation-list strong { max-width: 58%; margin-top: 0; text-align: right; }
+.charging-benefit-confirmation { display: grid; margin-top: 15px; grid-template-columns: 18px 1fr; gap: 9px; padding: 14px; border-radius: 18px; background: rgb(255 254 240 / 74%); font-size: 9px; line-height: 1.45; }
+.charging-benefit-confirmation input { width: 17px; height: 17px; accent-color: var(--color-electric-iris); }
+.charging-status-panel { margin-top: 24px; padding: 20px; border-radius: 24px; text-align: center; background: rgb(255 254 240 / 72%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%), 0 9px 20px rgb(0 68 73 / 8%); }
+.charging-status-panel span { display: block; color: var(--color-muted-lagoon); font-size: 9px; text-transform: uppercase; }
+.charging-status-panel strong { display: block; margin-top: 7px; font-size: 22px; }
+.charging-status-panel small { display: block; margin-top: 7px; color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.4; }
+.charging-voucher { margin-top: 22px; padding: 22px; border: 2px dashed rgb(72 60 255 / 28%); border-radius: 25px; text-align: center; background: rgb(255 254 240 / 76%); }
+.charging-voucher span,
+.charging-voucher small { display: block; color: var(--color-muted-lagoon); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+.charging-voucher strong { display: block; margin: 10px 0; color: var(--color-electric-iris); font-size: 24px; letter-spacing: .06em; }
+.charging-benefit-actions { max-width: 420px; margin: 36px auto 0; }
+.charging-benefit-actions > p { margin-top: 11px; color: var(--color-muted-lagoon); font-size: 8px; font-weight: 700; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+
 @media (max-width: 380px) {
   .green-wallet-onboarding { padding-inline: 12px; }
   .green-wallet-beta-pill { padding-inline: 7px; font-size: 7px; }
   .green-wallet-deck { min-height: 565px; }
   .green-wallet-intro-card { padding: 24px 20px 22px; }
   .green-wallet-intro-card h1 { font-size: 31px; }
+  .green-wallet-benefit-card { grid-template-columns: 46px 1fr; }
+  .green-wallet-benefit-card__action { grid-column: 2; }
+  .charging-benefit-flow { padding-inline: 12px; }
+  .charging-benefit-deck { min-height: 620px; }
+  .charging-benefit-card { padding-inline: 19px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
