@@ -67,7 +67,23 @@ textarea {
 }
 
 button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
   color: inherit;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-electric-iris) 72%, white);
+  outline-offset: 3px;
 }
 
 h1,
