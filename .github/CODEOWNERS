@@ -1,0 +1,12 @@
+* @griswoldwonders
+
+/.github/ @griswoldwonders
+/src/security/ @griswoldwonders
+/src/context/ @griswoldwonders
+/src/flows/ @griswoldwonders
+/public/_headers @griswoldwonders
+/docs/SECURITY_ARCHITECTURE.md @griswoldwonders
+/package.json @griswoldwonders
+/package-lock.json @griswoldwonders
+/index.html @griswoldwonders
+/vite.config.ts @griswoldwonders
