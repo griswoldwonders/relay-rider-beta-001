@@ -118,11 +118,21 @@ export const HomeCampusIllustration: React.FC = () => (
       <ellipse cx="0" cy="53" rx="30" ry="8" fill="none" stroke="#8b82ff" strokeWidth="4" opacity="0.68" />
     </g>
 
-    <g transform="translate(266 92)" filter="url(#rrEvShadow)">
-      <rect x="0" y="0" width="92" height="36" rx="13" fill="#ffffff" stroke="#e4e5e4" />
-      <circle cx="18" cy="18" r="9" fill="#e9f9e7" />
-      <path d="M14 18 L17 21 L23 14" fill="none" stroke="#168858" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="33" y="22" fill="#004449" fontSize="11" fontWeight="800" fontFamily="system-ui, sans-serif">Schedule fit</text>
+    <g transform="translate(232 91)" filter="url(#rrEvShadow)">
+      <rect x="0" y="0" width="128" height="38" rx="14" fill="#ffffff" stroke="#dbe5df" />
+      <circle cx="18" cy="19" r="9" fill="#e9f9e7" />
+      <path d="M14 19 L17 22 L23 15" fill="none" stroke="#168858" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <text
+        x="34"
+        y="19"
+        fill="#004449"
+        fontSize="12"
+        fontWeight="800"
+        fontFamily="system-ui, sans-serif"
+        dominantBaseline="middle"
+      >
+        Schedule fit
+      </text>
     </g>
   </svg>
 );
