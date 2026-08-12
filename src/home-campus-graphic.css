@@ -1,0 +1,42 @@
+/* Refreshed first-visit Home illustration.
+   Keeps the hero logo-free and uses a generic campus / transit / EV scene. */
+
+.home-entry-illustration {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0 10px;
+  overflow: visible;
+}
+
+.home-entry-hero:has(.home-entry-illustration) .home-entry-hero__copy {
+  max-width: 100%;
+}
+
+.home-entry-hero:has(.home-entry-illustration) {
+  background:
+    radial-gradient(circle at 80% 12%, rgba(255,255,255,.94), transparent 28%),
+    linear-gradient(145deg, #f1efff 0%, #faf9ff 52%, #fffef0 100%);
+}
+
+.home-entry-hero:has(.home-entry-illustration)::before {
+  inset: auto -20% -22% 22%;
+  height: 44%;
+  background: rgba(215, 255, 194, .30);
+}
+
+@media (max-width: 430px) {
+  .home-entry-illustration {
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-entry-illustration * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
