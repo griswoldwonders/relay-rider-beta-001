@@ -50,7 +50,7 @@ const publicPreviewScreens: Screen[] = [
 
 const getInitialScreen = (): Screen => {
   const requestedScreen = new URLSearchParams(window.location.search).get('screen') as Screen | null;
-  return requestedScreen && publicPreviewScreens.includes(requestedScreen) ? requestedScreen : 'role-selection';
+  return requestedScreen && publicPreviewScreens.includes(requestedScreen) ? requestedScreen : 'home';
 };
 
 function AppContent() {
