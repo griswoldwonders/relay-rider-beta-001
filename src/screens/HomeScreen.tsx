@@ -2,8 +2,6 @@ import React from 'react';
 import {
   ArrowRight,
   BatteryCharging,
-  Bike,
-  Building2,
   BusFront,
   CalendarDays,
   CarFront,
@@ -17,6 +15,7 @@ import {
   Sparkles,
   TrainFront,
 } from 'lucide-react';
+import { HomeCampusIllustration } from '../components/HomeCampusIllustration';
 import { useApp } from '../context/AppContext';
 import { commuteOptions } from '../data/commuteOptionsData';
 import { commuterMatchTemplates } from '../data/commuterMatchesData';
@@ -70,13 +69,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <p>Compare transit, planned commuter routes, Access Points, and mobility benefits around your schedule.</p>
               </div>
 
-              <div className="home-entry-scene" aria-hidden="true">
-                <span className="home-entry-scene__campus"><Building2 size={54} /></span>
-                <span className="home-entry-scene__bus"><BusFront size={43} /></span>
-                <span className="home-entry-scene__car"><CarFront size={31} /></span>
-                <span className="home-entry-scene__bike"><Bike size={27} /></span>
-                <span className="home-entry-scene__route"><MapPinned size={36} /></span>
-              </div>
+              <HomeCampusIllustration />
 
               <button type="button" className="home-entry-primary" onClick={onStartRouteSignal}>
                 <Sparkles size={20} /> Set up my commute
