@@ -9,6 +9,7 @@ import { CommuteOptionsScreen } from './screens/CommuteOptionsScreen';
 import { CommuterMatchesScreen } from './screens/CommuterMatchesScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { PartnerConsoleScreen } from './screens/PartnerConsoleScreen';
 import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
@@ -30,7 +31,8 @@ type Screen =
   | 'security-center'
   | 'review-gates'
   | 'wallet-onboarding'
-  | 'wallet';
+  | 'wallet'
+  | 'partner-console';
 
 const publicPreviewScreens: Screen[] = [
   'role-selection',
@@ -43,6 +45,7 @@ const publicPreviewScreens: Screen[] = [
   'security-center',
   'wallet-onboarding',
   'wallet',
+  'partner-console',
 ];
 
 const getInitialScreen = (): Screen => {
@@ -166,6 +169,7 @@ function AppContent() {
         />
       )}
       {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'partner-console' && <PartnerConsoleScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
     </div>
   );
 }
