@@ -2,7 +2,6 @@ import React from 'react';
 import {
   ArrowRight,
   BatteryCharging,
-  BusFront,
   CalendarDays,
   CarFront,
   ChevronRight,
@@ -13,7 +12,6 @@ import {
   Route,
   ShieldCheck,
   Sparkles,
-  TrainFront,
 } from 'lucide-react';
 import { HomeCampusIllustration } from '../components/HomeCampusIllustration';
 import { useApp } from '../context/AppContext';
@@ -66,7 +64,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="home-entry-hero__copy">
                 <span className="home-entry-kicker">Start here</span>
                 <h2 id="home-entry-title">Find a better way to campus</h2>
-                <p>Compare transit, planned commuter routes, Access Points, and mobility benefits around your schedule.</p>
+                <p>Compare EV-optimized planned commuter routes, Access Points, and mobility benefits around your schedule.</p>
               </div>
 
               <HomeCampusIllustration />
@@ -81,9 +79,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <section className="home-entry-feature-list" aria-label="What Relay Rider helps you do">
               <button type="button" className="home-entry-feature home-entry-feature--plan" onClick={onStartRouteSignal}>
-                <span className="home-entry-feature__visual"><TrainFront size={29} /></span>
+                <span className="home-entry-feature__visual"><BatteryCharging size={29} /></span>
                 <span className="home-entry-feature__number">1</span>
-                <span className="home-entry-feature__copy"><strong>Plan</strong><small>Compare transit and commute options that fit your schedule.</small></span>
+                <span className="home-entry-feature__copy"><strong>Plan</strong><small>Compare EV-optimized routes and commute options that fit your schedule.</small></span>
                 <ChevronRight size={22} />
               </button>
 
@@ -120,7 +118,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
               </div>
               <div className="home-returning-scene" aria-hidden="true">
-                <BusFront size={42} />
+                <CarFront size={42} />
                 <MapPinned size={34} />
               </div>
               <button type="button" className="home-entry-primary" onClick={onBrowseOptions}>
