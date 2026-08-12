@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
+import { ArrowRight, CarFront, ShieldCheck, UsersRound } from 'lucide-react';
 import { Header } from '../components/Header';
 import { RouteCard } from '../components/RouteCard';
 import { useApp } from '../context/AppContext';
 
 interface RoutesScreenProps {
   onViewSignal: (signalId: string) => void;
+  onOpenParticipantTripDemo: () => void;
+  onOpenDriverTripDemo: () => void;
 }
 
-export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
+export const RoutesScreen: React.FC<RoutesScreenProps> = ({
+  onViewSignal,
+  onOpenParticipantTripDemo,
+  onOpenDriverTripDemo,
+}) => {
   const { routeSignals, evParticipantSignals } = useApp();
   const [activeTab, setActiveTab] = useState<'needs' | 'ev' | 'saved' | 'drafts'>('needs');
 
@@ -21,6 +28,29 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({ onViewSignal }) => {
   return (
     <div className="min-h-screen bg-[var(--color-parchment)] pb-24">
       <Header title="Activity" subtitle="Commute signals, planned routes, and saved options" />
+
+      <div className="container pt-6">
+        <section className="trip-demo-entry">
+          <div className="trip-demo-entry__topline">
+            <span><ShieldCheck size={14} /> Coordinated trip demonstration</span>
+            <small>Prototype states</small>
+          </div>
+          <h2>Preview the confirmed → in-progress → arrival experience.</h2>
+          <p>These screens demonstrate a governed planned-route workflow. They do not represent live dispatch, real-time vehicle tracking, or guaranteed transportation.</p>
+          <div className="trip-demo-entry__actions">
+            <button type="button" onClick={onOpenParticipantTripDemo}>
+              <UsersRound size={18} />
+              <span><strong>Commuter view</strong><small>Meet, travel, arrive, complete</small></span>
+              <ArrowRight size={17} />
+            </button>
+            <button type="button" onClick={onOpenDriverTripDemo}>
+              <CarFront size={18} />
+              <span><strong>EV route participant</strong><small>Access Point, begin route, complete</small></span>
+              <ArrowRight size={17} />
+            </button>
+          </div>
+        </section>
+      </div>
 
       <div className="activity-tab-bar">
         <div className="activity-tab-row">
