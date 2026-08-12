@@ -16,9 +16,10 @@ import {
   ShieldCheck,
   Sparkles,
   TrainFront,
-  UsersRound,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { commuteOptions } from '../data/commuteOptionsData';
+import { commuterMatchTemplates } from '../data/commuterMatchesData';
 
 interface HomeScreenProps {
   onStartRouteSignal: () => void;
@@ -135,8 +136,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </section>
 
             <section className="home-returning-metrics" aria-label="Commute snapshot">
-              <button type="button" onClick={onBrowseOptions}><strong>4</strong><span>Options</span><small>ranked preview</small></button>
-              <button type="button" onClick={onBrowseMatches}><strong>3</strong><span>Matches</span><small>planned-route previews</small></button>
+              <button type="button" onClick={onBrowseOptions}><strong>{commuteOptions.length}</strong><span>Options</span><small>prototype bundle</small></button>
+              <button type="button" onClick={onBrowseMatches}><strong>{commuterMatchTemplates.length}</strong><span>Matches</span><small>planned-route previews</small></button>
               <button type="button" onClick={onOpenGreenWallet}><strong>{totalCredits}</strong><span>Credits</span><small>program benefits</small></button>
             </section>
 
