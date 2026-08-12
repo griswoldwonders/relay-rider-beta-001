@@ -10,6 +10,7 @@ import { CommuterMatchesScreen } from './screens/CommuterMatchesScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { PartnerConsoleScreen } from './screens/PartnerConsoleScreen';
+import { TripJourneyScreen } from './screens/TripJourneyScreen';
 import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
@@ -32,7 +33,9 @@ type Screen =
   | 'review-gates'
   | 'wallet-onboarding'
   | 'wallet'
-  | 'partner-console';
+  | 'partner-console'
+  | 'trip-participant'
+  | 'trip-driver';
 
 const publicPreviewScreens: Screen[] = [
   'role-selection',
@@ -46,6 +49,8 @@ const publicPreviewScreens: Screen[] = [
   'wallet-onboarding',
   'wallet',
   'partner-console',
+  'trip-participant',
+  'trip-driver',
 ];
 
 const getInitialScreen = (): Screen => {
@@ -73,6 +78,11 @@ function AppContent() {
     else if (tab === 'options') setCurrentScreen('options');
     else if (tab === 'map') setCurrentScreen('map');
     else if (tab === 'profile') setCurrentScreen('profile');
+  };
+
+  const returnToActivity = () => {
+    setCurrentScreen('routes');
+    setCurrentTab('routes');
   };
 
   return (
@@ -108,7 +118,11 @@ function AppContent() {
 
       {currentScreen === 'routes' && (
         <>
-          <RoutesScreen onViewSignal={() => {}} />
+          <RoutesScreen
+            onViewSignal={() => {}}
+            onOpenParticipantTripDemo={() => setCurrentScreen('trip-participant')}
+            onOpenDriverTripDemo={() => setCurrentScreen('trip-driver')}
+          />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}
@@ -170,6 +184,12 @@ function AppContent() {
       )}
       {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
       {currentScreen === 'partner-console' && <PartnerConsoleScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
+      {currentScreen === 'trip-participant' && (
+        <TripJourneyScreen mode="participant" onBack={returnToActivity} onDone={returnToActivity} />
+      )}
+      {currentScreen === 'trip-driver' && (
+        <TripJourneyScreen mode="route-participant" onBack={returnToActivity} onDone={returnToActivity} />
+      )}
     </div>
   );
 }

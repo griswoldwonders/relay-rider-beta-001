@@ -9,6 +9,7 @@ import './onboarding-deck.css'
 import './green-wallet.css'
 import './mockup-refresh.css'
 import './home-entry.css'
+import './trip-journey.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
