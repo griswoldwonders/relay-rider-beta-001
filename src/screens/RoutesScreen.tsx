@@ -30,23 +30,23 @@ export const RoutesScreen: React.FC<RoutesScreenProps> = ({
       <Header title="Activity" subtitle="Commute signals, planned routes, and saved options" />
 
       <div className="container pt-6">
-        <section className="trip-demo-entry">
-          <div className="trip-demo-entry__topline">
-            <span><ShieldCheck size={14} /> Coordinated trip demonstration</span>
-            <small>Prototype states</small>
+        <section className="rounded-[28px] border border-[rgba(0,68,73,.09)] bg-white p-5 shadow-[0_5px_18px_rgba(0,68,73,.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[.05em] text-iris"><ShieldCheck size={14} /> Coordinated trip demo</span>
+            <small className="text-[10px] text-[rgba(0,68,73,.5)]">Prototype states</small>
           </div>
-          <h2>Preview the confirmed → in-progress → arrival experience.</h2>
-          <p>These screens demonstrate a governed planned-route workflow. They do not represent live dispatch, real-time vehicle tracking, or guaranteed transportation.</p>
-          <div className="trip-demo-entry__actions">
-            <button type="button" onClick={onOpenParticipantTripDemo}>
-              <UsersRound size={18} />
-              <span><strong>Commuter view</strong><small>Meet, travel, arrive, complete</small></span>
-              <ArrowRight size={17} />
+          <h2 className="mt-4 text-xl font-bold tracking-tight text-[var(--color-deep-lagoon)]">Confirmed → in progress → arrival</h2>
+          <p className="mt-2 text-xs leading-relaxed text-[rgba(0,68,73,.62)]">Preview a governed planned-route workflow. These screens do not represent live dispatch, real-time vehicle tracking, or guaranteed transportation.</p>
+          <div className="mt-5 grid gap-3">
+            <button type="button" onClick={onOpenParticipantTripDemo} className="flex min-h-[64px] items-center gap-3 rounded-[18px] border border-[rgba(0,68,73,.08)] bg-[#f1ecff] px-4 text-left active:scale-[.98]">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-iris"><UsersRound size={18} /></span>
+              <span className="min-w-0 flex-1"><strong className="block text-sm text-[var(--color-deep-lagoon)]">Commuter view</strong><small className="mt-1 block text-[10px] text-[rgba(0,68,73,.58)]">Meet, travel, arrive, complete</small></span>
+              <ArrowRight size={17} className="text-iris" />
             </button>
-            <button type="button" onClick={onOpenDriverTripDemo}>
-              <CarFront size={18} />
-              <span><strong>EV route participant</strong><small>Access Point, begin route, complete</small></span>
-              <ArrowRight size={17} />
+            <button type="button" onClick={onOpenDriverTripDemo} className="flex min-h-[64px] items-center gap-3 rounded-[18px] border border-[rgba(0,68,73,.08)] bg-[#efffe7] px-4 text-left active:scale-[.98]">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#168858]"><CarFront size={18} /></span>
+              <span className="min-w-0 flex-1"><strong className="block text-sm text-[var(--color-deep-lagoon)]">EV route participant</strong><small className="mt-1 block text-[10px] text-[rgba(0,68,73,.58)]">Access Point, begin route, complete</small></span>
+              <ArrowRight size={17} className="text-[#168858]" />
             </button>
           </div>
         </section>
