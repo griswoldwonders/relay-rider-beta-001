@@ -31,6 +31,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Verify deployment and institutional backend contract
+        run: npm run check:deployment
+
       - name: Audit all dependencies
         run: npm audit --audit-level=high
 
