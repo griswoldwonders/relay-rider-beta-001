@@ -11,6 +11,7 @@ import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { PartnerConsoleScreen } from './screens/PartnerConsoleScreen';
 import { TripJourneyScreen } from './screens/TripJourneyScreen';
+import { InstitutionProgramScreen } from './screens/InstitutionProgramScreen';
 import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
 import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
@@ -26,6 +27,7 @@ type Screen =
   | 'options'
   | 'map'
   | 'profile'
+  | 'institution-program'
   | 'route-need-flow'
   | 'ev-participant-flow'
   | 'privacy-center'
@@ -45,6 +47,7 @@ const publicPreviewScreens: Screen[] = [
   'map',
   'routes',
   'profile',
+  'institution-program',
   'security-center',
   'wallet-onboarding',
   'wallet',
@@ -94,6 +97,7 @@ function AppContent() {
           <HomeScreen
             onStartRouteSignal={() => setCurrentScreen('route-need-flow')}
             onShareEVRoute={() => setCurrentScreen('ev-participant-flow')}
+            onOpenInstitutionProgram={() => setCurrentScreen('institution-program')}
             onSuggestRelayZone={() => {
               setCurrentScreen('map');
               setCurrentTab('map');
@@ -160,6 +164,10 @@ function AppContent() {
         </>
       )}
 
+      {currentScreen === 'institution-program' && (
+        <InstitutionProgramScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />
+      )}
+
       {currentScreen === 'route-need-flow' && (
         <CommuterOnboardingFlow
           onCancel={() => {
@@ -167,8 +175,8 @@ function AppContent() {
             setCurrentTab('home');
           }}
           onComplete={() => {
-            setCurrentScreen('options');
-            setCurrentTab('options');
+            setCurrentScreen('matches');
+            setCurrentTab('matches');
           }}
         />
       )}
