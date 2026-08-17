@@ -1,7 +1,7 @@
 {
   "schema_version": "relay-commuter-deployment-v1",
   "environment": "production-client",
-  "audited_at": "2026-08-16T20:03:00-07:00",
+  "audited_at": "2026-08-16T20:15:00-07:00",
   "product_state": "research_beta",
   "source_of_truth": {
     "human_document": "CURRENT_STATE.md",
@@ -12,6 +12,7 @@
     "production_branch": "main",
     "audited_main_sha": "e04e6867e5faa556f6af11c2f51ceebefe4272d2",
     "integration_branch": "engineering/commuter-backend-integration-2026-08-16",
+    "integration_branch_ci_validated_sha": "12f529702d6d62d6d293c120eb69d02aa5cff345",
     "hosting_deployment_sha_verified": false,
     "production_main_persistence_at_audit": "session_memory"
   },
@@ -49,6 +50,21 @@
     "template_commuter_matches",
     "local_transit_example_bundle"
   ],
+  "verification": {
+    "integration_branch_ci": {
+      "workflow_run_id": 31990462855,
+      "validated_sha": "12f529702d6d62d6d293c120eb69d02aa5cff345",
+      "deployment_contract": "passed",
+      "live_backend_fingerprint": "passed",
+      "production_dependency_audit": "passed",
+      "type_check": "passed",
+      "production_build": "passed",
+      "application_security_config": "passed",
+      "tracked_secret_scan": "passed",
+      "dependency_review": "passed",
+      "codeql": "passed"
+    }
+  },
   "promotion_gates": {
     "authenticated_participant_vertical_slice": {
       "required_sequence": [
@@ -61,9 +77,11 @@
         "administrative_review_recorded",
         "participant_reads_reviewed_option"
       ],
-      "implementation_branch_complete": false,
+      "implementation_branch_complete": true,
+      "ci_validated": true,
       "real_browser_proof_complete": false,
-      "production_deployment_verified": false
+      "production_deployment_verified": false,
+      "remaining_blocker": "A real institution-issued participant invitation and a second compatible planned-route participant are required to prove the cross-user Match Preview and administrative-review loop without fabricating production evidence."
     }
   },
   "deployment_gates": {
