@@ -1,0 +1,75 @@
+{
+  "schema_version": "relay-commuter-deployment-v1",
+  "environment": "production-client",
+  "audited_at": "2026-08-16T20:03:00-07:00",
+  "product_state": "research_beta",
+  "source_of_truth": {
+    "human_document": "CURRENT_STATE.md",
+    "capability_manifest": "docs/CAPABILITY_MANIFEST.json"
+  },
+  "client_runtime": {
+    "repository": "griswoldwonders/relay-rider-beta-001",
+    "production_branch": "main",
+    "audited_main_sha": "e04e6867e5faa556f6af11c2f51ceebefe4272d2",
+    "integration_branch": "engineering/commuter-backend-integration-2026-08-16",
+    "hosting_deployment_sha_verified": false,
+    "production_main_persistence_at_audit": "session_memory"
+  },
+  "institutional_backend_contract": {
+    "repository": "griswoldwonders/relay-mock-v3",
+    "contract_branch": "docs/current-deployed-system-2026-08-16",
+    "contract_commit": "e4cc0cee2fc0e2558c22e0bf53b38e689023be27",
+    "deployment_path": "DEPLOYMENT.json",
+    "capability_manifest_path": "docs/CURRENT_DEPLOYED_SYSTEM_MANIFEST.json",
+    "supabase_project_name": "Relay-Rider-RD",
+    "supabase_project_ref": "dzrqrqfxcihvufvyctbt",
+    "rest_url": "https://dzrqrqfxcihvufvyctbt.supabase.co",
+    "publishable_key": "sb_publishable_hLCfTlWFEQRkwKUwz5Wv2g_DwoVqPy1",
+    "live_migration_head": {
+      "version": "20260817030119",
+      "name": "participant_client_contract_v1_20260817032000",
+      "fingerprint": "af49a824136167a6981787aff2cc5821"
+    },
+    "live_head_endpoint": "/rest/v1/relay_deployment_fingerprint?select=migration_version,migration_fingerprint",
+    "participant_rpc_contract": [
+      "accept_organization_invitation",
+      "get_participant_program_context",
+      "submit_participant_commuter_need",
+      "submit_participant_planned_route",
+      "get_participant_match_previews"
+    ],
+    "match_generation_rpc": "generate_deterministic_match_previews",
+    "match_generation_permission": "institutional_reviewer_only"
+  },
+  "prototype_only": [
+    "green_route_credit_ledger",
+    "green_route_credit_redemption",
+    "simulated_trip_progression",
+    "modeled_detour_visuals",
+    "template_commuter_matches",
+    "local_transit_example_bundle"
+  ],
+  "promotion_gates": {
+    "authenticated_participant_vertical_slice": {
+      "required_sequence": [
+        "institution_invitation",
+        "authenticated_session",
+        "active_program_membership",
+        "commute_profile",
+        "commuter_need_persisted",
+        "institutional_reviewer_generates_match_preview",
+        "administrative_review_recorded",
+        "participant_reads_reviewed_option"
+      ],
+      "implementation_branch_complete": false,
+      "real_browser_proof_complete": false,
+      "production_deployment_verified": false
+    }
+  },
+  "deployment_gates": {
+    "capability_manifest_validation": "required",
+    "backend_contract_fingerprint_validation": "required",
+    "prototype_boundary_validation": "required",
+    "build_must_fail_on_backend_contract_drift": true
+  }
+}
