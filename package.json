@@ -5,9 +5,11 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "build": "npm run check:deployment && vite build",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
+    "check:deployment": "node scripts/validate-deployment-contract.mjs",
+    "check:deployment:local": "node scripts/validate-deployment-contract.mjs --local-only",
     "test": "vitest run",
     "test:watch": "vitest",
     "security:check": "node scripts/check-security-config.mjs && npm audit --omit=dev --audit-level=high",
