@@ -7,6 +7,8 @@ import {
   ChevronRight,
   Coins,
   FlaskConical,
+  BarChart3,
+  CircleHelp,
   Gift,
   MapPinned,
   Route,
@@ -26,6 +28,8 @@ interface HomeScreenProps {
   onBrowseMatches: () => void;
   onBrowseActivity: () => void;
   onOpenGreenWallet: () => void;
+  onOpenImpact: () => void;
+  onOpenHowItWorks: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -36,6 +40,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onBrowseMatches,
   onBrowseActivity,
   onOpenGreenWallet,
+  onOpenImpact,
+  onOpenHowItWorks,
 }) => {
   const { routeSignals, greenRouteCredits } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
@@ -100,6 +106,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </button>
             </section>
 
+            <section className="home-entry-learn" aria-label="Learn about Relay Rider">
+              <button type="button" onClick={onOpenHowItWorks}><CircleHelp size={20} /><span><strong>How Relay Rider works</strong><small>See the five-step research-beta process.</small></span><ChevronRight size={20} /></button>
+              <button type="button" onClick={onOpenImpact}><BarChart3 size={20} /><span><strong>Impact dashboard</strong><small>Review transparent pre-pilot estimates.</small></span><ChevronRight size={20} /></button>
+            </section>
+
             <section className="home-entry-trust" aria-label="Prototype guardrails">
               <span><ShieldCheck size={15} /> Approximate areas first</span>
               <span>Research beta</span>
@@ -144,6 +155,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <button type="button" onClick={onShareEVRoute}><BatteryCharging size={22} /><strong>EV route</strong><small>Planned route</small></button>
                 <button type="button" onClick={onBrowseActivity}><Route size={22} /><strong>Activity</strong><small>Signals & status</small></button>
                 <button type="button" onClick={onOpenGreenWallet}><Coins size={22} /><strong>Wallet</strong><small>Credits & benefits</small></button>
+                <button type="button" onClick={onOpenImpact}><BarChart3 size={22} /><strong>Impact</strong><small>Pilot estimates</small></button>
+                <button type="button" onClick={onOpenHowItWorks}><CircleHelp size={22} /><strong>How it works</strong><small>Process & review</small></button>
               </div>
             </section>
 

@@ -866,6 +866,56 @@ md-outlined-button svg {
 .map-popup span { color: var(--color-electric-iris); font-size: 11px; font-weight: 650; }
 .map-popup small { color: var(--color-muted-lagoon); line-height: 1.35; }
 
+/* Impact dashboard and How It Works */
+.impact-screen,
+.how-screen { background: var(--color-parchment); }
+.impact-shell,
+.how-shell { padding-top: 22px; padding-bottom: 42px; }
+.impact-hero,
+.how-hero { padding: 24px; border-radius: 26px; background: var(--color-deep-lagoon); }
+.impact-hero > span,
+.how-hero > span { display: inline-flex; align-items: center; gap: 6px; color: var(--color-lime-pulse); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.impact-hero h1,
+.how-hero h1 { margin-top: 12px; color: var(--color-parchment); font-size: 28px; line-height: 1.08; }
+.impact-hero p,
+.how-hero p { margin-top: 12px; color: rgba(255,254,240,.78); font-size: 12px; line-height: 1.6; }
+.impact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.impact-card { min-width: 0; padding: 17px; border: 1px solid rgba(0,68,73,.16); border-radius: 22px; background: var(--color-parchment); box-shadow: var(--shadow-sm); }
+.impact-card__top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.impact-card__icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 12px; color: var(--color-electric-iris); background: var(--color-iris-wash); }
+.impact-card em { color: var(--color-muted-lagoon); font-size: 8px; font-style: normal; font-weight: 700; letter-spacing: .04em; text-align: right; text-transform: uppercase; }
+.impact-card > strong { display: block; margin-top: 18px; font-size: 34px; line-height: 1; }
+.impact-card h2 { margin-top: 8px; font-size: 13px; line-height: 1.3; }
+.impact-card small { display: block; margin-top: 4px; color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.35; }
+.impact-progress { height: 6px; margin-top: 14px; overflow: hidden; border-radius: 999px; background: var(--color-soft-paper); }
+.impact-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--color-electric-iris), var(--color-lime-pulse)); }
+.impact-card p { margin-top: 12px; color: var(--color-muted-lagoon); font-size: 9px; line-height: 1.5; }
+.impact-method { margin-top: 18px; padding: 22px; border-radius: 24px; background: var(--color-soft-paper); }
+.impact-section-kicker { color: var(--color-electric-iris); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.impact-method h2 { margin-top: 7px; font-size: 20px; }
+.impact-method ul { display: grid; gap: 10px; margin: 15px 0 0; padding: 0; list-style: none; }
+.impact-method li { position: relative; padding-left: 18px; color: var(--color-muted-lagoon); font-size: 11px; line-height: 1.45; }
+.impact-method li::before { position: absolute; top: 6px; left: 0; width: 7px; height: 7px; border-radius: 99px; background: var(--color-electric-iris); content: ''; }
+.impact-guardrail,
+.how-not-live { display: flex; align-items: flex-start; gap: 12px; margin-top: 18px; padding: 18px; border: 1px solid rgba(0,68,73,.18); border-radius: 22px; background: var(--color-mint-wash); }
+.impact-guardrail > svg,
+.how-not-live > svg { flex: 0 0 auto; }
+.impact-guardrail strong,
+.how-not-live strong { font-size: 12px; }
+.impact-guardrail p,
+.how-not-live p { margin-top: 4px; font-size: 10px; line-height: 1.5; }
+.how-steps { margin-top: 22px; }
+.how-step { display: grid; grid-template-columns: 44px 1fr; gap: 13px; }
+.how-step__rail { display: flex; align-items: center; flex-direction: column; }
+.how-step__rail span { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 15px; color: var(--color-electric-iris); background: var(--color-iris-wash); }
+.how-step__rail i { width: 1px; min-height: 34px; flex: 1; background: rgba(0,68,73,.2); }
+.how-step:last-child .how-step__rail i { display: none; }
+.how-step > div:last-child { padding: 2px 0 24px; }
+.how-step small { color: var(--color-electric-iris); font-size: 9px; font-weight: 700; letter-spacing: .12em; }
+.how-step h2 { margin-top: 5px; font-size: 16px; }
+.how-step p { margin-top: 7px; color: var(--color-muted-lagoon); font-size: 11px; line-height: 1.55; }
+.how-actions { display: grid; gap: 10px; margin-top: 20px; }
+
 /* Security / supporting screens inherit the same paper system. */
 .security-hero {
   display: flex;
@@ -939,6 +989,7 @@ md-outlined-button svg {
 
 @media (max-width: 380px) {
   .container { padding-right: 16px; padding-left: 16px; }
+  .impact-grid { grid-template-columns: 1fr; }
   .home-material-hero,
   .market-hero { padding: 26px 22px; }
   .home-material-hero h1,

@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { AppProvider } from './context/AppContext';
 import { BottomNav } from './components/BottomNav';
 import { RoleSelectionScreen } from './screens/RoleSelectionScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { RoutesScreen } from './screens/RoutesScreen';
-import { MapScreen } from './screens/MapScreen';
-import { CommuteOptionsScreen } from './screens/CommuteOptionsScreen';
-import { CommuterMatchesScreen } from './screens/CommuterMatchesScreen';
 import { SecurityCenterScreen } from './screens/SecurityCenterScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { PartnerConsoleScreen } from './screens/PartnerConsoleScreen';
-import { TripJourneyScreen } from './screens/TripJourneyScreen';
-import { CommuterOnboardingFlow } from './flows/CommuterOnboardingFlow';
-import { EVParticipantFlowScreen } from './flows/EVParticipantFlowScreen';
 import { PrivacyCenterScreen } from './screens/PrivacyCenterScreen';
 import { ReviewGatesScreen } from './screens/ReviewGatesScreen';
-import { GreenWalletOnboardingFlow } from './flows/GreenWalletOnboardingFlow';
-import { WalletScreen } from './screens/WalletScreen';
+import { HowItWorksScreen } from './screens/HowItWorksScreen';
+
+const MapScreen = lazy(() => import('./screens/MapScreen').then(module => ({ default: module.MapScreen })));
+const PartnerConsoleScreen = lazy(() => import('./screens/PartnerConsoleScreen').then(module => ({ default: module.PartnerConsoleScreen })));
+const TripJourneyScreen = lazy(() => import('./screens/TripJourneyScreen').then(module => ({ default: module.TripJourneyScreen })));
+const GreenWalletOnboardingFlow = lazy(() => import('./flows/GreenWalletOnboardingFlow').then(module => ({ default: module.GreenWalletOnboardingFlow })));
+const WalletScreen = lazy(() => import('./screens/WalletScreen').then(module => ({ default: module.WalletScreen })));
+const ImpactDashboardScreen = lazy(() => import('./screens/ImpactDashboardScreen').then(module => ({ default: module.ImpactDashboardScreen })));
+const CommuteOptionsScreen = lazy(() => import('./screens/CommuteOptionsScreen').then(module => ({ default: module.CommuteOptionsScreen })));
+const CommuterMatchesScreen = lazy(() => import('./screens/CommuterMatchesScreen').then(module => ({ default: module.CommuterMatchesScreen })));
+const CommuterOnboardingFlow = lazy(() => import('./flows/CommuterOnboardingFlow').then(module => ({ default: module.CommuterOnboardingFlow })));
+const EVParticipantFlowScreen = lazy(() => import('./flows/EVParticipantFlowScreen').then(module => ({ default: module.EVParticipantFlowScreen })));
 
 type Screen =
   | 'role-selection'
@@ -35,7 +38,9 @@ type Screen =
   | 'wallet'
   | 'partner-console'
   | 'trip-participant'
-  | 'trip-driver';
+  | 'trip-driver'
+  | 'impact'
+  | 'how-it-works';
 
 const publicPreviewScreens: Screen[] = [
   'role-selection',
@@ -51,6 +56,8 @@ const publicPreviewScreens: Screen[] = [
   'partner-console',
   'trip-participant',
   'trip-driver',
+  'impact',
+  'how-it-works',
 ];
 
 const getInitialScreen = (): Screen => {
@@ -86,7 +93,8 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <Suspense fallback={<ScreenLoadingState />}>
+      <div className="min-h-screen bg-white">
       {currentScreen === 'role-selection' && <RoleSelectionScreen onRoleSelect={handleRoleSelect} />}
 
       {currentScreen === 'home' && (
@@ -111,6 +119,8 @@ function AppContent() {
               setCurrentTab('routes');
             }}
             onOpenGreenWallet={() => setCurrentScreen('wallet-onboarding')}
+            onOpenImpact={() => setCurrentScreen('impact')}
+            onOpenHowItWorks={() => setCurrentScreen('how-it-works')}
           />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
@@ -183,6 +193,14 @@ function AppContent() {
         />
       )}
       {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'impact' && <ImpactDashboardScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
+      {currentScreen === 'how-it-works' && (
+        <HowItWorksScreen
+          onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }}
+          onStartCommute={() => setCurrentScreen('route-need-flow')}
+          onPostRoute={() => setCurrentScreen('ev-participant-flow')}
+        />
+      )}
       {currentScreen === 'partner-console' && <PartnerConsoleScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
       {currentScreen === 'trip-participant' && (
         <TripJourneyScreen mode="participant" onBack={returnToActivity} onDone={returnToActivity} />
@@ -190,7 +208,20 @@ function AppContent() {
       {currentScreen === 'trip-driver' && (
         <TripJourneyScreen mode="route-participant" onBack={returnToActivity} onDone={returnToActivity} />
       )}
-    </div>
+      </div>
+    </Suspense>
+  );
+}
+
+function ScreenLoadingState() {
+  return (
+    <main className="container flex min-h-screen items-center justify-center" role="status" aria-live="polite">
+      <div className="card w-full text-center">
+        <p className="m3-brand-label">Relay Rider</p>
+        <h1 className="text-xl font-semibold text-navy">Loading this prototype view…</h1>
+        <p className="mt-2 text-sm text-gray-600">Research beta · no live route activation</p>
+      </div>
+    </main>
   );
 }
 
