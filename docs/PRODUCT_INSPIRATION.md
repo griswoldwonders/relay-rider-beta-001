@@ -46,6 +46,35 @@ It is a roadmap aid, not implementation debt.
 - turning the UX into a policy document
 - copying transit tooling without adapting it to venue workflows
 
+
+## Borrowed commuter program patterns
+
+These patterns are worth adapting directly into Relay Rider’s product language and flow:
+
+- simple commuter options hierarchy
+- campus / employer-specific program framing
+- eligibility and verification language
+- carpool rules and corridor logic
+- guaranteed ride home / backup support concept
+- contact / support office pattern
+- student / faculty / staff segmentation
+
+### Relay Rider translation
+
+- keep the main flow short and role-aware
+- label external options, review-only items, and program-eligible items clearly
+- define corridor compatibility by schedule, corridor, and shared travel pattern
+- include a backup-support concept without implying guaranteed transportation
+- surface a commuter services / support contact area
+- tailor copy and benefits by participant type
+
+### Venue Relay translation
+
+- segment attendees, staff, and vendors
+- provide venue-specific support and backup options
+- use zone / corridor logic for event-day movement
+- keep verification and eligibility visible without making the UX bureaucratic
+
 ## Shared architectural guidance
 
 - keep routing replaceable
