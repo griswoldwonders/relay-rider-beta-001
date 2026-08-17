@@ -111,9 +111,17 @@ The prototype must not imply:
 
 Future operational activation requires legal, insurance, privacy, accessibility, safety, program-rule, and operational review.
 
+## Backend
+
+A Django + Django REST Framework API scaffold lives in `backend/`, modeling the
+same domain as `src/types.ts` (route signals, EV participant signals, Relay
+Zones, corridors, Green Route Credits, user profiles). It is not yet wired up
+to the frontend and has no authentication — see `backend/README.md` for setup
+and current status.
+
 ## Data handling
 
-Sensitive prototype state is held in session memory. Earlier persisted sensitive records are cleared at startup. The Supabase directory is a backend blueprint and must not be treated as deployed until reviewed, applied, and tested in the intended project.
+Sensitive prototype state is held in session memory. Earlier persisted sensitive records are cleared at startup. The Supabase directory and the `backend/` Django scaffold are backend blueprints and must not be treated as deployed until reviewed, applied, and tested in the intended project.
 
 See `SECURITY.md` and `docs/SECURITY_ARCHITECTURE.md` for the current security foundation.
 

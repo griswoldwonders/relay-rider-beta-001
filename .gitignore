@@ -5,3 +5,10 @@ dist/
 !.env.example
 .netlify/
 *.log
+
+# Django backend
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.sqlite3
+backend/staticfiles/
