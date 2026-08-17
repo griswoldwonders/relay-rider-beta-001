@@ -57,6 +57,18 @@ Relay Rider includes **Green Route Credits** as capped promotional participation
 
 Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or direct charging reimbursements**.
 
+
+## Product inspiration from adjacent open-source projects
+
+Relay Rider's roadmap borrows patterns from a few proven mobility and logistics projects:
+
+- Fleetbase for dispatch-first operations, live tracking, and modular logistics workflows
+- openrouteservice for routing intelligence, travel-time matrices, and accessibility planning
+- Open Mobility Foundation for standards-first data modeling and interoperability
+- awesome-transit for ecosystem discovery and transit tooling references
+
+See `docs/PRODUCT_INSPIRATION.md` for a fuller feature-by-feature roadmap.
+
 ## Core screens
 
 - Role Selection
