@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ArrowRight,
   BatteryCharging,
+  Building2,
   CalendarDays,
   CarFront,
   ChevronRight,
@@ -21,6 +22,7 @@ import { commuterMatchTemplates } from '../data/commuterMatchesData';
 interface HomeScreenProps {
   onStartRouteSignal: () => void;
   onShareEVRoute: () => void;
+  onOpenInstitutionProgram: () => void;
   onSuggestRelayZone: () => void;
   onBrowseOptions: () => void;
   onBrowseMatches: () => void;
@@ -31,13 +33,14 @@ interface HomeScreenProps {
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartRouteSignal,
   onShareEVRoute,
+  onOpenInstitutionProgram,
   onSuggestRelayZone,
   onBrowseOptions,
   onBrowseMatches,
   onBrowseActivity,
   onOpenGreenWallet,
 }) => {
-  const { routeSignals, greenRouteCredits } = useApp();
+  const { routeSignals, greenRouteCredits, backendSession, activeProgram, backendActivity } = useApp();
   const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
   const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
   const isFirstVisit = !latestSignal;
@@ -57,6 +60,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
           <span className="home-entry-beta"><FlaskConical size={15} /> Research beta</span>
         </header>
+
+        <button
+          type="button"
+          onClick={onOpenInstitutionProgram}
+          className={`w-full rounded-2xl border p-4 text-left flex items-start gap-3 ${activeProgram ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white'}`}
+        >
+          <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${activeProgram ? 'bg-white text-emerald-700' : 'bg-slate-100 text-slate-700'}`}><Building2 size={20} /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Institution program</span>
+            <strong className="block text-slate-950 mt-1">{activeProgram ? activeProgram.organization_name : backendSession ? 'Accept an institution invitation' : 'Connect a governed commuter program'}</strong>
+            <small className="block text-slate-600 mt-1 leading-5">{activeProgram ? `${activeProgram.site_name || 'Organization-wide'} · participant records can persist to the institutional backend.` : 'Prototype screens still work without a connection, but participant records remain session-only until an active program is connected.'}</small>
+            {backendActivity.state === 'persisted' && <small className="block text-emerald-700 font-semibold mt-2">✓ {backendActivity.message}</small>}
+            {backendActivity.state === 'error' && <small className="block text-red-700 font-semibold mt-2">{backendActivity.message}</small>}
+          </span>
+          <ChevronRight size={20} className="text-slate-400 mt-2" />
+        </button>
 
         {isFirstVisit ? (
           <>
@@ -95,7 +114,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <button type="button" className="home-entry-feature home-entry-feature--benefits" onClick={onOpenGreenWallet}>
                 <span className="home-entry-feature__visual"><Gift size={29} /></span>
                 <span className="home-entry-feature__number">3</span>
-                <span className="home-entry-feature__copy"><strong>Benefits</strong><small>See eligible Green Route Credits and institution-sponsored benefits.</small></span>
+                <span className="home-entry-feature__copy"><strong>Benefits</strong><small>See prototype Green Route Credits and institution-sponsored benefit concepts.</small></span>
                 <ChevronRight size={22} />
               </button>
             </section>
@@ -128,13 +147,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <section className="home-returning-metrics" aria-label="Commute snapshot">
               <button type="button" onClick={onBrowseOptions}><strong>{commuteOptions.length}</strong><span>Options</span><small>prototype bundle</small></button>
-              <button type="button" onClick={onBrowseMatches}><strong>{commuterMatchTemplates.length}</strong><span>Matches</span><small>planned-route previews</small></button>
-              <button type="button" onClick={onOpenGreenWallet}><strong>{totalCredits}</strong><span>Credits</span><small>program benefits</small></button>
+              <button type="button" onClick={onBrowseMatches}><strong>{commuterMatchTemplates.length}</strong><span>Simulated</span><small>comparison previews</small></button>
+              <button type="button" onClick={onOpenGreenWallet}><strong>{totalCredits}</strong><span>Credits</span><small>prototype benefits</small></button>
             </section>
 
-            <button type="button" className="home-next-step" onClick={onBrowseOptions}>
+            <button type="button" className="home-next-step" onClick={onBrowseMatches}>
               <span className="home-next-step__icon"><ArrowRight size={24} /></span>
-              <span><strong>Best next step</strong><small>Compare options that align with your schedule, walking preference, and campus destination.</small><em>View commute options <ArrowRight size={14} /></em></span>
+              <span><strong>Best next step</strong><small>{activeProgram ? 'Check governed Match Preview and administrative-review status for your connected program.' : 'Connect an institution program or compare prototype commute options.'}</small><em>View commuter matches <ArrowRight size={14} /></em></span>
             </button>
 
             <section>
@@ -143,14 +162,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <button type="button" onClick={onSuggestRelayZone}><MapPinned size={22} /><strong>Map</strong><small>Routes & hubs</small></button>
                 <button type="button" onClick={onShareEVRoute}><BatteryCharging size={22} /><strong>EV route</strong><small>Planned route</small></button>
                 <button type="button" onClick={onBrowseActivity}><Route size={22} /><strong>Activity</strong><small>Signals & status</small></button>
-                <button type="button" onClick={onOpenGreenWallet}><Coins size={22} /><strong>Wallet</strong><small>Credits & benefits</small></button>
+                <button type="button" onClick={onOpenGreenWallet}><Coins size={22} /><strong>Wallet</strong><small>Prototype credits</small></button>
               </div>
             </section>
 
             <section className="home-entry-trust" aria-label="Prototype guardrails">
               <span><ShieldCheck size={15} /> Approximate areas first</span>
               <span>Match previews only</span>
-              <span>Program benefits only</span>
+              <span>Administrative review required</span>
             </section>
           </>
         )}
