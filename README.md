@@ -1,42 +1,76 @@
-# Relay Rider — College Commuter Coordination Prototype
+# Relay Rider — College Commuter Coordination Research Beta
 
-Relay Rider is a mobile-first research-beta prototype for comparing **planned shared-route options, local transit, Access Points, EV/hybrid participation, and commuter incentives** for institution-sponsored mobility programs.
+Relay Rider is a mobile-first participant client for comparing **planned shared-route options, local transit, Access Points, EV/hybrid participation, and commuter benefits** inside institution-sponsored mobility programs.
 
 Relay Rider is **not** a taxi, ride-hailing, live dispatch, instant-pickup, or guaranteed transportation service.
 
-## Current prototype direction
+## Engineering source of truth
 
-The participant experience is intentionally simple:
+Do not infer production capability from a screen, component, or migration merely existing in this repository.
 
-- **I need a commute option** — submit a commute need, campus affiliation, schedule, transit preferences, Access Point preferences, and incentive interests.
-- **I already drive an EV/hybrid route** — register a route the participant already plans to travel, including schedule and detour comfort.
+Use, in order:
 
-The earlier organization and browsing roles have been removed from the participant onboarding flow.
+1. `DEPLOYMENT.json` — deployment and institutional-backend contract;
+2. `CURRENT_STATE.md` — human-readable deployed/current-state authority;
+3. `docs/CAPABILITY_MANIFEST.json` — machine-readable capability classifications.
 
-## College commuter model
+The audited production `main` baseline remains session-memory based until the integration branch is merged, deployed, and its browser proof is recorded.
 
-Relay Rider planned-route participation is shown as **$0 for eligible college participants** in this prototype. There is no rider bid, proposed fare, or payment marketplace in the participant experience.
+## Current participant direction
 
-Third-party transit fares are separate from Relay Rider. Student fareless access depends on the school and transit agency. The prototype surfaces eligibility-oriented language for programs such as GoPass but directs users to verify eligibility with the school or agency.
+The participant experience has two principal paths:
 
-## Commute options
+- **I need a commute option** — submit a commute need, institution context, schedule, transit preferences, Access Point willingness, and EV/hybrid preference.
+- **I already drive an EV/hybrid route** — register a route the participant already plans to travel, including recurring schedule and detour comfort.
 
-The **Commute Options** screen compares two categories:
+Inside a connected institution program, the integration branch persists these two records through the shared institutional backend. Without an active institution program, the interface remains a prototype session and does not write participant records into an institutional tenant.
 
-### Relay Rider planned-route previews
+## Governed backend architecture
 
-- Existing planned routes only
-- EV/hybrid-first participation
-- Compatibility score and match explanation
-- Modeled detour impact
-- Public Access Point fit
-- Administrative review status
-- $0 college-program cost for eligible participants
-- No live route activation in the research beta
+`relay-rider-beta-001` is the participant/client application.
 
-### Local transit
+The shared system of record is the Supabase project `Relay-Rider-RD`, governed through `griswoldwonders/relay-mock-v3`. This repository does **not** own a separate production participant database.
 
-The prototype includes examples and official verification links for:
+The participant client contract currently covers:
+
+- authenticated account session;
+- institution-issued invitation acceptance;
+- active organization/site/cohort context;
+- commuter-need persistence using approximate zones;
+- registration of an existing planned route;
+- participant-safe Match Preview and administrative-review reads.
+
+Deterministic Match Preview generation remains an **institutional reviewer action**. A participant cannot self-generate, self-approve, or automatically activate transportation.
+
+The repository-local SQL under `supabase/migrations/` is historical/backend blueprint material and is not the production database authority.
+
+## First end-to-end proof
+
+The promotion target is deliberately narrow:
+
+`institution invitation → authenticated participant → active program membership → commute profile → commuter need persisted → institutional reviewer generates deterministic Match Preview → administrative review → participant reads reviewed option`
+
+The integration must pass the deployment gates in `DEPLOYMENT.json` before it is described as production-live.
+
+## Commute options and matches
+
+The Matches experience separates two evidence classes:
+
+### Governed institutional Match Previews
+
+When an authenticated participant is connected to an active institution program, Relay Rider can read participant-safe Match Preview and administrative-review state from the shared backend. These records include compatibility evidence and may include a reviewed Access Point.
+
+A reviewed option remains a **Match Preview / commuter option**, not a guaranteed ride or live route activation.
+
+### `PROTOTYPE_SESSION` comparison cards
+
+Template matches remain available to demonstrate ranking and interface behavior. Their scores, route-overlap percentages, and detour displays are simulated and are explicitly separated from governed institutional records.
+
+Live routing/detour calculation is not connected.
+
+## Local transit
+
+The prototype includes examples and official-verification prompts for options such as:
 
 - LA Metro Bus Line 180
 - LA Metro A Line
@@ -45,35 +79,28 @@ The prototype includes examples and official verification links for:
 
 Transit entries are external transportation options, not Relay Rider-operated services. Schedules, fares, service changes, and student eligibility must be verified with the transit operator.
 
-## Incentives
+## Green Route Credits
 
-Relay Rider includes **Green Route Credits** as capped promotional participation benefits. They may be used in the prototype to recognize activities such as:
+Green Route Credits remain **`PROTOTYPE_SESSION`** unless and until an institution-funded incentive ledger and redemption system is separately implemented and verified.
 
-- Completing a qualified commute profile
-- Sustainable commute challenges
-- Transit participation
-- Access Point feedback
-- EV/clean-route participation or recognition
-
-Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or direct charging reimbursements**.
+They are not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or direct charging reimbursements.
 
 ## Core screens
 
-- Role Selection
 - Home
+- Institution Program
+- Commute Need Intake
+- Planned EV/Hybrid Route Registration
+- Commuter Matches
 - Commute Options
 - Corridor Map
 - Commute Activity
 - Profile / Incentives
-- Commute Need Intake
-- Planned EV/Hybrid Route Registration
 - Privacy Center
 - Security Center
 - Review Gates
 
-## Corridor map
-
-The prototype uses Leaflet and OpenStreetMap to display real public locations and EV charging infrastructure across the Pasadena–Eagle Rock–Glendale corridor. Candidate Access Points are research signals only and require site-rule, visibility, lighting, accessibility, partner, legal, insurance, and field review before controlled program use.
+Simulated trip-state screens remain prototype-only demonstrations.
 
 ## Technology
 
@@ -85,37 +112,40 @@ The prototype uses Leaflet and OpenStreetMap to display real public locations an
 - Leaflet / OpenStreetMap
 - Framer Motion
 - React Hook Form + Zod
+- Supabase Auth/PostgREST through a narrow authenticated participant adapter
 
 ## Local development
 
 ```bash
 npm install
+npm run check:deployment
 npm run check
 npm run build
 npm run dev
 ```
 
+`npm run check:deployment` validates the commuter source-of-truth files and verifies that the live institutional backend migration fingerprint still matches the reviewed contract pinned in `DEPLOYMENT.json`.
+
 ## Research-beta guardrails
 
-The prototype must not imply:
+The product must not imply:
 
-- Guaranteed transportation
-- Live dispatch
-- Instant pickup
-- Automatic payment
-- Driver earnings
-- Public ride-hailing
-- Unreviewed school transportation
-- Guaranteed safety
-- Guaranteed emissions reductions
+- guaranteed transportation;
+- live dispatch or instant pickup;
+- automatic route activation;
+- automatic payment or driver earnings;
+- public ride-hailing;
+- unreviewed school transportation;
+- guaranteed safety;
+- guaranteed parking, VMT, or emissions reductions.
 
 Future operational activation requires legal, insurance, privacy, accessibility, safety, program-rule, and operational review.
 
-## Data handling
+## Security
 
-Sensitive prototype state is held in session memory. Earlier persisted sensitive records are cleared at startup. The Supabase directory is a backend blueprint and must not be treated as deployed until reviewed, applied, and tested in the intended project.
+The participant application uses a Supabase **public publishable key plus the participant's authenticated access token**. It does not contain a service-role key. Tenant access is enforced by active institution membership checks, row-level security, and participant-scoped backend contracts.
 
-See `SECURITY.md` and `docs/SECURITY_ARCHITECTURE.md` for the current security foundation.
+See `SECURITY.md` and `docs/SECURITY_ARCHITECTURE.md` for the security foundation.
 
 ## License
 
