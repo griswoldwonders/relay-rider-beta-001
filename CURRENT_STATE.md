@@ -13,15 +13,33 @@
 
 ## Audited production baseline
 
-The audited `main` commit is `e04e6867e5faa556f6af11c2f51ceebefe4272d2`.
+The audited production `main` commit is `e04e6867e5faa556f6af11c2f51ceebefe4272d2`.
 
 At that baseline:
 
 - commuter onboarding, EV/hybrid planned-route registration, commute options, match previews, corridor map, wallet, and trip-journey screens are interactive;
 - participant route signals, EV participant signals, and Green Route Credits are held in React session memory;
-- the commuter application is not yet an authenticated client of the institutional Supabase backend;
+- the production commuter application is not yet an authenticated client of the institutional Supabase backend;
 - template matches and modeled detour values are prototype data, not live results;
-- the repository-local `supabase/migrations/202607270001_security_foundation.sql` is a historical/backend blueprint and is **not** the production database authority.
+- the repository-local `supabase/migrations/202607270001_security_foundation.sql` is historical/backend blueprint material and is **not** the production database authority.
+
+## Integration-branch implementation state
+
+The branch `engineering/commuter-backend-integration-2026-08-16` now implements the participant side of the governed backend contract.
+
+CI run `31990462855` validated commit `12f529702d6d62d6d293c120eb69d02aa5cff345` with all of the following passing:
+
+- deployment/source-of-truth validation;
+- live institutional-backend migration fingerprint validation;
+- production dependency audit;
+- TypeScript type check;
+- production build;
+- application security-configuration check;
+- tracked-secret scan;
+- dependency review;
+- CodeQL.
+
+This establishes **code-complete and CI-validated on the integration branch**, not production-live. Subsequent documentation-only source-of-truth updates must continue to pass the same gate.
 
 ## Institutional backend contract
 
@@ -37,13 +55,29 @@ The participant-client backend contract is live and currently includes:
 
 Deterministic match generation remains an institutional reviewer action through `generate_deterministic_match_previews`. The participant client must not trigger matching, approve itself, activate transportation, or bypass administrative review.
 
-The live backend fingerprint pinned by `DEPLOYMENT.json` is the contract boundary. A client build must fail when that fingerprint drifts until the backend change is reviewed and this source of truth is deliberately updated.
+The live backend fingerprint pinned by `DEPLOYMENT.json` is the contract boundary. A client build fails when that fingerprint drifts until the backend change is reviewed and this source of truth is deliberately updated.
+
+## Implemented participant path on the integration branch
+
+The commuter client now contains an institution-program screen and authenticated adapter that can:
+
+- create or sign into a participant account;
+- accept an institution-issued invitation;
+- load and select active organization/site/cohort context;
+- map the existing commute-profile form into the governed commuter-need contract;
+- persist an existing EV/hybrid planned route into the governed planned-route contract;
+- read participant-safe Match Preview and administrative-review state;
+- show governed Match Previews separately from simulated template comparisons.
+
+If no active institution program is connected, the existing forms remain prototype-session behavior and explicitly do not claim backend persistence.
 
 ## Target vertical slice
 
-The first cross-system proof is deliberately narrow:
+The first cross-system proof remains deliberately narrow:
 
 `institution invitation → authenticated participant → active program membership → commute profile → commuter need persisted → institutional reviewer generates deterministic Match Preview → administrative review status → participant reads reviewed option`
+
+The participant-side code required for this sequence is implemented and CI-validated on the integration branch. The complete sequence is **not yet proven with real program participants**.
 
 A "reviewed option" remains a governed commuter option / Match Preview. It is not a guaranteed ride, route activation, payment, or live dispatch event.
 
@@ -67,20 +101,23 @@ Participant write operations are restricted to the authenticated user's own data
 
 ## Promotion rule
 
-A capability may move from `IMPLEMENTED_NOT_DEPLOYED` to `LIVE_PERSISTED` only after all of the following are true:
+A capability may move from `IMPLEMENTED_NOT_DEPLOYED` to a production-live state only after all of the following are true:
 
 - the implementation is merged to the production branch;
-- CI source-of-truth and backend-fingerprint checks pass;
+- CI source-of-truth and backend-fingerprint checks pass on the merge candidate;
 - the hosting deployment is tied to the intended commit;
 - a real authenticated institution invitation is accepted;
 - a real participant record is persisted under the correct tenant;
-- a reviewer-generated Match Preview and administrative review are read back by that participant;
+- a compatible planned route exists from a separate legitimate participant;
+- a qualified institutional reviewer generates a Match Preview and records an administrative review;
+- that participant reads the reviewed option back through the commuter client;
 - the evidence is recorded in `DEPLOYMENT.json` without promoting prototype-only capabilities.
 
 ## Known unresolved items
 
 - Exact hosting deployment SHA/provenance is not yet verified.
 - No real participant browser proof has been executed yet.
-- The institutional admin UI still needs an explicit operator path for generating/reviewing the first proof Match Preview if the existing dormant operational UI is not sufficient.
+- A second legitimate participant/planned route is required for a real deterministic match because the matcher intentionally excludes self-matches.
+- The institutional admin application still needs a clear mounted operator path for the first reviewer-generated Match Preview and administrative review.
 - Live routing/detour calculation is not implemented.
 - Incentive ledger/redemption is not implemented.
