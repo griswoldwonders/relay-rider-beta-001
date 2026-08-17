@@ -1,6 +1,6 @@
 {
   "schema_version": "relay-commuter-capabilities-v1",
-  "audited_at": "2026-08-16T20:03:00-07:00",
+  "audited_at": "2026-08-16T20:15:00-07:00",
   "product_state": "research_beta",
   "states": [
     "LIVE_DEPLOYED",
@@ -15,7 +15,8 @@
       "id": "source_of_truth_controls",
       "code_state": "IMPLEMENTED_NOT_DEPLOYED",
       "production_state": "NOT_IMPLEMENTED",
-      "evidence": ["DEPLOYMENT.json", "CURRENT_STATE.md", "docs/CAPABILITY_MANIFEST.json"]
+      "caveat": "The integration branch has passed CI, including live institutional-backend fingerprint validation, but the controls are not production authority until merged/deployed.",
+      "evidence": ["DEPLOYMENT.json", "CURRENT_STATE.md", "docs/CAPABILITY_MANIFEST.json", "CI run 31990462855"]
     },
     {
       "id": "institutional_backend_participant_contract",
@@ -30,18 +31,26 @@
       "id": "institution_program_authentication",
       "code_state": "IMPLEMENTED_NOT_DEPLOYED",
       "production_state": "NOT_IMPLEMENTED",
-      "blocking_reason": "Authenticated commuter adapter and UI are being implemented on the integration branch; audited main remains session-memory only."
+      "caveat": "Sign-in/sign-up and in-memory authenticated session handling compile, build, and pass CI on the integration branch. No production hosting deployment or real participant browser proof is recorded."
     },
     {
       "id": "institution_invitation_acceptance",
       "code_state": "IMPLEMENTED_NOT_DEPLOYED",
-      "production_state": "NOT_IMPLEMENTED"
+      "production_state": "NOT_IMPLEMENTED",
+      "backend_contract": "accept_organization_invitation"
+    },
+    {
+      "id": "program_context_selection",
+      "code_state": "IMPLEMENTED_NOT_DEPLOYED",
+      "production_state": "NOT_IMPLEMENTED",
+      "backend_contract": "get_participant_program_context"
     },
     {
       "id": "commuter_need_backend_persistence",
       "code_state": "IMPLEMENTED_NOT_DEPLOYED",
       "production_state": "PROTOTYPE_SESSION",
-      "backend_contract": "submit_participant_commuter_need"
+      "backend_contract": "submit_participant_commuter_need",
+      "caveat": "The integration branch writes only after an authenticated active institution context exists; audited production main remains session-memory only."
     },
     {
       "id": "planned_route_backend_persistence",
@@ -54,14 +63,20 @@
       "code_state": "IMPLEMENTED_NOT_DEPLOYED",
       "production_state": "PROTOTYPE_SESSION",
       "backend_contract": "get_participant_match_previews",
-      "caveat": "The participant can read only options associated with their own need/route. Counterparty identity and vehicle details are omitted."
+      "caveat": "The participant can read only options associated with their own need/route. Counterparty identity and vehicle details are omitted. Real reviewed-option browser proof is still pending."
     },
     {
       "id": "deterministic_match_generation",
       "code_state": "BACKEND_LIVE",
       "production_state": "BACKEND_LIVE",
       "operator": "institutional_reviewer",
-      "caveat": "Not participant-triggered. Routing/detour service is not connected."
+      "caveat": "Not participant-triggered. Routing/detour service is not connected. The current institutional UI does not yet provide the explicit operator path required for the first browser proof."
+    },
+    {
+      "id": "authenticated_participant_vertical_slice",
+      "code_state": "IMPLEMENTED_NOT_DEPLOYED",
+      "production_state": "NOT_IMPLEMENTED",
+      "caveat": "Participant-side implementation and live backend contract are CI-validated. End-to-end proof remains blocked on a real institution-issued invitation, a compatible second participant/planned route, reviewer generation/review, and verified production deployment."
     },
     {
       "id": "template_commuter_matches",
