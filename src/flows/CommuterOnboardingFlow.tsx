@@ -19,6 +19,7 @@ import {
 import { nanoid } from 'nanoid';
 import { useApp } from '../context/AppContext';
 import { GreenRouteCredit, RouteSignal } from '../types';
+import { submitSignup } from '../lib/signupApi';
 
 interface CommuterOnboardingFlowProps {
   onComplete: () => void;
@@ -118,6 +119,8 @@ export const CommuterOnboardingFlow: React.FC<CommuterOnboardingFlowProps> = ({ 
   const [selectedIncentives, setSelectedIncentives] = useState<string[]>(['Green Route Credits']);
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [researchConsent, setResearchConsent] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
 
   const campusName = campus === 'Other college / university' ? customCampus.trim() : campus;
   const destinationArea = campusName;
@@ -136,8 +139,8 @@ export const CommuterOnboardingFlow: React.FC<CommuterOnboardingFlowProps> = ({ 
     if (step === 1) return startingArea.trim().length >= 2;
     if (step === 2) return selectedDays.length > 0 && Boolean(arrivalTime);
     if (step === 3) return selectedModes.length > 0 || plannedRouteInterest;
-    return adultConfirmed && researchConsent;
-  }, [step, campusName, startingArea, selectedDays, arrivalTime, selectedModes, plannedRouteInterest, adultConfirmed, researchConsent]);
+    return adultConfirmed && researchConsent && fullName.trim().length > 0 && email.trim().includes('@');
+  }, [step, campusName, startingArea, selectedDays, arrivalTime, selectedModes, plannedRouteInterest, adultConfirmed, researchConsent, fullName, email]);
 
   const goNext = () => {
     if (!canContinue) return;
@@ -190,6 +193,21 @@ export const CommuterOnboardingFlow: React.FC<CommuterOnboardingFlowProps> = ({ 
       date: new Date().toLocaleDateString(),
     };
     addGreenRouteCredit(credit);
+
+    // Best-effort sync to the local research-beta backend + Airtable.
+    // Never blocks completing onboarding -- see src/lib/signupApi.ts.
+    void submitSignup({
+      role: 'commuter',
+      name: fullName.trim(),
+      email: email.trim(),
+      originArea: startingArea.trim(),
+      destinationArea,
+      timeWindow: signal.timeWindow,
+      corridor,
+      adultConfirmed,
+      researchConsent,
+    });
+
     onComplete();
   };
 
@@ -386,6 +404,25 @@ export const CommuterOnboardingFlow: React.FC<CommuterOnboardingFlowProps> = ({ 
             </button>
           ))}
         </div>
+        <label className="onboarding-field-label" htmlFor="commuter-full-name">Full name</label>
+        <input
+          id="commuter-full-name"
+          className="onboarding-input"
+          value={fullName}
+          onChange={event => setFullName(event.target.value)}
+          placeholder="First and last name"
+          autoComplete="name"
+        />
+        <label className="onboarding-field-label" htmlFor="commuter-email">Email</label>
+        <input
+          id="commuter-email"
+          type="email"
+          className="onboarding-input"
+          value={email}
+          onChange={event => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
         <div className="onboarding-consent-box">
           <label>
             <input type="checkbox" checked={adultConfirmed} onChange={event => setAdultConfirmed(event.target.checked)} />

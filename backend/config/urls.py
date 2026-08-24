@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from relay.views import CorridorViewSet, GreenRouteCreditViewSet, ProfileViewSet, RelayZoneViewSet, RouteSignalViewSet, EVParticipantSignalViewSet
+from relay.signup_view import SignupView
 
 router = DefaultRouter()
 router.register('profiles', ProfileViewSet)
@@ -24,4 +25,5 @@ urlpatterns = [
     path('', home),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/signup/', SignupView.as_view(), name='signup'),
 ]

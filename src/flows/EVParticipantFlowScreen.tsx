@@ -3,6 +3,7 @@ import { Header } from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { EVParticipantSignal, GreenRouteCredit } from '../types';
 import { nanoid } from 'nanoid';
+import { submitSignup } from '../lib/signupApi';
 
 interface EVParticipantFlowScreenProps {
   onComplete: () => void;
@@ -24,6 +25,8 @@ export const EVParticipantFlowScreen: React.FC<EVParticipantFlowScreenProps> = (
     relayZoneTypes: [] as string[],
     feedbackCallWilling: false,
     reviewsAccepted: [] as string[],
+    fullName: '',
+    email: '',
   });
 
   const relayZoneOptions = [
@@ -85,6 +88,21 @@ export const EVParticipantFlowScreen: React.FC<EVParticipantFlowScreenProps> = (
     };
 
     addGreenRouteCredit(credit);
+
+    // Best-effort sync to the local research-beta backend + Airtable.
+    // Never blocks completing the flow -- see src/lib/signupApi.ts.
+    void submitSignup({
+      role: 'ev_participant',
+      name: formData.fullName.trim(),
+      email: formData.email.trim(),
+      originArea: formData.startingArea,
+      destinationArea: formData.destinationArea,
+      timeWindow: formData.timeWindow,
+      vehicleType: formData.vehicleType,
+      maxDetourMinutes: Number(formData.maxDetour.split('-')[0]) || undefined,
+      adultConfirmed: true,
+      researchConsent: formData.reviewsAccepted.length > 0,
+    });
 
     setStep(6);
   };
@@ -336,6 +354,30 @@ export const EVParticipantFlowScreen: React.FC<EVParticipantFlowScreenProps> = (
         {step === 5 && (
           <div className="space-y-4">
             <h2 className="section-title">Submit Route Participant Signal</h2>
+
+            <div>
+              <label className="block text-sm font-semibold text-navy mb-2">Full Name</label>
+              <input
+                type="text"
+                placeholder="First and last name"
+                value={formData.fullName}
+                onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                className="input-field"
+                autoComplete="name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-navy mb-2">Email</label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={e => setFormData({ ...formData, email: e.target.value })}
+                className="input-field"
+                autoComplete="email"
+              />
+            </div>
 
             <div className="card space-y-3">
               <div>
