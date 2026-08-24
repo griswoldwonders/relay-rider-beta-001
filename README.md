@@ -100,12 +100,31 @@ The prototype uses Leaflet and OpenStreetMap to display real public locations an
 
 ## Local development
 
+Frontend:
+
 ```bash
 npm install
 npm run check
 npm run build
 npm run dev
 ```
+
+Local Django API backend:
+
+```bash
+cd backend
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver 127.0.0.1:8877
+```
+
+Health checks:
+
+- `http://127.0.0.1:8877/` returns a JSON status payload.
+- `http://127.0.0.1:8877/api/` exposes the browsable API root.
+- `http://127.0.0.1:8877/admin/` exposes the Django admin login.
+
+The backend is a local development API scaffold for Relay Rider research-beta data: profiles, route-interest signals, EV/hybrid planned-route signals, relay zones, corridors, and Green Route Credits.
 
 ## Research-beta guardrails
 
