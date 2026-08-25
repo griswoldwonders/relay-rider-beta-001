@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RelayZone, RouteSignal
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
 
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -30,3 +30,14 @@ class GreenRouteCreditSerializer(serializers.ModelSerializer):
     class Meta:
         model = GreenRouteCredit
         fields = '__all__'
+
+class ChargingHubSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChargingHub
+        fields = '__all__'
+
+class RedemptionRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RedemptionRequest
+        fields = '__all__'
+        read_only_fields = ('requested_at', 'reviewed_at', 'reviewed_by')

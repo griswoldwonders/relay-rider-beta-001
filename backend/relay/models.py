@@ -64,3 +64,30 @@ class GreenRouteCredit(TimestampedModel):
 
     def __str__(self):
         return f'Green route credit {self.pk}'
+
+class ChargingHub(TimestampedModel):
+    name = models.CharField(max_length=160)
+    network = models.CharField(max_length=120)
+    city = models.CharField(max_length=120)
+    stalls = models.PositiveIntegerField(default=0)
+    connector_types = models.JSONField(default=list)
+    status = models.CharField(max_length=32, default='candidate')
+    evidence_label = models.CharField(max_length=32, default='modeled')
+
+    def __str__(self):
+        return self.name
+
+class RedemptionRequest(TimestampedModel):
+    credit = models.ForeignKey(GreenRouteCredit, on_delete=models.PROTECT, related_name='redemption_requests')
+    profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
+    charging_hub = models.ForeignKey(ChargingHub, on_delete=models.PROTECT, related_name='redemption_requests')
+    requested_units = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_label = models.CharField(max_length=80, default='Green Route Credits')
+    status = models.CharField(max_length=32, default='requested')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.CharField(max_length=160, blank=True)
+    review_note = models.TextField(blank=True)
+
+    def __str__(self):
+        return f'Redemption request {self.pk}'

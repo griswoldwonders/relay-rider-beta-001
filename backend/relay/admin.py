@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RelayZone, RouteSignal
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
 
-for model in [Profile, RouteSignal, EVParticipantSignal, RelayZone, Corridor, GreenRouteCredit]:
+for model in [Profile, RouteSignal, EVParticipantSignal, RelayZone, Corridor, GreenRouteCredit, ChargingHub, RedemptionRequest]:
     admin.site.register(model)

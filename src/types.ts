@@ -80,6 +80,33 @@ export interface GreenRouteCredit {
   date: string;
 }
 
+export type RedemptionRequestStatus = 'requested' | 'under-review' | 'fulfilled' | 'denied';
+
+export interface ChargingHub {
+  id: string;
+  name: string;
+  network: string;
+  city: string;
+  stalls: number;
+  connectorTypes: string[];
+  status: 'candidate' | 'verified' | 'active';
+  evidenceLabel: 'synthetic' | 'modeled' | 'verified';
+}
+
+export interface RedemptionRequest {
+  id: string;
+  creditId: string;
+  participantId: string;
+  chargingHubId: string;
+  requestedUnits: number;
+  unitLabel: string;
+  status: RedemptionRequestStatus;
+  requestedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewNote?: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;

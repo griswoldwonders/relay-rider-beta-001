@@ -15,6 +15,7 @@ const PartnerConsoleScreen = lazy(() => import('./screens/PartnerConsoleScreen')
 const TripJourneyScreen = lazy(() => import('./screens/TripJourneyScreen').then(module => ({ default: module.TripJourneyScreen })));
 const GreenWalletOnboardingFlow = lazy(() => import('./flows/GreenWalletOnboardingFlow').then(module => ({ default: module.GreenWalletOnboardingFlow })));
 const WalletScreen = lazy(() => import('./screens/WalletScreen').then(module => ({ default: module.WalletScreen })));
+const WalletAdminScreen = lazy(() => import('./screens/WalletAdminScreen').then(module => ({ default: module.WalletAdminScreen })));
 const ImpactDashboardScreen = lazy(() => import('./screens/ImpactDashboardScreen').then(module => ({ default: module.ImpactDashboardScreen })));
 const CommuteOptionsScreen = lazy(() => import('./screens/CommuteOptionsScreen').then(module => ({ default: module.CommuteOptionsScreen })));
 const CommuterMatchesScreen = lazy(() => import('./screens/CommuterMatchesScreen').then(module => ({ default: module.CommuterMatchesScreen })));
@@ -36,6 +37,7 @@ type Screen =
   | 'review-gates'
   | 'wallet-onboarding'
   | 'wallet'
+  | 'wallet-admin'
   | 'partner-console'
   | 'trip-participant'
   | 'trip-driver'
@@ -53,6 +55,7 @@ const publicPreviewScreens: Screen[] = [
   'security-center',
   'wallet-onboarding',
   'wallet',
+  'wallet-admin',
   'partner-console',
   'trip-participant',
   'trip-driver',
@@ -193,6 +196,7 @@ function AppContent() {
         />
       )}
       {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'wallet-admin' && <WalletAdminScreen onBack={() => setCurrentScreen('wallet')} />}
       {currentScreen === 'impact' && <ImpactDashboardScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
       {currentScreen === 'how-it-works' && (
         <HowItWorksScreen
