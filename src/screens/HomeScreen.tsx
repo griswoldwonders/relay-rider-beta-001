@@ -59,7 +59,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <header className="home-entry-header">
           <div>
             <span className="home-entry-kicker">Relay Rider</span>
-            <h1>Campus commute</h1>
+            <h1>EV commuter program</h1>
           </div>
           <span className="home-entry-beta"><FlaskConical size={15} /> Research beta</span>
         </header>
@@ -69,39 +69,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <section className="home-entry-hero" aria-labelledby="home-entry-title">
               <div className="home-entry-hero__copy">
                 <span className="home-entry-kicker">Start here</span>
-                <h2 id="home-entry-title">Find a better way to campus</h2>
-                <p>Compare EV-optimized planned commuter routes, Access Points, and mobility benefits around your schedule.</p>
+                <h2 id="home-entry-title">Earn benefits from the way you already commute</h2>
+                <p>Explore EV and hybrid commuter options, participate in planned-route programs, and use Green Route Credits for eligible benefits.</p>
               </div>
 
               <HomeCampusIllustration />
 
-              <button type="button" className="home-entry-primary" onClick={onStartRouteSignal}>
-                <Sparkles size={20} /> Set up my commute
+              <button type="button" className="home-entry-primary" onClick={onOpenGreenWallet}>
+                <Gift size={20} /> Open Green Wallet
               </button>
-              <button type="button" className="home-entry-secondary" onClick={onShareEVRoute}>
-                Register a planned EV/hybrid route <ArrowRight size={17} />
+              <button type="button" className="home-entry-secondary" onClick={onStartRouteSignal}>
+                Set up my EV commute <ArrowRight size={17} />
               </button>
             </section>
 
             <section className="home-entry-feature-list" aria-label="What Relay Rider helps you do">
-              <button type="button" className="home-entry-feature home-entry-feature--plan" onClick={onStartRouteSignal}>
+              <button type="button" className="home-entry-feature home-entry-feature--plan" onClick={onOpenGreenWallet}>
                 <span className="home-entry-feature__visual"><BatteryCharging size={29} /></span>
                 <span className="home-entry-feature__number">1</span>
-                <span className="home-entry-feature__copy"><strong>Plan</strong><small>Compare EV-optimized routes and commute options that fit your schedule.</small></span>
+                <span className="home-entry-feature__copy"><strong>Incentives</strong><small>See Green Route Credits, eligible EV benefits, and what to do next.</small></span>
                 <ChevronRight size={22} />
               </button>
 
-              <button type="button" className="home-entry-feature home-entry-feature--matches" onClick={onBrowseMatches}>
+              <button type="button" className="home-entry-feature home-entry-feature--matches" onClick={onBrowseOptions}>
                 <span className="home-entry-feature__visual"><CarFront size={29} /></span>
                 <span className="home-entry-feature__number">2</span>
-                <span className="home-entry-feature__copy"><strong>Matches</strong><small>Browse compatible planned-route previews around your commute.</small></span>
+                <span className="home-entry-feature__copy"><strong>EV options</strong><small>Compare planned EV and hybrid commute options around your schedule.</small></span>
                 <ChevronRight size={22} />
               </button>
 
-              <button type="button" className="home-entry-feature home-entry-feature--benefits" onClick={onOpenGreenWallet}>
+              <button type="button" className="home-entry-feature home-entry-feature--benefits" onClick={onBrowseMatches}>
                 <span className="home-entry-feature__visual"><Gift size={29} /></span>
                 <span className="home-entry-feature__number">3</span>
-                <span className="home-entry-feature__copy"><strong>Benefits</strong><small>See eligible Green Route Credits and institution-sponsored benefits.</small></span>
+                <span className="home-entry-feature__copy"><strong>Connections</strong><small>Explore compatible planned-route participants without on-demand ride language.</small></span>
                 <ChevronRight size={22} />
               </button>
             </section>
@@ -122,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <section className="home-returning-hero">
               <div className="home-returning-hero__copy">
                 <span className="home-entry-kicker">Your commute</span>
-                <h2>{origin} <span>→</span> {destination}</h2>
+                <h2>EV program <span>·</span> {origin} → {destination}</h2>
                 <div className="home-returning-meta">
                   <span><CalendarDays size={15} /> {days}</span>
                   <span><Route size={15} /> {timeWindow}</span>
@@ -132,29 +132,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <CarFront size={42} />
                 <MapPinned size={34} />
               </div>
-              <button type="button" className="home-entry-primary" onClick={onBrowseOptions}>
-                <Sparkles size={19} /> Plan today’s commute
+              <button type="button" className="home-entry-primary" onClick={onOpenGreenWallet}>
+                <Gift size={19} /> View my incentives
               </button>
             </section>
 
-            <section className="home-returning-metrics" aria-label="Commute snapshot">
-              <button type="button" onClick={onBrowseOptions}><strong>{commuteOptions.length}</strong><span>Options</span><small>prototype bundle</small></button>
-              <button type="button" onClick={onBrowseMatches}><strong>{commuterMatchTemplates.length}</strong><span>Matches</span><small>planned-route previews</small></button>
+            <section className="home-returning-metrics" aria-label="EV program snapshot">
               <button type="button" onClick={onOpenGreenWallet}><strong>{totalCredits}</strong><span>Credits</span><small>program benefits</small></button>
+              <button type="button" onClick={onBrowseOptions}><strong>{commuteOptions.length}</strong><span>EV options</span><small>planned-route previews</small></button>
+              <button type="button" onClick={onBrowseMatches}><strong>{commuterMatchTemplates.length}</strong><span>Connections</span><small>route-fit previews</small></button>
             </section>
 
-            <button type="button" className="home-next-step" onClick={onBrowseOptions}>
+            <button type="button" className="home-next-step" onClick={onOpenGreenWallet}>
               <span className="home-next-step__icon"><ArrowRight size={24} /></span>
-              <span><strong>Best next step</strong><small>Compare options that align with your schedule, walking preference, and campus destination.</small><em>View commute options <ArrowRight size={14} /></em></span>
+              <span><strong>Best next step</strong><small>Open Green Wallet to review available benefits and request an EV Charge Credit at an eligible Charging Hub.</small><em>View incentives <ArrowRight size={14} /></em></span>
             </button>
 
             <section>
-              <div className="home-returning-section-heading"><h2>Explore</h2></div>
+              <div className="home-returning-section-heading"><h2>Continue your EV program journey</h2></div>
               <div className="home-returning-explore">
-                <button type="button" onClick={onSuggestRelayZone}><MapPinned size={22} /><strong>Map</strong><small>Routes & hubs</small></button>
-                <button type="button" onClick={onShareEVRoute}><BatteryCharging size={22} /><strong>EV route</strong><small>Planned route</small></button>
-                <button type="button" onClick={onBrowseActivity}><Route size={22} /><strong>Activity</strong><small>Signals & status</small></button>
-                <button type="button" onClick={onOpenGreenWallet}><Coins size={22} /><strong>Wallet</strong><small>Credits & benefits</small></button>
+                <button type="button" onClick={onSuggestRelayZone}><MapPinned size={22} /><strong>Charging & Access</strong><small>Hubs & corridors</small></button>
+                <button type="button" onClick={onShareEVRoute}><BatteryCharging size={22} /><strong>EV options</strong><small>Planned routes</small></button>
+                <button type="button" onClick={onBrowseActivity}><Route size={22} /><strong>Participation</strong><small>Signals & credits</small></button>
+                <button type="button" onClick={onOpenGreenWallet}><Coins size={22} /><strong>Green Wallet</strong><small>Credits & redemption</small></button>
                 <button type="button" onClick={onOpenImpact}><BarChart3 size={22} /><strong>Impact</strong><small>Pilot estimates</small></button>
                 <button type="button" onClick={onOpenHowItWorks}><CircleHelp size={22} /><strong>How it works</strong><small>Process & review</small></button>
               </div>
@@ -162,7 +162,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             <section className="home-entry-trust" aria-label="Prototype guardrails">
               <span><ShieldCheck size={15} /> Approximate areas first</span>
-              <span>Match previews only</span>
+              <span>Planned-route connections only</span>
               <span>Program benefits only</span>
             </section>
           </>
