@@ -98,6 +98,10 @@ The prototype uses Leaflet and OpenStreetMap to display real public locations an
 - Framer Motion
 - React Hook Form + Zod
 
+## Deployment
+
+Deployment instructions for the React frontend, Django API, Green Wallet API adapter, database migrations, environment variables, production security settings, and post-deploy verification are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). The current app remains a research-beta prototype: deployment does not activate live transportation, charger reservation, payment processing, or charging-network settlement.
+
 ## Local development
 
 Frontend:
