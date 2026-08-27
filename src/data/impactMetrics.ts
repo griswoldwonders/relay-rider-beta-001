@@ -10,44 +10,7 @@ export interface ImpactMetric {
   progress: number;
 }
 
-export const impactMetrics: ImpactMetric[] = [
-  {
-    id: 'avoided-miles',
-    label: 'Estimated avoided miles',
-    value: '286',
-    unit: 'vehicle miles / month',
-    description: 'Modeled from 22 shared-route opportunities replacing a duplicate drive on the pilot corridor.',
-    status: 'Pilot estimate',
-    progress: 64,
-  },
-  {
-    id: 'emissions',
-    label: 'Estimated emissions reduction',
-    value: '92',
-    unit: 'kg CO₂e / month',
-    description: 'Illustrative avoided tailpipe emissions using a planning assumption of 0.32 kg CO₂e per avoided mile.',
-    status: 'Pilot estimate',
-    progress: 52,
-  },
-  {
-    id: 'ev-share',
-    label: 'EV/hybrid planned-route share',
-    value: '78',
-    unit: '% of demo route posts',
-    description: 'Share of sample planned-route posts identified as battery electric, plug-in hybrid, or hybrid.',
-    status: 'Demo metric',
-    progress: 78,
-  },
-  {
-    id: 'access-points',
-    label: 'Access Point usage',
-    value: '86',
-    unit: '% of match previews',
-    description: 'Share of modeled match previews using a public Access Point instead of an exact home location.',
-    status: 'Research signal',
-    progress: 86,
-  },
-];
+export const impactMetrics: ImpactMetric[] = [];
 
 export const impactMethodology = [
   '22 modeled shared-route opportunities in the Pasadena–Eagle Rock–Glendale demonstration corridor',

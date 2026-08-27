@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCircle2, ShieldCheck, XCircle } from 'lucide-react';
 import { useMemo } from 'react';
-import { demoChargingHubs, useApp } from '../context/AppContext';
+import { chargingHubs, useApp } from '../context/AppContext';
 import '../green-wallet.css';
 
 interface Props { onBack: () => void; }
@@ -8,7 +8,7 @@ interface Props { onBack: () => void; }
 export const WalletAdminScreen: React.FC<Props> = ({ onBack }) => {
   const { redemptionRequests, reviewRedemptionRequest } = useApp();
   const requests = useMemo(() => redemptionRequests, [redemptionRequests]);
-  const hubById = Object.fromEntries(demoChargingHubs.map(hub => [hub.id, hub]));
+  const hubById = Object.fromEntries(chargingHubs.map(hub => [hub.id, hub]));
 
   return <main className="green-wallet-admin">
     <header className="green-wallet-admin__header"><button type="button" onClick={onBack} className="green-wallet-icon-button" aria-label="Return to wallet"><ArrowLeft size={19} /></button><div><span>Relay Rider · Program operations</span><strong>EV Charge Benefit review</strong></div><span className="green-wallet-beta-pill"><ShieldCheck size={12} /> Prototype</span></header>
