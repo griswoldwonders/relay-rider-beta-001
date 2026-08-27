@@ -31,6 +31,7 @@ export const corridorPath: [number, number][] = [
   [34.0983, -118.2067], // Southwest Museum Station
   [34.1478, -118.1145], // Pasadena City College
   [34.1445, -118.1445], // Marengo Charging Plaza
+  [34.1377, -118.1253], // Caltech
   [34.1327, -118.1436], // Fillmore Station
 ];
 
@@ -49,10 +50,26 @@ export const mapLocations: MapLocation[] = [
     notes: 'Candidate campus Access Point for commute-need intake and EV/hybrid route registration. Not yet an approved program site.',
     sourceLabel: 'PCC — Directions',
     sourceUrl: 'https://pasadena.edu/about/directions.php',
+    chargerSummary: 'On-campus EV charging in Staff Parking Lot 1 (4 ports) and Student Parking Lot 5, Level 3 (4 ports). Access rules and permit requirements are set by PCC — verify before relying on a charge.',
     transitPassProgram: {
       label: 'GoPass (Metro)',
       summary: 'PCC participates in Metro GoPass, giving eligible enrolled students free unlimited rides on Metro bus/rail and several partner transit operators. Verify current eligibility and activation steps with PCC Student Life — Relay Rider does not administer GoPass.',
     },
+  },
+  {
+    id: 'school-caltech',
+    name: 'California Institute of Technology (Caltech)',
+    kind: 'school',
+    type: 'Four-year university campus',
+    city: 'Pasadena',
+    address: '1200 E. California Blvd, Pasadena, CA 91125',
+    lat: 34.1377,
+    lng: -118.1253,
+    reviewStatus: 'candidate',
+    notes: 'Candidate campus Access Point near the Fillmore Station leg of the corridor. Not yet an approved program site.',
+    sourceLabel: 'Caltech Parking & Commuter Services',
+    sourceUrl: 'https://parking.caltech.edu/parking-info/electric-car-chargers',
+    chargerSummary: 'Large on-campus network: 141 Level 2 chargers and 6 Level 3 (DC fast) chargers across multiple parking garages, deployed with PowerFlex. A valid Caltech parking permit is required to use them; posted rate is $0.20/kWh for Level 2 (verify current pricing and permit rules with Caltech Parking Services).',
   },
   {
     id: 'school-occidental',
