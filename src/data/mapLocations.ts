@@ -50,7 +50,7 @@ export const mapLocations: MapLocation[] = [
     notes: 'Candidate campus Access Point for commute-need intake and EV/hybrid route registration. Not yet an approved program site.',
     sourceLabel: 'PCC — Directions',
     sourceUrl: 'https://pasadena.edu/about/directions.php',
-    chargerSummary: 'On-campus EV charging in Staff Parking Lot 1 (4 ports) and Student Parking Lot 5, Level 3 (4 ports). Access rules and permit requirements are set by PCC — verify before relying on a charge.',
+    chargerSummary: 'On-campus EV charging on the ChargePoint network — 6 dual-port Level 2 stations (12 total charge ports) across Staff Parking Lot 1 (4 ports) and Student Parking Lot 5, Level 3 (4 ports). A ChargePoint RFID card or app is required to start a session; posted pricing is $1.00/hour rising to $2.00/hour after an extended-session threshold. Verify current access rules and pricing with PCC.',
     transitPassProgram: {
       label: 'GoPass (Metro)',
       summary: 'PCC participates in Metro GoPass, giving eligible enrolled students free unlimited rides on Metro bus/rail and several partner transit operators. Verify current eligibility and activation steps with PCC Student Life — Relay Rider does not administer GoPass.',
@@ -69,7 +69,7 @@ export const mapLocations: MapLocation[] = [
     notes: 'Candidate campus Access Point near the Fillmore Station leg of the corridor. Not yet an approved program site.',
     sourceLabel: 'Caltech Parking & Commuter Services',
     sourceUrl: 'https://parking.caltech.edu/parking-info/electric-car-chargers',
-    chargerSummary: 'Large on-campus network: 141 Level 2 chargers and 6 Level 3 (DC fast) chargers across multiple parking garages, deployed with PowerFlex. A valid Caltech parking permit is required to use them; posted rate is $0.20/kWh for Level 2 (verify current pricing and permit rules with Caltech Parking Services).',
+    chargerSummary: 'Large on-campus network managed by an outside vendor, PowerFlex Systems, via a smartphone app (not a self-service ChargePoint network like PCC\'s) — 141 Level 2 chargers and 6 Level 3 (DC fast) chargers across multiple parking garages. A valid Caltech parking permit is required; posted rates are $0.20/kWh for Level 2 and $0.40/kWh for Level 3 (verify current pricing and permit rules with Caltech Parking Services).',
   },
   {
     id: 'school-occidental',
