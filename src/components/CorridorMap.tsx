@@ -14,12 +14,16 @@ interface CorridorMapProps {
   onSelectFeature: (kind: MapFeatureKind, id: string) => void;
 }
 
+const markerGlyph = (location: MapLocation) => {
+  if (location.kind === 'ev-hub') return '⚡';
+  if (location.kind === 'school') return '🎓';
+  return '●';
+};
+
 const markerIcon = (location: MapLocation, selected: boolean) =>
   L.divIcon({
     className: '',
-    html: `<span class="map-marker map-marker--${location.kind}${selected ? ' map-marker--selected' : ''}" aria-hidden="true">${
-      location.kind === 'ev-hub' ? '⚡' : '●'
-    }</span>`,
+    html: `<span class="map-marker map-marker--${location.kind}${selected ? ' map-marker--selected' : ''}" aria-hidden="true">${markerGlyph(location)}</span>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -18],
@@ -167,7 +171,7 @@ export function CorridorMap({
 
       marker.bindPopup(buildPopup(
         location.name,
-        location.kind === 'ev-hub' ? 'EV charging hub' : location.type,
+        location.kind === 'ev-hub' ? 'EV charging hub' : location.kind === 'school' ? 'School / campus' : location.type,
         location.address,
       ));
       marker.on('click', () => onSelectFeature('location', location.id));

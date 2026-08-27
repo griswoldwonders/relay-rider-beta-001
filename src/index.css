@@ -861,6 +861,7 @@ md-outlined-button svg {
 }
 .map-marker--anchor { background: var(--color-deep-lagoon); }
 .map-marker--ev-hub { background: var(--color-electric-iris); }
+.map-marker--school { background: var(--color-mobility-green, #0b7a5c); }
 .map-marker--selected { outline: 3px solid rgba(72, 60, 255, 0.24); transform: scale(1.18); }
 .map-popup { display: flex; min-width: 180px; flex-direction: column; gap: 4px; color: var(--color-deep-lagoon); }
 .map-popup span { color: var(--color-electric-iris); font-size: 11px; font-weight: 650; }

@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   BatteryCharging,
   ExternalLink,
+  GraduationCap,
   Layers3,
   MapPin,
   Route,
@@ -25,7 +26,7 @@ interface MapScreenProps {
   onSuggestZone: () => void;
 }
 
-type LayerFilter = 'all' | 'demand' | 'planned-route' | 'anchor' | 'transit' | 'ev-hub';
+type LayerFilter = 'all' | 'demand' | 'planned-route' | 'anchor' | 'transit' | 'ev-hub' | 'school';
 
 type SelectedFeature = {
   kind: MapFeatureKind;
@@ -39,6 +40,7 @@ const layerOptions: Array<{ value: LayerFilter; label: string }> = [
   { value: 'anchor', label: 'Access Points' },
   { value: 'transit', label: 'Transit' },
   { value: 'ev-hub', label: 'Charging' },
+  { value: 'school', label: 'Schools' },
 ];
 
 export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
@@ -66,6 +68,9 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
     }
     if (layerFilter === 'ev-hub') {
       return mapLocations.filter(location => location.kind === 'ev-hub');
+    }
+    if (layerFilter === 'school') {
+      return mapLocations.filter(location => location.kind === 'school');
     }
     return [];
   }, [layerFilter]);
@@ -95,6 +100,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
   const totalPlannedRoutes = plannedRoutes.reduce((sum, route) => sum + route.routeCount, 0);
   const chargingCount = mapLocations.filter(location => location.kind === 'ev-hub').length;
   const transitCount = mapLocations.filter(location => location.type.toLowerCase().includes('transit')).length;
+  const schoolCount = mapLocations.filter(location => location.kind === 'school').length;
 
   const showInfrastructureList = filteredLocations.length > 0 && layerFilter !== 'demand' && layerFilter !== 'planned-route';
 
@@ -137,6 +143,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
             <p className="mt-2 text-2xl font-semibold text-navy">{chargingCount}</p>
             <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Charging infrastructure; live availability can change</p>
           </div>
+          <div className="card p-4 col-span-2">
+            <div className="flex items-center gap-2 text-navy"><GraduationCap size={16} /><span className="text-xs font-semibold uppercase tracking-wider">Schools / campuses</span></div>
+            <p className="mt-2 text-2xl font-semibold text-navy">{schoolCount}</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Candidate campus Access Points; GoPass/U-Pass eligibility varies by school</p>
+          </div>
         </section>
 
         <div className="m3-chip-row" aria-label="Mobility map layer filters">
@@ -169,6 +180,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/20 px-3 py-1.5"><MapPin size={12} /> Candidate Access Point</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/20 px-3 py-1.5"><TrainFront size={12} /> Transit</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/20 px-3 py-1.5"><BatteryCharging size={12} /> EV charging</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/20 px-3 py-1.5"><GraduationCap size={12} /> School / campus</span>
         </div>
 
         <div className="research-banner">
@@ -243,6 +255,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
             <div className="space-y-4">
               {filteredLocations.map(location => {
                 const isEvHub = location.kind === 'ev-hub';
+                const isSchool = location.kind === 'school';
                 const isTransit = location.type.toLowerCase().includes('transit');
                 const isSelected = selectedFeature?.kind === 'location' && selectedFeature.id === location.id;
 
@@ -254,8 +267,8 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
                     onClick={() => handleSelectFeature('location', location.id)}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${isEvHub ? 'bg-light-blue text-iris' : 'bg-light-green text-navy'}`}>
-                        {isEvHub ? <BatteryCharging size={21} /> : isTransit ? <TrainFront size={21} /> : <MapPin size={21} />}
+                      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${isEvHub ? 'bg-light-blue text-iris' : isSchool ? 'bg-light-green text-navy' : 'bg-light-green text-navy'}`}>
+                        {isEvHub ? <BatteryCharging size={21} /> : isSchool ? <GraduationCap size={21} /> : isTransit ? <TrainFront size={21} /> : <MapPin size={21} />}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
@@ -264,12 +277,17 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
                             <p className="mt-1 text-xs text-gray-500">{location.type} · {location.city}</p>
                           </div>
                           <span className={`whitespace-nowrap rounded-full border border-lagoon/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider ${isEvHub ? 'bg-light-blue text-iris' : 'bg-light-green text-navy'}`}>
-                            {isEvHub ? 'EV hub' : isTransit ? 'Transit' : 'Candidate'}
+                            {isEvHub ? 'EV hub' : isSchool ? 'School' : isTransit ? 'Transit' : 'Candidate'}
                           </span>
                         </div>
 
                         <p className="mt-4 text-xs leading-relaxed text-gray-600">{location.address}</p>
                         {location.chargerSummary && <p className="mt-3 rounded-2xl bg-light-blue p-3 text-xs leading-relaxed text-gray-700">{location.chargerSummary}</p>}
+                        {location.transitPassProgram && (
+                          <p className="mt-3 rounded-2xl bg-light-green p-3 text-xs leading-relaxed text-gray-700">
+                            <strong>{location.transitPassProgram.label}:</strong> {location.transitPassProgram.summary}
+                          </p>
+                        )}
                         <p className="mt-3 text-xs leading-relaxed text-gray-600">{location.notes}</p>
 
                         <a href={location.sourceUrl} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-iris">
@@ -296,7 +314,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
-                {selectedDemand ? 'Commuter demand signal' : selectedRoute ? 'Planned-route signal' : selectedLocation?.kind === 'ev-hub' ? 'EV charging infrastructure' : 'Infrastructure / Access Point'}
+                {selectedDemand ? 'Commuter demand signal' : selectedRoute ? 'Planned-route signal' : selectedLocation?.kind === 'ev-hub' ? 'EV charging infrastructure' : selectedLocation?.kind === 'school' ? 'School / campus' : 'Infrastructure / Access Point'}
               </p>
               <h3 className="mt-1 text-lg font-semibold text-navy">
                 {selectedDemand?.name ?? selectedRoute?.name ?? selectedLocation?.name}
@@ -350,6 +368,11 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
               <p>{selectedLocation.type} · {selectedLocation.city}</p>
               <p>{selectedLocation.address}</p>
               {selectedLocation.chargerSummary && <p className="rounded-2xl bg-light-blue p-3">{selectedLocation.chargerSummary}</p>}
+              {selectedLocation.transitPassProgram && (
+                <p className="rounded-2xl bg-light-green p-3">
+                  <strong>{selectedLocation.transitPassProgram.label}:</strong> {selectedLocation.transitPassProgram.summary}
+                </p>
+              )}
               <p>{selectedLocation.notes}</p>
               <a href={selectedLocation.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-iris">
                 Verify with {selectedLocation.sourceLabel}<ExternalLink size={12} />
