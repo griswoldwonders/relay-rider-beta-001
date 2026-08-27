@@ -90,11 +90,14 @@ const inferTimeBand = (timeWindow: string): CommuteTimeBand => {
   if (value.includes('midday') || value.includes('noon')) return 'midday';
   if (value.includes('evening') || value.includes('night')) return 'evening';
 
-  const match = value.match(/(\d{1,2})(?::\d{2})?\s*(am|pm)/);
+  // Match against the raw (non-normalized) timeWindow: normalize() strips
+  // colons, which corrupts times like "8:00 AM" into "8 00 am" and misparses
+  // the hour as "00" instead of "8". Match case-insensitively on the original text.
+  const match = timeWindow.match(/(\d{1,2})(?::\d{2})?\s*(am|pm)/i);
   if (!match) return 'any';
 
   const hour = Number(match[1]);
-  const meridiem = match[2];
+  const meridiem = match[2].toLowerCase();
   const hour24 = meridiem === 'pm' && hour !== 12 ? hour + 12 : meridiem === 'am' && hour === 12 ? 0 : hour;
 
   if (hour24 >= 5 && hour24 < 11) return 'morning';

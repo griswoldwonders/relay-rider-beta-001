@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "security:check": "node scripts/check-security-config.mjs && npm audit --omit=dev --audit-level=high",
     "format": "prettier --write ."
   },
@@ -56,6 +58,7 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^4.3.3",
     "typescript": "7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }
