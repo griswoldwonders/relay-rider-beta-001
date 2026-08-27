@@ -10,3 +10,4 @@ dist/
 backend/db.sqlite3
 backend/**/__pycache__/
 backend/**/*.pyc
+backend/.venv/
