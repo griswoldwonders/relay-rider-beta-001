@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.http import JsonResponse
+from .health import healthz, readyz
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from relay.views import ChargingHubViewSet, CorridorViewSet, GreenRouteCreditViewSet, ProfileViewSet, RedemptionRequestViewSet, RelayZoneViewSet, RouteSignalViewSet, EVParticipantSignalViewSet
@@ -25,6 +26,8 @@ def home(request):
 
 urlpatterns = [
     path('', home),
+    path('healthz/', healthz, name='healthz'),
+    path('readyz/', readyz, name='readyz'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/signup/', SignupView.as_view(), name='signup'),

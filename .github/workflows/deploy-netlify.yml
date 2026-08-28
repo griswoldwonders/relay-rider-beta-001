@@ -38,6 +38,9 @@ jobs:
       - name: Type check
         run: npm run check
 
+      - name: Frontend integration tests
+        run: npm test -- --run
+
       - name: Validate application security configuration
         run: npm run security:check
 
