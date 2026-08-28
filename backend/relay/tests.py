@@ -25,7 +25,8 @@ class HealthEndpointTests(TestCase):
 
 class DatabaseConfigurationTests(TestCase):
     def test_postgres_url_is_translated_to_django_database_config(self):
-        config = database_from_url("postgresql://pilot_user:secret@example.test:5433/relay_rider")
+        with patch.dict("os.environ", {"DATABASE_SSL_REQUIRE": "true"}):
+            config = database_from_url("postgresql://pilot_user:secret@example.test:5433/relay_rider")
         self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
         self.assertEqual(config["NAME"], "relay_rider")
         self.assertEqual(config["USER"], "pilot_user")
