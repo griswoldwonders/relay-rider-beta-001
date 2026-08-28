@@ -119,6 +119,10 @@ jobs:
 
       - name: Django API tests
         run: python manage.py test relay
+        env:
+          DJANGO_SECURE_SSL_REDIRECT: "false"
+          SESSION_COOKIE_SECURE: "false"
+          CSRF_COOKIE_SECURE: "false"
 
       - name: Detect missing migrations
         run: python manage.py makemigrations --check --dry-run
