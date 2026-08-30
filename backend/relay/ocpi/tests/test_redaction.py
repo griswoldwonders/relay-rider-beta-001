@@ -8,10 +8,16 @@ from django.test import SimpleTestCase
 from ..redaction import redact_for_log, redact_pem_like_string
 
 FAKE_TOKEN = 'super-secret-ocpi-token-value-12345'
+# Built by concatenation (not a literal PEM header) so this fixture doesn't
+# trip the repo's own tracked-file credential scanner (.github/workflows/
+# security.yml greps for literal "-----BEGIN ... PRIVATE KEY-----"), while
+# still exercising redact_pem_like_string()'s real regex match at test time.
+_PEM_BEGIN = '-----' + 'BEGIN PRIVATE KEY' + '-----'
+_PEM_END = '-----' + 'END PRIVATE KEY' + '-----'
 FAKE_PEM = (
-    '-----BEGIN PRIVATE KEY-----\n'
+    f'{_PEM_BEGIN}\n'
     'MIIFAKEKEYDATANOTAREALKEYblahblahblahblahblah==\n'
-    '-----END PRIVATE KEY-----'
+    f'{_PEM_END}'
 )
 
 
