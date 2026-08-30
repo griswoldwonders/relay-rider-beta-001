@@ -2,6 +2,7 @@ import logging
 
 from django.db import transaction
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -33,7 +34,18 @@ class SignupView(APIView):
     its failure is reported back in the response but never blocks or
     rolls back the local save, so a signup never silently fails just
     because Airtable is unreachable or misconfigured.
+
+    This is a public, unauthenticated entry point by design -- it is the
+    frontend's research-beta signup form (src/lib/signupApi.ts), and there
+    is no login flow anywhere in this prototype for a participant to
+    authenticate before signing up. It only ever creates records (via the
+    transaction below) and never exposes a way to list, retrieve, or
+    enumerate other participants' data, so it stays on the explicit
+    AllowAny allowlist under the new IsAuthenticated-by-default settings
+    (see relay/views.py for the rest of that allowlist).
     """
+
+    permission_classes = [AllowAny]
 
     def post(self, request):
         data = request.data

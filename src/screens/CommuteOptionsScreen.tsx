@@ -12,6 +12,7 @@ import {
   Gift,
   Info,
   MapPin,
+  PackageSearch,
   Route,
   ShieldCheck,
   Sparkles,
@@ -219,18 +220,36 @@ export function CommuteOptionsScreen() {
           </div>
         </section>
 
-        <div className="space-y-4">
-          {options.map(option => (
-            <OptionCard
-              key={option.id}
-              option={option}
-              expanded={expandedId === option.id}
-              saved={savedIds.includes(option.id)}
-              onExpand={() => setExpandedId(current => current === option.id ? null : option.id)}
-              onSave={() => toggleSaved(option.id)}
-            />
-          ))}
-        </div>
+        {options.length > 0 ? (
+          <div className="space-y-4">
+            {options.map(option => (
+              <OptionCard
+                key={option.id}
+                option={option}
+                expanded={expandedId === option.id}
+                saved={savedIds.includes(option.id)}
+                onExpand={() => setExpandedId(current => current === option.id ? null : option.id)}
+                onSave={() => toggleSaved(option.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <section className="commuter-matches-empty-state" aria-live="polite">
+            <PackageSearch size={28} />
+            <h2>No options match yet</h2>
+            <p>No commute options currently match this filter. Try a different filter, or check back later.</p>
+          </section>
+        )}
+
+        <section className="market-notice">
+          <ShieldCheck size={16} />
+          <p>
+            <strong>Relay Rider planned-route previews are not shown here yet.</strong> This research-beta
+            backend does not yet have a live endpoint for participant-planned relay routes, so only
+            real, source-verified local transit lines are listed above until relay-route matching is
+            available.
+          </p>
+        </section>
 
         <section className="benefit-dashboard-card mt-5">
           <div className="benefit-dashboard-card__header">
