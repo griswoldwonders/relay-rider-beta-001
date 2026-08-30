@@ -4,10 +4,7 @@ import { Header } from '../components/Header';
 import { CommuterMatchSwipe } from '../components/CommuterMatchSwipe';
 import { useApp } from '../context/AppContext';
 import { rankMatches, type RankedCommuterMatch } from '../lib/commuterMatchRanking';
-import {
-  pccDemoProfile,
-  profileFromRouteSignal,
-} from '../lib/commuteRanking';
+import { profileFromRouteSignal } from '../lib/commuteRanking';
 
 export type { RankedCommuterMatch } from '../lib/commuterMatchRanking';
 
@@ -18,10 +15,10 @@ export function CommuterMatchesScreen() {
 
   const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
   const profile = useMemo(
-    () => latestSignal ? profileFromRouteSignal(latestSignal) : pccDemoProfile,
+    () => latestSignal ? profileFromRouteSignal(latestSignal) : null,
     [latestSignal],
   );
-  const matches = useMemo(() => rankMatches(profile), [profile]);
+  const matches = useMemo(() => profile ? rankMatches(profile) : [], [profile]);
   const reviewedMatch = matches.find(match => match.id === reviewedId) ?? null;
 
   const toggleSaved = (id: string) => {
@@ -37,17 +34,26 @@ export function CommuterMatchesScreen() {
       <main className="container commuter-matches-screen">
         <section className="commuter-matches-intro">
           <div className="commuter-matches-intro__eyebrow"><Sparkles size={15} /> Planned-route compatibility</div>
-          <h1>{profile.startingArea} <span>→</span> {profile.destinationArea}</h1>
-          <p>
-            {profile.source === 'submitted'
-              ? `Ranked from your latest commute signal for ${profile.campusAffiliation || 'your institution'}.`
-              : 'PCC demonstration profile · Eagle Rock → Pasadena City College at 8:00 AM.'}
-          </p>
-          <div className="commuter-matches-intro__meta">
-            <span>{matches.length} previews</span>
-            <span>{profile.timeWindow || 'Time not set'}</span>
-            <span>Approximate zones only</span>
-          </div>
+          {profile ? (
+            <>
+              <h1>{profile.startingArea} <span>→</span> {profile.destinationArea}</h1>
+              <p>{`Ranked from your latest commute signal for ${profile.campusAffiliation || 'your institution'}.`}</p>
+              <div className="commuter-matches-intro__meta">
+                <span>{matches.length} previews</span>
+                <span>{profile.timeWindow || 'Time not set'}</span>
+                <span>Approximate zones only</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1>Submit a commute signal to see matches</h1>
+              <p>No commute signal is on file yet for this session. Submit your route to see compatible planned-route previews.</p>
+              <div className="commuter-matches-intro__meta">
+                <span>0 previews</span>
+                <span>Approximate zones only</span>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="commuter-match-guidance">

@@ -32,21 +32,6 @@ export interface RankedCommuteOption extends CommuteOptionTemplate {
   resolvedBenefitLabel?: string;
 }
 
-export const pccDemoProfile: CommuteProfile = {
-  id: 'demo-pcc-eagle-rock-0800',
-  campusAffiliation: 'Pasadena City College',
-  startingArea: 'Eagle Rock',
-  destinationArea: 'Pasadena City College',
-  timeWindow: '8:00 AM',
-  daysOfWeek: ['Monday', 'Wednesday', 'Friday'],
-  transitOptions: ['LA Metro bus', 'LA Metro rail', 'Pasadena Transit'],
-  studentTransitPass: 'not-sure',
-  incentiveInterests: ['Green Route Credits', 'Transit participation rewards', 'Campus commute challenges'],
-  maxWalkingDistance: '10-15',
-  evPreference: 'hybrid-ev',
-  source: 'demo',
-};
-
 export function profileFromRouteSignal(signal: RouteSignal): CommuteProfile {
   return {
     id: signal.id,
