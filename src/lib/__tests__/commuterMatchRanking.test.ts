@@ -39,8 +39,15 @@ const baseTemplate: CommuterMatchTemplate = {
 };
 
 describe('commuterMatchesData', () => {
-  it('is populated with entries, not left as an empty stub', () => {
-    expect(commuterMatchTemplates.length).toBeGreaterThan(0);
+  it('is intentionally empty until a real backend matches endpoint exists', () => {
+    // commuterMatchesData.ts used to ship ten fictional "commuter match"
+    // records as demo data. There is no backend endpoint yet that returns
+    // real commuter matches (see backend/relay/views.py / urls.py), so
+    // those fabricated records were removed rather than presented to users
+    // as if real -- CommuterMatchesScreen now renders an explicit "No
+    // commuter matches yet" empty state instead. Update this test once a
+    // real matches endpoint (and real fixture/mapping) exists.
+    expect(commuterMatchTemplates.length).toBe(0);
   });
 
   it('every template has a vehicleType and a non-empty days array', () => {

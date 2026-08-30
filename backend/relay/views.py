@@ -1,33 +1,40 @@
 from rest_framework import mixins, viewsets
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import AllowAny
 from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
 from .serializers import ChargingHubSerializer, CorridorSerializer, EVParticipantSignalSerializer, GreenRouteCreditSerializer, ProfileSerializer, RedemptionRequestSerializer, RelayZoneSerializer, RouteSignalSerializer
 
 # ---------------------------------------------------------------------------
 # Least-privilege note (see SECURITY.md / DEPLOYMENT.md pre-pilot checklist):
 #
-# This API has no participant login/session system yet -- `AllowAny` is set
-# globally in settings.py and there is no way to identify "the current user"
-# server-side. Until real authentication exists, these viewsets are scoped as
-# narrowly as they can be without it:
+# settings.py now defaults DEFAULT_PERMISSION_CLASSES to IsAuthenticated
+# (with SessionAuthentication + TokenAuthentication) for every DRF endpoint.
+# This API still has no real participant login/session system, so
+# "authenticated" effectively means "no unauthenticated caller can reach
+# this endpoint" -- there is no way yet to identify "the current user"
+# server-side or scope a request to their own records. Until real
+# authentication exists, these viewsets are scoped as narrowly as they can
+# be:
 #
 #   - PII-bearing / submission endpoints (Profile, RouteSignal,
-#     EVParticipantSignal) are CREATE-ONLY over the API. There is no public
-#     list/retrieve/update/delete, so an unauthenticated caller cannot
-#     enumerate participant names, emails, or trip signals. (Staff can still
-#     see everything via /admin/, which is itself unauthenticated in this
-#     dev-only settings.py -- see DEPLOYMENT.md.)
+#     EVParticipantSignal) stay CREATE-ONLY over the API (no public
+#     list/retrieve/update/delete) AND now require authentication like
+#     everything else -- nothing in src/ calls these viewsets directly today
+#     (the frontend's only public submission path is /api/signup/, a
+#     separate APIView that is explicitly allowlisted below), so there is no
+#     reason for them to accept unauthenticated writes of participant PII.
 #   - GreenRouteCredit / RedemptionRequest reads REQUIRE an explicit
 #     ?profile=<id> query param; without one they return an empty queryset
-#     instead of every participant's records. This closes a real bug: the
-#     frontend's greenWalletApi.ts client always sent a profile filter, but
-#     nothing on this side ever applied it, so any caller could list every
-#     participant's credits and redemption history. (That frontend client
-#     currently has no call sites in src/ -- WalletAdminScreen.tsx uses local
-#     session-memory state instead -- but the Django endpoints were reachable
-#     directly regardless of what the UI does.)
-#   - Public reference data (ChargingHub, Corridor, RelayZone) stays
-#     read-only and world-listable; it is not participant data.
+#     instead of every participant's records. This is defense-in-depth on
+#     top of now also requiring authentication -- both are needed until real
+#     per-user authorization exists. (The frontend's greenWalletApi.ts
+#     client currently has no call sites in src/ -- WalletAdminScreen.tsx
+#     uses local session-memory state instead -- but the Django endpoints
+#     are reachable directly regardless of what the UI does.)
+#   - Public reference data (ChargingHub, Corridor, RelayZone) is not
+#     participant data and is explicitly allowlisted with AllowAny below so
+#     it stays read-only and world-listable, matching its existing
+#     documented intent.
 #
 # This is a real, scoped hardening pass -- it is NOT a substitute for actual
 # participant authentication and per-user authorization, which SECURITY.md
@@ -51,16 +58,22 @@ class EVParticipantSignalViewSet(CreateOnlyViewSet):
     serializer_class = EVParticipantSignalSerializer
 
 class RelayZoneViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Public reference data -- not participant data. See module note above."""
     queryset = RelayZone.objects.all().order_by('name')
     serializer_class = RelayZoneSerializer
+    permission_classes = [AllowAny]
 
 class CorridorViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Public reference data -- not participant data. See module note above."""
     queryset = Corridor.objects.all().order_by('name')
     serializer_class = CorridorSerializer
+    permission_classes = [AllowAny]
 
 class ChargingHubViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Public reference data -- not participant data. See module note above."""
     queryset = ChargingHub.objects.all().order_by('name')
     serializer_class = ChargingHubSerializer
+    permission_classes = [AllowAny]
 
 
 class ProfileScopedReadMixin:

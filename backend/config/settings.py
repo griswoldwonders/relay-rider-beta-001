@@ -13,6 +13,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'corsheaders',
     'relay',
 ]
@@ -56,4 +57,19 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-REST_FRAMEWORK = {'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny']}
+
+# Least-privilege default: every endpoint requires authentication unless a
+# view explicitly opts out with permission_classes = [AllowAny] (see
+# relay/views.py and relay/signup_view.py for the small, documented
+# allowlist of endpoints that must stay public -- e.g. the signup entry
+# point and read-only public reference data). This backend still has no
+# real participant login flow, so IsAuthenticated effectively means "no
+# unauthenticated caller can reach this endpoint" rather than "a real user
+# session grants access" -- see docs/SECURITY_ARCHITECTURE.md / SECURITY.md.
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}

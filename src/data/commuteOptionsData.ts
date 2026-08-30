@@ -30,112 +30,18 @@ export interface CommuteOptionTemplate {
   baseScore: number;
 }
 
-// Realistic research-beta demonstration bundle mixing Relay Rider planned-route
-// previews with real, source-verified local transit lines. Relay entries model
-// EV/hybrid participant-planned routes (not dispatch/guaranteed transportation);
-// transit entries cite the operator's own service page for verification.
+// Real, source-verified local transit lines (see each entry's sourceUrl).
+// Relay Rider "planned-route" previews (kind: 'relay') are intentionally NOT
+// included here: there is no backend endpoint yet that returns real
+// participant-planned routes (see backend/relay/views.py /
+// backend/relay/urls.py -- Corridor is the closest model, but it does not
+// carry the schedule/Access Point/cost fields this UI needs). Previously
+// this file also shipped four fictional 'relay-*' template entries
+// (fabricated schedules, Access Points, and scores) that stood in for that
+// missing backend data; they have been removed rather than presented as if
+// real. CommuteOptionsScreen shows an explicit empty-state note for the
+// relay/planned-route category until a real endpoint exists.
 export const commuteOptions: CommuteOptionTemplate[] = [
-  // --- Relay Rider planned-route previews ---
-  {
-    id: 'relay-eagle-rock-pcc',
-    kind: 'relay',
-    provider: 'Relay Rider',
-    title: 'Eagle Rock → PCC EV/hybrid planned-route preview',
-    subtitle: 'Participant-planned route with Access Point stop at PCC Lot 5',
-    startArea: 'Eagle Rock',
-    endArea: 'Pasadena City College',
-    days: 'Mon · Wed · Fri',
-    departureWindow: '7:45–8:15 AM',
-    accessPoint: 'PCC — Student Parking Lot 5, Level 3',
-    costLabel: '$0 for eligible college participants',
-    benefitLabel: 'Green Route Credits eligible',
-    filters: ['best-fit', 'morning', 'ev-hybrid', 'free-college'],
-    status: 'match-preview',
-    campusMatches: ['Pasadena City College', 'PCC'],
-    originKeywords: ['eagle rock'],
-    destinationKeywords: ['pasadena city college', 'pcc'],
-    timeBands: ['morning'],
-    walkingMinutes: 6,
-    transferCount: 0,
-    modeledDurationMinutes: 22,
-    incentiveTags: ['Green Route Credits', 'Campus commute challenges'],
-    baseScore: 68,
-  },
-  {
-    id: 'relay-glendale-caltech',
-    kind: 'relay',
-    provider: 'Relay Rider',
-    title: 'Glendale → Caltech EV planned-route preview',
-    subtitle: 'Participant-planned EV route with Access Point near campus charging',
-    startArea: 'Glendale',
-    endArea: 'Caltech',
-    days: 'Tue · Thu',
-    departureWindow: '7:30–8:00 AM',
-    accessPoint: 'Caltech — California Blvd garage',
-    costLabel: '$0 for eligible college participants',
-    benefitLabel: 'EV/clean-route recognition',
-    filters: ['ev-hybrid', 'morning', 'free-college'],
-    status: 'match-preview',
-    campusMatches: ['Caltech'],
-    originKeywords: ['glendale'],
-    destinationKeywords: ['caltech'],
-    timeBands: ['morning'],
-    walkingMinutes: 8,
-    transferCount: 0,
-    modeledDurationMinutes: 28,
-    incentiveTags: ['Green Route Credits', 'EV/clean-route participation or recognition'],
-    baseScore: 62,
-  },
-  {
-    id: 'relay-highland-park-occidental',
-    kind: 'relay',
-    provider: 'Relay Rider',
-    title: 'Highland Park → Occidental hybrid planned-route preview',
-    subtitle: 'Participant-planned route with Access Point at Highland Park Station',
-    startArea: 'Highland Park',
-    endArea: 'Occidental College',
-    days: 'Mon · Tue · Wed · Thu',
-    departureWindow: '8:00–8:30 AM',
-    accessPoint: 'Highland Park Station (Metro A Line)',
-    costLabel: '$0 for eligible college participants',
-    benefitLabel: 'Green Route Credits eligible',
-    filters: ['morning', 'ev-hybrid', 'free-college'],
-    status: 'match-preview',
-    campusMatches: ['Occidental College', 'Occidental'],
-    originKeywords: ['highland park'],
-    destinationKeywords: ['occidental', 'eagle rock'],
-    timeBands: ['morning'],
-    walkingMinutes: 10,
-    transferCount: 0,
-    modeledDurationMinutes: 18,
-    incentiveTags: ['Green Route Credits', 'Sustainable commute challenges'],
-    baseScore: 60,
-  },
-  {
-    id: 'relay-south-pasadena-pcc-midday',
-    kind: 'relay',
-    provider: 'Relay Rider',
-    title: 'South Pasadena → PCC midday planned-route preview',
-    subtitle: 'Participant-planned route for midday class schedules',
-    startArea: 'South Pasadena',
-    endArea: 'Pasadena City College',
-    days: 'Mon · Wed',
-    departureWindow: '11:30 AM–12:00 PM',
-    accessPoint: 'PCC — Staff Parking Lot 1',
-    costLabel: '$0 for eligible college participants',
-    filters: ['ev-hybrid', 'free-college'],
-    status: 'match-preview',
-    campusMatches: ['Pasadena City College', 'PCC'],
-    originKeywords: ['south pasadena'],
-    destinationKeywords: ['pasadena city college', 'pcc'],
-    timeBands: ['midday'],
-    walkingMinutes: 5,
-    transferCount: 0,
-    modeledDurationMinutes: 15,
-    incentiveTags: ['Green Route Credits'],
-    baseScore: 55,
-  },
-
   // --- Local transit (real operators; verify schedules/fares directly) ---
   {
     id: 'transit-metro-a-line-fillmore-pcc',

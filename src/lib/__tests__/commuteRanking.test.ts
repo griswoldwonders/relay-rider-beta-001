@@ -56,11 +56,24 @@ describe('commuteOptionsData', () => {
   });
 
   it('every relay-kind option frames cost as $0 college-program participation, not a fare', () => {
+    // commuteOptionsData.ts intentionally ships zero relay-kind entries right
+    // now: there is no backend endpoint yet for real participant-planned
+    // relay routes, so the fictional 'relay-*' demo entries that used to
+    // live here were removed rather than presented as if real (see that
+    // file's header comment). This test still guards the underlying rule --
+    // if/when a real relay-kind option is added back (e.g. once a backend
+    // endpoint exists), it must frame cost as $0 participation, not a fare.
     const relayOptions = commuteOptions.filter(option => option.kind === 'relay');
-    expect(relayOptions.length).toBeGreaterThan(0);
     for (const option of relayOptions) {
       expect(option.costLabel.toLowerCase()).toContain('$0');
     }
+  });
+
+  it('has no relay-kind options until a real backend endpoint exists', () => {
+    // Documents current intended state; update this test once relay routes
+    // are backed by a real API instead of hardcoded demo data.
+    const relayOptions = commuteOptions.filter(option => option.kind === 'relay');
+    expect(relayOptions.length).toBe(0);
   });
 });
 

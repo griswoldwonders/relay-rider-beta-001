@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Info, ShieldCheck, Sparkles } from 'lucide-react';
+import { CheckCircle2, Info, PackageSearch, ShieldCheck, Sparkles } from 'lucide-react';
 import { Header } from '../components/Header';
 import { CommuterMatchSwipe } from '../components/CommuterMatchSwipe';
 import { useApp } from '../context/AppContext';
@@ -55,12 +55,24 @@ export function CommuterMatchesScreen() {
           <p><strong>Swipe to browse.</strong> A swipe is navigation only—it does not accept a route, contact a participant, activate transportation, or create a payment.</p>
         </section>
 
-        <CommuterMatchSwipe
-          items={matches}
-          savedIds={savedIds}
-          onSave={toggleSaved}
-          onReview={setReviewedId}
-        />
+        {matches.length > 0 ? (
+          <CommuterMatchSwipe
+            items={matches}
+            savedIds={savedIds}
+            onSave={toggleSaved}
+            onReview={setReviewedId}
+          />
+        ) : (
+          <section className="commuter-matches-empty-state" aria-live="polite">
+            <PackageSearch size={28} />
+            <h2>No commuter matches yet</h2>
+            <p>
+              There is no live commuter-match data to show yet — this research-beta backend does not
+              generate matches automatically. Submit a commute signal to be considered once matching is
+              available, and check back later.
+            </p>
+          </section>
+        )}
 
         {reviewedMatch && (
           <section className="commuter-match-review-panel animate-fade-in" aria-live="polite">
