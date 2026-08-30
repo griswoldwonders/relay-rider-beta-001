@@ -25,7 +25,6 @@ import {
   CommuteOptionFilter,
 } from '../data/commuteOptionsData';
 import {
-  pccDemoProfile,
   profileFromRouteSignal,
   rankCommuteOptions,
   RankedCommuteOption,
@@ -170,12 +169,12 @@ export function CommuteOptionsScreen() {
 
   const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
   const profile = useMemo(
-    () => latestSignal ? profileFromRouteSignal(latestSignal) : pccDemoProfile,
+    () => latestSignal ? profileFromRouteSignal(latestSignal) : null,
     [latestSignal],
   );
 
   const rankedOptions = useMemo(
-    () => rankCommuteOptions(profile, commuteOptions),
+    () => profile ? rankCommuteOptions(profile, commuteOptions) : [],
     [profile],
   );
 
@@ -197,13 +196,22 @@ export function CommuteOptionsScreen() {
       <main className="container mobile-dashboard-shell">
         <section className="commute-bundle-header">
           <span className="mobile-section-kicker">Your trip</span>
-          <h1>{profile.startingArea} <span>→</span> {profile.destinationArea}</h1>
-          <div className="commute-bundle-summary">
-            <span><Clock3 size={14} /> {profile.timeWindow || 'Time not set'}</span>
-            <span><TrainFront size={14} /> {profile.campusAffiliation || 'Institution not set'}</span>
-            <span><Footprints size={14} /> {profile.maxWalkingDistance || 'Walking preference not set'}</span>
-          </div>
-          <p>{profile.source === 'submitted' ? 'Ranked from your latest submitted commute signal.' : 'PCC demonstration profile: Eagle Rock → Pasadena City College at 8:00 AM.'}</p>
+          {profile ? (
+            <>
+              <h1>{profile.startingArea} <span>→</span> {profile.destinationArea}</h1>
+              <div className="commute-bundle-summary">
+                <span><Clock3 size={14} /> {profile.timeWindow || 'Time not set'}</span>
+                <span><TrainFront size={14} /> {profile.campusAffiliation || 'Institution not set'}</span>
+                <span><Footprints size={14} /> {profile.maxWalkingDistance || 'Walking preference not set'}</span>
+              </div>
+              <p>Ranked from your latest submitted commute signal.</p>
+            </>
+          ) : (
+            <>
+              <h1>Submit a commute signal to see options</h1>
+              <p>No commute signal is on file yet for this session. Submit your route to see a personalized, ranked list of commute options.</p>
+            </>
+          )}
         </section>
 
         <section className="market-filter-section" aria-label="Commute option filters">
@@ -236,8 +244,12 @@ export function CommuteOptionsScreen() {
         ) : (
           <section className="commuter-matches-empty-state" aria-live="polite">
             <PackageSearch size={28} />
-            <h2>No options match yet</h2>
-            <p>No commute options currently match this filter. Try a different filter, or check back later.</p>
+            <h2>No commute options yet</h2>
+            <p>
+              {profile
+                ? 'No commute options currently match this filter. Try a different filter, or check back later.'
+                : 'Submit a commute signal to see personalized, ranked commute options.'}
+            </p>
           </section>
         )}
 

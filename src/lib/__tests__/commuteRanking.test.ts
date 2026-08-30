@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { pccDemoProfile, profileFromRouteSignal, rankCommuteOptions, type CommuteProfile } from '../commuteRanking';
+import { profileFromRouteSignal, rankCommuteOptions, type CommuteProfile } from '../commuteRanking';
 import { commuteOptions, type CommuteOptionTemplate } from '../../data/commuteOptionsData';
 import type { RouteSignal } from '../../types';
+
+// Local test-only fixture (not exported from commuteRanking.ts -- production
+// screens must use a real submitted RouteSignal or show an empty state, never
+// a silently-injected demo profile). Mirrors the shape pccDemoProfile used to
+// have when it lived in the production module.
+const pccDemoProfile: CommuteProfile = {
+  id: 'demo-pcc-eagle-rock-0800',
+  campusAffiliation: 'Pasadena City College',
+  startingArea: 'Eagle Rock',
+  destinationArea: 'Pasadena City College',
+  timeWindow: '8:00 AM',
+  daysOfWeek: ['Monday', 'Wednesday', 'Friday'],
+  transitOptions: ['LA Metro bus', 'LA Metro rail', 'Pasadena Transit'],
+  studentTransitPass: 'not-sure',
+  incentiveInterests: ['Green Route Credits', 'Transit participation rewards', 'Campus commute challenges'],
+  maxWalkingDistance: '10-15',
+  evPreference: 'hybrid-ev',
+  source: 'demo',
+};
 
 const baseOption: CommuteOptionTemplate = {
   id: 'test-relay-option',
