@@ -286,6 +286,103 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/EnvelopeCdr' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /api/internal/ocpi/sessions/:
+    post:
+      tags: [OCPI Integration]
+      summary: Internal ingestion of a normalized OCPI Session
+      description: |
+        Authenticated, service-to-service internal boundary -- NOT
+        participant-facing. Intended to be called by an OCPI connector
+        worker/service that has already authenticated the inbound
+        provider call (token/mTLS) at the transport layer; this
+        endpoint additionally requires an authenticated Relay Rider
+        admin/service account (`IsAdminUser`), never `AllowAny`, and is
+        the one explicit override of this API's global permissive
+        default. See relay/ocpi/views.py and
+        docs/OCPI_PRODUCTION_SECURITY_AND_SESSION_LINKING.md.
+
+        The request body is the normalized OCPI Session object plus an
+        internal `partner_id` used to resolve which OcpiProvider/tenant
+        the session belongs to (`partner_id` is not part of the OCPI
+        Session object itself). Never exposes provider credentials,
+        mTLS certificate/key material, or the raw upstream payload in
+        the response.
+      security: [{ internalAdminAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InternalOcpiSessionIngest' }
+      responses:
+        '200':
+          description: Session created or updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EnvelopeInternalSessionIngestResult' }
+        '400':
+          description: Invalid or malformed Session payload; no state is persisted
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Authenticated but not an admin/service account
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '409':
+          description: The matched Session is already COMPLETED and cannot be reopened
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  /api/internal/ocpi/cdrs/:
+    post:
+      tags: [OCPI Integration]
+      summary: Internal ingestion and settlement of a normalized OCPI CDR
+      description: |
+        Authenticated, service-to-service internal boundary -- NOT
+        participant-facing; requires `IsAdminUser` (see the
+        `/api/internal/ocpi/sessions/` description above for the
+        authorization rationale, which applies identically here).
+
+        Matches the CDR to at most one Green Wallet redemption
+        (precedence: authorization_reference, then session_id, then
+        cdr_token.uid, always scoped to the resolved provider/tenant),
+        then either posts a single append-only DEBIT
+        WalletLedgerEntry (`SETTLED`) or leaves the CDR for manual
+        review (`REVIEW_REQUIRED`) -- it never partially settles or
+        guesses a match. "Settlement" here is an internal, capped,
+        non-monetary program-credit ledger entry, not a certified
+        carbon credit or a payment instrument.
+
+        Idempotent by (provider, cdr_id): redelivering the exact same
+        CDR returns `DUPLICATE` with the original settlement outcome
+        and never creates a second ledger entry or mutates the
+        original CDR row, even under concurrent/simultaneous delivery
+        (enforced by a `select_for_update` lock plus a database unique
+        constraint as a backstop). A credit CDR (`credit: true`)
+        reverses a previously settled CDR via `credit_reference_id` by
+        creating a brand-new CDR row and, if eligible, a brand-new
+        REVERSAL ledger entry -- it never edits the original CDR or
+        DEBIT entry.
+      security: [{ internalAdminAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InternalOcpiCdrIngest' }
+      responses:
+        '200':
+          description: CDR settled (matched) or a duplicate of a previously processed CDR
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EnvelopeInternalCdrIngestResult' }
+        '202':
+          description: CDR accepted and stored, but requires manual review (no unambiguous match, insufficient units, denied redemption, etc.)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EnvelopeInternalCdrIngestResult' }
+        '400':
+          description: Invalid or malformed CDR payload -- e.g. missing required fields or wrong field types; no CDR or ledger row is persisted
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Authenticated but not an admin/service account
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
 components:
   securitySchemes:
     bearerAuth:
@@ -297,6 +394,15 @@ components:
       in: header
       name: Authorization
       description: 'OCPI credentials token in the form: Token <provider-token>. Use mTLS in addition when required by the partner.'
+    internalAdminAuth:
+      type: http
+      scheme: basic
+      description: |
+        Internal, service-to-service/admin-only authentication for the
+        /api/internal/ocpi/* boundary (Django `IsAdminUser`, i.e. an
+        authenticated staff/service account). This is never
+        participant-facing and never accepts an unauthenticated or
+        non-admin caller -- see relay/ocpi/views.py.
   parameters:
     PartnerId: { name: partnerId, in: path, required: true, schema: { type: string } }
     CountryCode: { name: countryCode, in: path, required: true, schema: { type: string, pattern: '^[A-Z]{2}$' } }
@@ -496,6 +602,57 @@ components:
         credit: { type: boolean }
         credit_reference_id: { type: string, maxLength: 39 }
         last_updated: { type: string, format: date-time }
+    InternalOcpiSessionIngest:
+      allOf:
+        - $ref: '#/components/schemas/OcpiSession'
+        - type: object
+          required: [partner_id]
+          properties:
+            partner_id:
+              type: string
+              maxLength: 64
+              description: Internal tenant-scoping key resolved to an OcpiProvider; not part of the OCPI Session object itself.
+    InternalOcpiCdrIngest:
+      allOf:
+        - $ref: '#/components/schemas/OcpiCdr'
+        - type: object
+          required: [partner_id]
+          properties:
+            partner_id:
+              type: string
+              maxLength: 64
+              description: Internal tenant-scoping key resolved to an OcpiProvider; not part of the OCPI CDR object itself.
+    EnvelopeInternalSessionIngestResult:
+      allOf: [{ $ref: '#/components/schemas/Envelope' }]
+      properties:
+        data:
+          type: object
+          required: [id, status, ingestion_status]
+          properties:
+            id: { type: string, description: The OCPI Session id (external_session_id). }
+            status: { type: string, enum: [PENDING, ACTIVE, RESERVED, COMPLETED, INVALID] }
+            ingestion_status:
+              type: string
+              enum: [created, updated]
+              description: Whether this call created a new Session projection or updated an existing one.
+    EnvelopeInternalCdrIngestResult:
+      allOf: [{ $ref: '#/components/schemas/Envelope' }]
+      properties:
+        data:
+          type: object
+          required: [cdr_id, matched, status]
+          properties:
+            cdr_id: { type: string }
+            matched:
+              type: boolean
+              description: True only when this delivery resulted in a settled DEBIT/REVERSAL ledger entry.
+            status:
+              type: string
+              enum: [SETTLED, REVIEW_REQUIRED, DUPLICATE]
+              description: |
+                SETTLED: a ledger entry was posted (first delivery only).
+                REVIEW_REQUIRED: stored for manual review; no ledger entry (no unambiguous match, insufficient units, denied redemption, provider mismatch, or unknown reversal target).
+                DUPLICATE: same (provider, cdr_id) as a previously processed CDR; returns the original outcome and never mutates state.
     Price:
       type: object
       required: [excl_vat, currency]

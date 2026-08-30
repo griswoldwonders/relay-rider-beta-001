@@ -89,5 +89,29 @@ class RedemptionRequest(TimestampedModel):
     reviewed_by = models.CharField(max_length=160, blank=True)
     review_note = models.TextField(blank=True)
 
+    # --- OCPI connector fields (additive; see backend/relay/ocpi/) ---
+    # These identify which OCPI provider/tenant this redemption is scoped
+    # to and the opaque correlation handles used to match an inbound CDR
+    # to exactly one redemption (see
+    # docs/OCPI_PRODUCTION_SECURITY_AND_SESSION_LINKING.md, "Linking
+    # Sessions and CDRs to wallet redemptions"). They are blank/null by
+    # default so existing rows and the existing frontend flow are
+    # unaffected; only OCPI-authorized redemptions ever populate them.
+    ocpi_provider = models.ForeignKey(
+        'relay.OcpiProvider', null=True, blank=True, on_delete=models.SET_NULL, related_name='redemption_requests'
+    )
+    authorization_reference = models.CharField(max_length=36, blank=True)
+    token_uid = models.CharField(max_length=36, blank=True)
+
     def __str__(self):
         return f'Redemption request {self.pk}'
+
+
+# Imported here (rather than at the top of the file) so the 'relay' app's
+# models module -- which Django's app registry loads as a whole -- also
+# registers the OCPI connector models defined in relay/ocpi/models.py.
+# Those models use Django's "app_label.ModelName" string form for their
+# foreign keys back into this file (e.g. 'relay.RedemptionRequest'), so
+# there is no circular Python import: relay/ocpi/models.py never imports
+# from this module.
+from .ocpi.models import OcpiProvider, OcpiSession, OcpiCdr, WalletLedgerEntry  # noqa: E402,F401
