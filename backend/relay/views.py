@@ -1,5 +1,10 @@
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import mixins, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
 from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
@@ -59,12 +64,30 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
         return [IsTenantMember()]
 
     def perform_create(self, serializer):
-        credit = serializer.validated_data['credit']
-        serializer.save(
-            institution=credit.institution,
-            unit_label=credit.unit_label,
-            status='requested',
-        )
+        with transaction.atomic():
+            credit = GreenRouteCredit.objects.select_for_update().get(
+                pk=serializer.validated_data['credit'].pk
+            )
+            requested_units = serializer.validated_data['requested_units']
+            committed_units = RedemptionRequest.objects.filter(
+                credit=credit,
+                status__in={'requested', 'under-review', 'fulfilled'},
+            ).aggregate(total=Sum('requested_units'))['total'] or Decimal('0')
+
+            if credit.status != 'issued':
+                raise ValidationError({
+                    'credit': 'Only issued Green Route Credits can be submitted for redemption review.'
+                })
+            if committed_units + requested_units > credit.amount_units:
+                raise ValidationError({
+                    'requested_units': 'Requested units exceed the uncommitted Green Route Credit balance.'
+                })
+
+            serializer.save(
+                institution=credit.institution,
+                unit_label=credit.unit_label,
+                status='requested',
+            )
 
     def perform_update(self, serializer):
         next_status = serializer.validated_data.get('status', serializer.instance.status)
