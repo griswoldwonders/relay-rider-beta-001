@@ -32,7 +32,7 @@ def _canonical_record_from_row(*, row, normalized):
         ev_hybrid_signal=normalized.get("ev_hybrid_signal", ""),
         canonicalization_version=SCHEMA_VERSION,
     )
-    record.full_clean()
+    record.full_clean(exclude=["commute_days"])
     record.save()
     return record
 
@@ -109,7 +109,7 @@ def ingest_commuter_csv(*, file_obj, filename, institution, site, cohort, upload
                 error_codes=errors,
                 warning_codes=warnings,
             )
-            import_row.full_clean()
+            import_row.full_clean(exclude=["error_codes", "warning_codes"])
             import_row.save()
 
             if validation_status == "accepted":
