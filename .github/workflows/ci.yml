@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend checks and build
+    name: Frontend checks, tests, and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,6 +37,9 @@ jobs:
       - name: Type check
         run: npm run check
 
+      - name: Frontend tests
+        run: npm test
+
       - name: Validate application security configuration
         run: npm run security:check
 
@@ -55,9 +58,9 @@ jobs:
           retention-days: 7
 
   backend:
-    name: Django checks and migration validation
+    name: Django tests and migration validation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -77,11 +80,20 @@ jobs:
       - name: Install backend dependencies
         run: pip install -r requirements.txt
 
-      - name: Apply migrations to validation database
-        run: python manage.py migrate --noinput
+      - name: Verify Green Wallet migration 0004 forward and backward
+        run: |
+          rm -f db.sqlite3
+          python manage.py migrate relay 0003 --noinput
+          python manage.py migrate relay 0004 --noinput
+          python manage.py migrate relay 0003 --noinput
+          python manage.py migrate relay 0004 --noinput
+          python manage.py migrate --noinput
 
       - name: Django system checks
         run: python manage.py check
 
       - name: Detect missing migrations
         run: python manage.py makemigrations --check --dry-run
+
+      - name: Backend tests
+        run: python manage.py test
