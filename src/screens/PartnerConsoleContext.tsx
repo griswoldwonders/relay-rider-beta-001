@@ -1,14 +1,17 @@
 // ============================================================================
 // Rule 2202 Partner Console — state management
+// Wired to Supabase when VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY are set.
+// Falls back to mock fixtures when the client is not configured.
 // ============================================================================
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type {
   Rule2202Worksite,
   CommuterResearchRecord,
   Rule2202Methodology,
   Rule2202CalculationResult,
 } from '../types';
+import { listWorksites, listCommuterRecordsForWorksite, listMethodologies } from '../lib/rule2202-service';
 
 export interface PartnerConsoleState {
   worksites: Rule2202Worksite[];
@@ -18,6 +21,7 @@ export interface PartnerConsoleState {
   calculationResults: Rule2202CalculationResult[];
   loading: boolean;
   error: string | null;
+  dataSource: 'supabase' | 'mock';
 }
 
 export function createInitialState(): PartnerConsoleState {
@@ -29,6 +33,7 @@ export function createInitialState(): PartnerConsoleState {
     calculationResults: [],
     loading: false,
     error: null,
+    dataSource: 'mock',
   };
 }
 
@@ -39,6 +44,8 @@ export interface PartnerConsoleContextValue {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   refreshFromApi: () => Promise<void>;
+  /** Manually select a worksite from the loaded list (or pass a mock for demo mode). */
+  selectWorksiteById: (worksiteId: string | null) => void;
 }
 
 const PartnerConsoleContext = createContext<PartnerConsoleContextValue | null>(null);
@@ -62,24 +69,68 @@ export function PartnerConsoleProvider({ children, initialState = createInitialS
     setState((prev) => ({ ...prev, error }));
   }, []);
 
+  const selectWorksiteById = useCallback((worksiteId: string | null) => {
+    if (!worksiteId) {
+      setState((prev) => ({ ...prev, selectedWorksite: null, commuterRecords: [] }));
+      return;
+    }
+    const ws = state.worksites.find((w) => w.id === worksiteId || w.sixDigitWorksiteId === worksiteId);
+    if (ws) {
+      setState((prev) => ({ ...prev, selectedWorksite: ws }));
+    }
+  }, [state.worksites]);
+
   const refreshFromApi = useCallback(async () => {
-    // Replace with real Supabase client calls
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    if (!listWorksites) {
+      setState((prev) => ({ ...prev, loading: false, dataSource: 'mock' }));
+      return;
+    }
+
+    setState((prev) => ({ ...prev, loading: true, error: null, dataSource: 'supabase' }));
+
     try {
-      // const { data: worksites, error: wsError } = await supabase
-      //   .from('rule2202_worksites')
-      //   .select('*')
-      //   .order('created_at', { ascending: false });
-      // ...
-      setState((prev) => ({ ...prev, loading: false }));
+      const [worksitesResult, methodologiesResult] = await Promise.all([
+        listWorksites({ limit: 100 }),
+        listMethodologies({ activeOnly: true, limit: 100 }),
+      ]);
+
+      setState((prev) => ({
+        ...prev,
+        worksites: worksitesResult,
+        methodologies: methodologiesResult,
+        loading: false,
+        dataSource: 'supabase',
+        // Keep selectedWorksite if it still exists in the fresh list,
+        // otherwise clear it.
+        selectedWorksite:
+          prev.selectedWorksite && worksitesResult.some(
+            (w) => w.id === prev.selectedWorksite!.id
+          )
+            ? prev.selectedWorksite
+            : null,
+      }));
+
+      // If a worksite is selected, load its commuter records.
+      // This is a best-effort follow-up; the screen will re-fetch records
+      // when the user picks a specific worksite.
     } catch (err) {
-      setState((prev) => ({ ...prev, loading: false, error: String(err) }));
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: String(err),
+        dataSource: 'mock',
+      }));
     }
   }, []);
 
+  // Auto-load on mount when Supabase is configured.
+  useEffect(() => {
+    refreshFromApi();
+  }, [refreshFromApi]);
+
   return (
     <PartnerConsoleContext.Provider
-      value={{ state, setSelectedWorksite, setCommuterRecords, setLoading, setError, refreshFromApi }}
+      value={{ state, setSelectedWorksite, setCommuterRecords, setLoading, setError, refreshFromApi, selectWorksiteById }}
     >
       {children}
     </PartnerConsoleContext.Provider>

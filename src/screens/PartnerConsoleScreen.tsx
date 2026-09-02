@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft,
   BarChart3,
@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Layers,
+  Loader2,
 } from 'lucide-react';
 import type { Rule2202Worksite, CommuterResearchRecord } from '../types';
 import {
@@ -32,6 +33,271 @@ import {
   type AuditEntry,
   type ReviewPacket,
 } from '../lib/rule2202-evidence-workflow';
+import { usePartnerConsole, type PartnerConsoleState } from './PartnerConsoleContext';
+
+// ---- Built-in mock fixtures (fallback when Supabase is not configured) ----
+
+function makeMockWorksite(): Rule2202Worksite {
+  return {
+    id: 'ws-001',
+    institutionId: 'inst-001',
+    worksiteName: 'Pasadena Corporate Campus — Building A',
+    sixDigitWorksiteId: '123456',
+    employerName: 'Pasadena Technology Group',
+    facilityDescription: 'Main office building, 4 floors, ~850 employees',
+    streetAddress: '123 East Colorado Boulevard',
+    city: 'Pasadena',
+    state: 'CA',
+    zipCode: '91101',
+    performanceZone: 2,
+    performanceZoneSource: 'AQMD GIS lookup 2026',
+    performanceZoneVerifiedAt: '2026-07-15T00:00:00Z',
+    reportingMethod: 'survey_avr',
+    reportingPeriodStart: '2026-01-01',
+    reportingPeriodEnd: '2026-06-30',
+    employeeCountMonth1: 840,
+    employeeCountMonth2: 845,
+    employeeCountMonth3: 850,
+    employeeCountMonth4: 838,
+    employeeCountMonth5: 852,
+    employeeCountMonth6: 847,
+    employeeCountNotes: 'Headcount based on payroll records',
+    aqrNotificationDate: '2026-03-01',
+    aqrSurveyDueDate: '2026-05-15',
+    aqrSurveyCompleteDate: '2026-05-10',
+    aqrSubmittalDueDate: '2026-07-01',
+    aqrSubmittalActualDate: null,
+    permanentFilingDueDate: '2026-07-01',
+    filingFeeVersion: '2026-07-01',
+    businessClassification: 'commercial',
+    ecrpCandidateZone: 2,
+    ecrpCandidateETC: 'Maria Ortiz, Relay Rider Program',
+    ecrpCandidateETCVerifiedAt: '2026-06-20T00:00:00Z',
+    ecrpCandidateNotes: 'ETC verified via institutional appointment letter',
+    sourceDocumentType: 'AQMD Rule 2202 Application',
+    sourceDocumentReference: 'AQMD-2026-0042',
+    sourceDocumentDate: '2026-03-01',
+    sourceUrl: null,
+    sourceNotes: 'Original application filed with SCAQMD',
+    reviewState: 'ready_for_review',
+    dataCompletenessNotes: 'All required fields populated',
+    validationErrors: [],
+    reviewStartedAt: '2026-06-20T00:00:00Z',
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewDecision: null,
+    reviewDecisionAt: null,
+    filingStatus: 'ready_for_review',
+    feeVerified: true,
+    feeExpected: 250,
+    feeSubmitted: 250,
+    feeVerificationSource: 'AQMD fee schedule effective 2026-07-01',
+    feeVerifiedBy: null,
+    feeVerifiedAt: '2026-06-25T00:00:00Z',
+    requiredForms: ['Rule 2202 Application', 'Worksite Information Form'],
+    completenessNotes: 'All required forms and fee verified',
+    createdAt: '2026-03-01T00:00:00Z',
+    updatedAt: '2026-06-25T00:00:00Z',
+    createdBy: null,
+    updatedBy: null,
+    deletedAt: null,
+  };
+}
+
+function makeMockRecords(): CommuterResearchRecord[] {
+  return [
+    {
+      id: 'cr-001',
+      institutionId: 'inst-001',
+      worksiteId: 'ws-001',
+      pseudonymousEmployeeId: 'emp-a1',
+      approximateOriginZone: 'Pasadena - East',
+      approximateDestinationZone: 'Pasadena - Central',
+      arrivalWindowStart: '08:00',
+      arrivalWindowEnd: '09:00',
+      departureWindowStart: '17:00',
+      departureWindowEnd: '18:00',
+      commuteMode: 'drive_alone',
+      commuteModeSource: 'survey',
+      vehicleOccupancy: 1,
+      telecommuteDaysPerWeek: 1,
+      oneWayDistanceMiles: 8.5,
+      distanceSource: 'self_reported',
+      vehicleClass: 'gasoline_diesel',
+      vehicleMake: null,
+      vehicleModel: null,
+      vehicleYear: null,
+      evHybridParticipation: false,
+      interestedInEvRoute: false,
+      interestedInCarpoolRoute: false,
+      interestedInTransitOption: false,
+      routeInterestNotes: null,
+      surveyPeriodStart: '2026-04-01',
+      surveyPeriodEnd: '2026-05-10',
+      responseReceivedAt: '2026-04-15T00:00:00Z',
+      sourceTemplateVersion: '1.0',
+      sourceImportBatchId: null,
+      status: 'submitted',
+      createdAt: '2026-04-15T00:00:00Z',
+      updatedAt: '2026-04-15T00:00:00Z',
+      createdBy: null,
+      updatedBy: null,
+      deletedAt: null,
+    },
+    {
+      id: 'cr-002',
+      institutionId: 'inst-001',
+      worksiteId: 'ws-001',
+      pseudonymousEmployeeId: 'emp-b2',
+      approximateOriginZone: 'Altadena',
+      approximateDestinationZone: 'Pasadena - Central',
+      arrivalWindowStart: '07:30',
+      arrivalWindowEnd: '08:30',
+      departureWindowStart: '16:30',
+      departureWindowEnd: '17:30',
+      commuteMode: 'carpool',
+      commuteModeSource: 'survey',
+      vehicleOccupancy: 3,
+      telecommuteDaysPerWeek: 0,
+      oneWayDistanceMiles: 6.2,
+      distanceSource: 'self_reported',
+      vehicleClass: 'gasoline_diesel',
+      vehicleMake: null,
+      vehicleModel: null,
+      vehicleYear: null,
+      evHybridParticipation: false,
+      interestedInEvRoute: false,
+      interestedInCarpoolRoute: true,
+      interestedInTransitOption: false,
+      routeInterestNotes: null,
+      surveyPeriodStart: '2026-04-01',
+      surveyPeriodEnd: '2026-05-10',
+      responseReceivedAt: '2026-04-18T00:00:00Z',
+      sourceTemplateVersion: '1.0',
+      sourceImportBatchId: null,
+      status: 'submitted',
+      createdAt: '2026-04-18T00:00:00Z',
+      updatedAt: '2026-04-18T00:00:00Z',
+      createdBy: null,
+      updatedBy: null,
+      deletedAt: null,
+    },
+    {
+      id: 'cr-003',
+      institutionId: 'inst-001',
+      worksiteId: 'ws-001',
+      pseudonymousEmployeeId: 'emp-c3',
+      approximateOriginZone: 'South Pasadena',
+      approximateDestinationZone: 'Pasadena - Central',
+      arrivalWindowStart: '08:00',
+      arrivalWindowEnd: '09:00',
+      departureWindowStart: '17:00',
+      departureWindowEnd: '18:00',
+      commuteMode: 'transit',
+      commuteModeSource: 'survey',
+      vehicleOccupancy: null,
+      telecommuteDaysPerWeek: 0,
+      oneWayDistanceMiles: 4.1,
+      distanceSource: 'self_reported',
+      vehicleClass: 'no_vehicle',
+      vehicleMake: null,
+      vehicleModel: null,
+      vehicleYear: null,
+      evHybridParticipation: false,
+      interestedInEvRoute: false,
+      interestedInCarpoolRoute: false,
+      interestedInTransitOption: true,
+      routeInterestNotes: null,
+      surveyPeriodStart: '2026-04-01',
+      surveyPeriodEnd: '2026-05-10',
+      responseReceivedAt: '2026-04-20T00:00:00Z',
+      sourceTemplateVersion: '1.0',
+      sourceImportBatchId: null,
+      status: 'submitted',
+      createdAt: '2026-04-20T00:00:00Z',
+      updatedAt: '2026-04-20T00:00:00Z',
+      createdBy: null,
+      updatedBy: null,
+      deletedAt: null,
+    },
+    {
+      id: 'cr-004',
+      institutionId: 'inst-001',
+      worksiteId: 'ws-001',
+      pseudonymousEmployeeId: 'emp-d4',
+      approximateOriginZone: 'San Marino',
+      approximateDestinationZone: 'Pasadena - Central',
+      arrivalWindowStart: '08:00',
+      arrivalWindowEnd: '09:00',
+      departureWindowStart: '17:00',
+      departureWindowEnd: '18:00',
+      commuteMode: 'telecommute',
+      commuteModeSource: 'survey',
+      vehicleOccupancy: null,
+      telecommuteDaysPerWeek: 3,
+      oneWayDistanceMiles: 5.0,
+      distanceSource: 'self_reported',
+      vehicleClass: 'bev',
+      vehicleMake: 'Tesla',
+      vehicleModel: 'Model 3',
+      vehicleYear: '2023',
+      evHybridParticipation: true,
+      interestedInEvRoute: true,
+      interestedInCarpoolRoute: false,
+      interestedInTransitOption: false,
+      routeInterestNotes: 'Interested in workplace charging',
+      surveyPeriodStart: '2026-04-01',
+      surveyPeriodEnd: '2026-05-10',
+      responseReceivedAt: '2026-04-22T00:00:00Z',
+      sourceTemplateVersion: '1.0',
+      sourceImportBatchId: null,
+      status: 'submitted',
+      createdAt: '2026-04-22T00:00:00Z',
+      updatedAt: '2026-04-22T00:00:00Z',
+      createdBy: null,
+      updatedBy: null,
+      deletedAt: null,
+    },
+    {
+      id: 'cr-005',
+      institutionId: 'inst-001',
+      worksiteId: 'ws-001',
+      pseudonymousEmployeeId: 'emp-e5',
+      approximateOriginZone: 'Arcadia',
+      approximateDestinationZone: 'Pasadena - Central',
+      arrivalWindowStart: '08:30',
+      arrivalWindowEnd: '09:30',
+      departureWindowStart: '17:30',
+      departureWindowEnd: '18:30',
+      commuteMode: 'vanpool',
+      commuteModeSource: 'survey',
+      vehicleOccupancy: 10,
+      telecommuteDaysPerWeek: 0,
+      oneWayDistanceMiles: 12.0,
+      distanceSource: 'self_reported',
+      vehicleClass: 'gasoline_diesel',
+      vehicleMake: null,
+      vehicleModel: null,
+      vehicleYear: null,
+      evHybridParticipation: false,
+      interestedInEvRoute: false,
+      interestedInCarpoolRoute: false,
+      interestedInTransitOption: false,
+      routeInterestNotes: null,
+      surveyPeriodStart: '2026-04-01',
+      surveyPeriodEnd: '2026-05-10',
+      responseReceivedAt: '2026-04-25T00:00:00Z',
+      sourceTemplateVersion: '1.0',
+      sourceImportBatchId: null,
+      status: 'submitted',
+      createdAt: '2026-04-25T00:00:00Z',
+      updatedAt: '2026-04-25T00:00:00Z',
+      createdBy: null,
+      updatedBy: null,
+      deletedAt: null,
+    },
+  ];
+}
 
 // ---- UI helpers ----
 
@@ -43,11 +309,28 @@ function StatusBadge({ status, color }: { status: string; color: string }) {
   );
 }
 
-function emptyNote(message: string) {
+function EmptyNote({ message }: { message: string }) {
   return (
     <div className="partner-empty-note !border !border-dashed !border-[rgba(15,41,64,.2)] !bg-[rgba(15,41,64,.03)] !px-4 !py-3 !text-sm">
       {message}
     </div>
+  );
+}
+
+function DataSourcePill({ state }: { state: PartnerConsoleState }) {
+  if (state.dataSource === 'mock') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-[rgba(15,41,64,.5)]">
+        <Sparkles size={12} />
+        demonstration mode (no live data)
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-green-700">
+      <ShieldCheck size={12} />
+      live data ({state.worksites.length} worksites)
+    </span>
   );
 }
 
@@ -60,19 +343,9 @@ function OverviewPanel({
   worksite: Rule2202Worksite;
   applicability: ApplicabilityReview;
 }) {
-  const monthlyFields = [
-    'employeeCountMonth1',
-    'employeeCountMonth2',
-    'employeeCountMonth3',
-    'employeeCountMonth4',
-    'employeeCountMonth5',
-    'employeeCountMonth6',
-  ] as const;
-
-  // Access selected fields directly instead of via Record<string, unknown>
   const monthsReported = [1, 2, 3, 4, 5, 6].filter((m) => {
-    const key = `employeeCountMonth${m}` as const;
-    const val = (worksite as unknown as Record<string, number | null>)[key];
+    const key = `employeeCountMonth${m}` as keyof Rule2202Worksite;
+    const val = worksite[key];
     return val !== null && val !== undefined;
   }).length;
 
@@ -197,172 +470,140 @@ function TimelinePanel({ entries }: { entries: TimelineEntry[] }) {
     milestone: 'bg-gray-100 text-gray-800',
   };
 
-  const statusIcons = {
-    upcoming: Clock,
-    current: AlertCircle,
-    completed: CheckCircle2,
-    overdue: FileWarning,
+  const statusIcons: Record<TimelineEntry['status'], React.ReactElement> = {
+    completed: <CheckCircle2 size={14} className="text-green-600 shrink-0" />,
+    current: <Clock size={14} className="text-blue-600 shrink-0" />,
+    overdue: <AlertCircle size={14} className="text-red-600 shrink-0" />,
+    upcoming: <Clock size={14} className="text-amber-600 shrink-0" />,
   };
+
+  if (entries.length === 0) {
+    return <section className="partner-panel !bg-white"><EmptyNote message="No timeline entries available." /></section>;
+  }
 
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
         <div>
-          <span className="mobile-section-kicker">Timeline</span>
-          <h2>Filing and review timeline</h2>
+          <span className="mobile-section-kicker">Notification, survey & filing timeline</span>
+          <h2>Regulatory timeline</h2>
         </div>
         <Calendar size={18} />
       </div>
-
-      {entries.length === 0 ? (
-        emptyNote('No timeline entries yet. Set notification, survey, submittal, or filing dates to populate the timeline.')
-      ) : (
-        <div className="mt-4 space-y-2">
-          {entries.map((entry, i) => {
-            const Icon = statusIcons[entry.status];
-            return (
-              <div key={i} className="flex items-start gap-3 !rounded-lg !bg-[rgba(15,41,64,.02)] !px-3 !py-2">
-                <div className={`shrink-0 w-16 text-right text-xs font-mono text-[rgba(15,41,64,.6)]`}>
-                  {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 !rounded ${typeColors[entry.type] || 'bg-gray-100 text-gray-700'}`}>
-                      {entry.type}
-                    </span>
-                    <p className="text-sm font-medium truncate">{entry.event}</p>
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <Icon size={12} className={`shrink-0 ${
-                      entry.status === 'overdue' ? 'text-red-600' :
-                      entry.status === 'completed' ? 'text-green-600' :
-                      entry.status === 'current' ? 'text-amber-600' :
-                      'text-[rgba(15,41,64,.4)]'
-                    }`} />
-                    <span className={`text-xs ${
-                      entry.status === 'overdue' ? 'text-red-600 font-medium' :
-                      entry.status === 'completed' ? 'text-green-700' :
-                      entry.status === 'current' ? 'text-amber-700' :
-                      'text-[rgba(15,41,64,.5)]'
-                    }`}>
-                      {entry.status}
-                    </span>
-                    {entry.notes && (
-                      <span className="text-xs text-[rgba(15,41,64,.5)] truncate ml-2">{entry.notes}</span>
-                    )}
-                  </div>
-                </div>
+      <div className="mt-5 space-y-3">
+        {entries.map((entry) => (
+          <div key={entry.date + entry.event} className="flex gap-3">
+            <div className={`shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-xs font-medium ${typeColors[entry.type] || 'bg-gray-100 text-gray-800'}`}>
+              {entry.type === 'notification' ? 'N' : entry.type === 'survey' ? 'S' : entry.type === 'submittal' ? 'SB' : entry.type === 'filing' ? 'F' : entry.type === 'review' ? 'R' : 'M'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">{entry.event}</p>
+              <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">
+                {entry.date ? `${new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'No date'}
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                {statusIcons[entry.status]}
+                <span className={`text-xs capitalize ${entry.status === 'overdue' ? 'text-red-700 font-medium' : entry.status === 'upcoming' ? 'text-amber-700' : 'text-[rgba(15,41,64,.6)]'}`}>
+                  {entry.status}
+                </span>
+                {entry.notes && <span className="text-xs text-[rgba(15,41,64,.5)]">· {entry.notes}</span>}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
 
 // ---- AVR/VMT workbench panel ----
 
-function AvrVmtWorkbenchPanel({
-  result,
-}: {
-  result: AvrVmtWorkbenchResult;
-}) {
+function AvrVmtWorkbenchPanel({ result }: { result: AvrVmtWorkbenchResult | null }) {
+  if (!result) {
+    return <section className="partner-panel !bg-white"><EmptyNote message="No AVR/VMT calculation result available." /></section>;
+  }
+
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
         <div>
-          <span className="mobile-section-kicker">AVR / VMT workbench</span>
-          <h2>Deterministic calculation preview</h2>
+          <span className="mobile-section-kicker">Average Vehicle Ridership & VMT</span>
+          <h2>AVR / VMT workbench</h2>
         </div>
         <BarChart3 size={18} />
       </div>
+      <div className="mt-5 grid gap-4">
+        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-4">
+          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">Average Vehicle Ridership (AVR)</p>
+          <div className="flex items-baseline gap-2">
+            <Gauge size={24} className="text-[rgba(15,41,64,.4)]" />
+            <span className="text-2xl font-semibold">{result.avr !== null ? result.avr.toFixed(2) : '—'}</span>
+            <span className="text-sm text-[rgba(15,41,64,.6)]">AVR</span>
+          </div>
+          <p className="text-xs text-[rgba(15,41,64,.5)] mt-1">
+            {result.avr !== null && result.avr < 1.5
+              ? 'AVR ≤ 1.50 (Zone 1 threshold)'
+              : result.avr !== null && result.avr < 1.75
+              ? 'AVR ≤ 1.75 (Zone 2 threshold)'
+              : result.avr !== null && result.avr < 2.0
+              ? 'AVR ≤ 2.00 (Zone 3 threshold)'
+              : result.avr !== null
+              ? 'AVR exceeds zone threshold — review required'
+              : 'Performance zone not assigned or AVR not calculated'}
+          </p>
+        </div>
 
-      <div className="grid gap-4 mt-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Employees</p>
-            <p className="mt-1 text-xl font-bold text-[rgba(15,41,64,.8)]">
-              {result.employees || '—'}
-            </p>
-          </div>
-          <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Vehicle trips</p>
-            <p className="mt-1 text-xl font-bold text-[rgba(15,41,64,.8)]">
-              {result.vehicleTrips.toFixed(2)}
-            </p>
-          </div>
-          <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 text-center">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Response rate</p>
-            <p className="mt-1 text-xl font-bold text-[rgba(15,41,64,.8)]">
-              {result.responseRate !== null ? `${result.responseRate}%` : '—'}
-            </p>
+        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-4">
+          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">Vehicle Trips (weighted)</p>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-xs text-[rgba(15,41,64,.5)]">Total vehicle trips</p>
+              <p className="text-lg font-semibold">{result.vehicleTrips.toFixed(1)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[rgba(15,41,64,.5)]">Employees (avg)</p>
+              <p className="text-lg font-semibold">{result.employees}</p>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">AVR</p>
-            <p className={`mt-1 text-2xl font-bold ${
-              result.avr !== null
-                ? result.avr >= 1.3
-                  ? 'text-green-700'
-                  : 'text-amber-700'
-                : 'text-[rgba(15,41,64,.4)]'
-            }`}>
-              {result.avr !== null ? result.avr.toFixed(2) : 'Not calculated'}
-            </p>
-            {result.avr !== null && (
-              <p className="text-xs text-[rgba(15,41,64,.5)] mt-0.5">
-                vehicle trips weighted per Rule 2202 ECRP Guidelines
-              </p>
-            )}
+        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-4">
+          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">Response rate</p>
+          <div className="flex items-baseline gap-2">
+            <Gauge size={24} className="text-[rgba(15,41,64,.4)]" />
+            <span className="text-2xl font-semibold">{result.responseRate !== null ? `${result.responseRate.toFixed(1)}%` : '—'}</span>
+            <span className="text-sm text-[rgba(15,41,64,.6)]">of commuter records submitted</span>
           </div>
-          <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">VMT estimate</p>
-            <p className="mt-1 text-lg font-medium text-[rgba(15,41,64,.8)]">
-              {result.vmtLabel}
-            </p>
-            <p className="text-[10px] text-amber-700 mt-1">Modeled estimate — not certified</p>
-          </div>
+          {result.surveyValid.reason && (
+            <p className="text-xs text-amber-700 mt-1">{result.surveyValid.reason}</p>
+          )}
         </div>
 
-        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3">
-          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">Survey validity</p>
-          <div className="flex items-center gap-2">
-            {result.surveyValid.isValid ? (
-              <CheckCircle2 size={14} className="text-green-700 shrink-0" />
-            ) : (
-              <FileWarning size={14} className="text-amber-700 shrink-0" />
-            )}
-            <span className="text-sm">
-              {result.surveyValid.isValid
-                ? 'Survey meets minimum validity thresholds'
-                : result.surveyValid.reason || 'Not valid'}
-            </span>
+        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-4">
+          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">VMT Estimate</p>
+          <div className="flex items-baseline gap-2">
+            <MapPin size={24} className="text-[rgba(15,41,64,.4)]" />
+            <span className="text-2xl font-semibold">{result.vmtEstimate !== null ? result.vmtEstimate.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'}</span>
+            <span className="text-sm text-[rgba(15,41,64,.6)]">vehicle-miles/year reduced</span>
           </div>
+          <p className="text-xs text-[rgba(15,41,64,.5)] mt-1">{result.vmtLabel}</p>
         </div>
 
-        {result.missingInputs.length > 0 && (
+        {result.warnings.length > 0 && (
           <div className="bg-amber-50 !rounded-lg !p-3 border !border-amber-200">
-            <p className="text-xs font-medium text-amber-800 mb-1">Missing inputs</p>
+            <p className="text-xs font-medium text-amber-800 mb-1">Calculation notes</p>
             <ul className="text-xs text-amber-700 list-disc list-inside">
-              {result.missingInputs.map((m, i) => (
-                <li key={i}>{m}</li>
-              ))}
+              {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
             </ul>
           </div>
         )}
 
-        {result.warnings.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Calculation notes</p>
-            {result.warnings.map((w, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-[rgba(15,41,64,.7)] !bg-white !rounded !px-2 !py-1.5 border !border-[rgba(15,41,64,.08)]">
-                <Sparkles size={12} className="shrink-0 mt-0.5" />
-                <span>{w}</span>
-              </div>
-            ))}
+        {result.missingInputs.length > 0 && (
+          <div className="bg-red-50 !rounded-lg !p-3 border !border-red-200">
+            <p className="text-xs font-medium text-red-800 mb-1">Missing inputs</p>
+            <ul className="text-xs text-red-700 list-disc list-inside">
+              {result.missingInputs.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
           </div>
         )}
       </div>
@@ -372,53 +613,57 @@ function AvrVmtWorkbenchPanel({
 
 // ---- ECRP readiness panel ----
 
-function EcrpReadinessPanel({ readiness }: { readiness: EcrpReadiness }) {
+function EcrpReadinessPanel({ readiness }: { readiness: EcrpReadiness | null }) {
+  if (!readiness) {
+    return <section className="partner-panel !bg-white"><EmptyNote message="No ECRP readiness assessment available." /></section>;
+  }
+
+  const levelColor = readiness.readinessLevel === 'candidate_ready' ? 'text-green-700 bg-green-100' : readiness.readinessLevel === 'candidate_unready' ? 'text-amber-700 bg-amber-100' : 'text-gray-600 bg-gray-100';
+  const levelLabel = readiness.readinessLevel === 'candidate_ready' ? 'Candidate ready' : readiness.readinessLevel === 'candidate_unready' ? 'Partially ready' : 'Not ready';
+
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
         <div>
-          <span className="mobile-section-kicker">ECRP readiness</span>
-          <h2>Employee Commuter Reduction Program</h2>
+          <span className="mobile-section-kicker">Employer-Based Commuter Choice Program</span>
+          <h2>ECRP readiness</h2>
         </div>
         <Layers size={18} />
       </div>
-
-      <div className="mt-4 space-y-3">
-        <div className="flex items-center gap-2">
-          {readiness.isEcrpCandidate ? (
-            <CheckCircle2 size={16} className="text-green-700 shrink-0" />
-          ) : (
-            <Gauge size={16} className="text-[rgba(15,41,64,.5)] shrink-0" />
-          )}
-          <span className="text-sm font-medium">
-            {readiness.isEcrpCandidate
-              ? `ECRP candidate (Zone ${readiness.ecrpZone})`
-              : 'Not designated as ECRP candidate'}
-          </span>
+      <div className="mt-5 grid gap-4">
+        <div className={`!rounded-lg !p-4 ${levelColor.split(' ')[0]} ${levelColor.split(' ').slice(1).join(' ')}`}>
+          <p className="text-xs uppercase tracking-wide mb-1">Readiness level</p>
+          <p className="text-lg font-semibold">{levelLabel}</p>
         </div>
 
-        {readiness.etcAssigned && (
-          <div className="flex items-center gap-2 text-sm">
-            <ShieldCheck size={14} className="text-green-700 shrink-0" />
-            <span>ETC: {readiness.etcName} (verified)</span>
+        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-4">
+          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-2">ECRP Candidate Zone</p>
+          <div className="text-sm">
+            <p>Zone {readiness.ecrpZone || 'Not assigned'}</p>
+            {readiness.etcName && (
+              <p className="text-xs text-[rgba(15,41,64,.6)] mt-1">ETC: {readiness.etcName}</p>
+            )}
+            {readiness.etcAssigned && (
+              <p className="text-xs text-green-700 mt-0.5">ETC verified</p>
+            )}
           </div>
-        )}
+        </div>
 
         {readiness.missingForEcrp.length > 0 && (
           <div className="bg-amber-50 !rounded-lg !p-3 border !border-amber-200">
-            <p className="text-xs font-medium text-amber-800 mb-1">Outstanding for ECRP readiness</p>
+            <p className="text-xs font-medium text-amber-800 mb-1">Items to complete</p>
             <ul className="text-xs text-amber-700 list-disc list-inside">
-              {readiness.missingForEcrp.map((m, i) => (
-                <li key={i}>{m}</li>
-              ))}
+              {readiness.missingForEcrp.map((m, i) => <li key={i}>{m}</li>)}
             </ul>
           </div>
         )}
 
-        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 text-sm">
-          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)] mb-1">Readiness level</p>
-          <p className="font-medium capitalize">{readiness.readinessLevel.replace(/_/g, ' ')}</p>
-        </div>
+        {readiness.missingForEcrp.length === 0 && readiness.etcAssigned && (
+          <div className="bg-green-50 !rounded-lg !p-3 border !border-green-200">
+            <p className="text-xs font-medium text-green-800 mb-1">ECRP candidate status</p>
+            <p className="text-xs text-green-700">Candidate zone assigned and ETC in place</p>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -427,49 +672,42 @@ function EcrpReadinessPanel({ readiness }: { readiness: EcrpReadiness }) {
 // ---- Exceptions panel ----
 
 function ExceptionsPanel({ exceptions }: { exceptions: ExceptionEntry[] }) {
-  const sevColors = {
-    error: 'text-red-700 bg-red-50 border-red-200',
-    warning: 'text-amber-700 bg-amber-50 border-amber-200',
-    info: 'text-[rgba(15,41,64,.6)] bg-[rgba(15,41,64,.04)] border-[rgba(15,41,64,.1)]',
-  };
+  if (exceptions.length === 0) {
+    return <section className="partner-panel !bg-white"><div className="!rounded-lg !p-4 bg-green-50 !border !border-green-200"><CheckCircle2 size={16} className="text-green-600 shrink-0" /><p className="text-sm text-green-800 ml-2">No exceptions flagged.</p></div></section>;
+  }
+
+  const bySeverity = exceptions.reduce((acc, e) => {
+    if (!acc[e.severity]) acc[e.severity] = [];
+    acc[e.severity].push(e);
+    return acc;
+  }, {} as Record<string, ExceptionEntry[]>);
 
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
         <div>
-          <span className="mobile-section-kicker">Exceptions</span>
-          <h2>Open items and warnings</h2>
+          <span className="mobile-section-kicker">Data quality & compliance exceptions</span>
+          <h2>Exceptions</h2>
         </div>
         <FileWarning size={18} />
       </div>
-
-      {exceptions.length === 0 ? (
-        emptyNote('No open exceptions. All data quality, methodology, filing, fee, and review items are resolved.')
-      ) : (
-        <div className="mt-4 space-y-2">
-          {exceptions.map((ex, i) => (
-            <div key={i} className={`!rounded-lg !p-3 border ${sevColors[ex.severity]}`}>
-              <div className="flex items-start gap-2">
-                {ex.severity === 'error' ? (
-                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                ) : ex.severity === 'warning' ? (
-                  <FileWarning size={14} className="shrink-0 mt-0.5" />
-                ) : (
-                  <ClipboardCheck size={14} className="shrink-0 mt-0.5" />
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-medium capitalize">{ex.type.replace(/_/g, ' ')}</p>
-                  <p className="text-sm mt-0.5">{ex.description}</p>
-                  <p className="text-xs mt-1 opacity-70">Suggested action: {ex.suggestedAction}</p>
-                  {ex.worksiteField && (
-                    <p className="text-[10px] opacity-50 mt-0.5">Field: {ex.worksiteField}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="mt-5 space-y-3">
+        {Object.entries(bySeverity).map(([severity, items]) => (
+          <div key={severity} className={`!rounded-lg !p-3 border ${severity === 'error' ? 'bg-red-50 !border-red-200' : severity === 'warning' ? 'bg-amber-50 !border-amber-200' : 'bg-blue-50 !border-blue-200'}`}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: severity === 'error' ? '#dc2626' : severity === 'warning' ? '#d97706' : '#2563eb' }}>
+              {severity} ({items.length})
+            </p>
+            <ul className="text-sm space-y-1">
+              {items.map((e, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="text-xs font-medium capitalize shrink-0" style={{ color: severity === 'error' ? '#dc2626' : severity === 'warning' ? '#d97706' : '#2563eb' }}>{e.type}</span>
+                  <span className="text-xs text-[rgba(15,41,64,.7)]">{e.description}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -477,6 +715,10 @@ function ExceptionsPanel({ exceptions }: { exceptions: ExceptionEntry[] }) {
 // ---- Audit history panel ----
 
 function AuditHistoryPanel({ history }: { history: AuditEntry[] }) {
+  if (history.length === 0) {
+    return <section className="partner-panel !bg-white"><EmptyNote message="No audit history available." /></section>;
+  }
+
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
@@ -486,121 +728,97 @@ function AuditHistoryPanel({ history }: { history: AuditEntry[] }) {
         </div>
         <ClipboardCheck size={18} />
       </div>
-
-      {history.length === 0 ? (
-        emptyNote('No audit entries yet.')
-      ) : (
-        <div className="mt-4 space-y-2 !text-sm">
-          {history.map((entry, i) => (
-            <div key={i} className="!rounded !bg-[rgba(15,41,64,.02)] !px-3 !py-2 !border !border-[rgba(15,41,64,.06)]">
-              <div className="flex items-center gap-2 text-xs text-[rgba(15,41,64,.5)]">
-                <Clock size={12} />
-                {new Date(entry.timestamp).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </div>
-              <p className="mt-0.5 text-sm">
-                <span className="font-medium text-[rgba(15,41,64,.7)]">{entry.action.replace(/_/g, ' ')}</span>
-                {entry.field && (
-                  <span className="text-[rgba(15,41,64,.4)]"> — {entry.field}</span>
-                )}
+      <div className="mt-5 space-y-2">
+        {history.map((entry) => (
+          <div key={entry.timestamp + entry.action} className="flex gap-3 !bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+            <div className="shrink-0 w-2 h-2 rounded-full bg-[rgba(15,41,64,.2)]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">{entry.action}</p>
+              <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">
+                {entry.timestamp ? new Date(entry.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown time'}
+                {entry.actor ? ` · by ${entry.actor}` : ''}
               </p>
-              {(entry.previousValue || entry.newValue) && (
-                <p className="text-xs text-[rgba(15,41,64,.5)] mt-0.5">
-                  {entry.previousValue ? `Previous: ${entry.previousValue}` : ''}
-                  {entry.previousValue && entry.newValue ? ' → ' : ''}
-                  {entry.newValue ? `New: ${entry.newValue}` : ''}
-                </p>
-              )}
-              {entry.notes && (
-                <p className="text-xs text-[rgba(15,41,64,.4)] mt-0.5 italic">{entry.notes}</p>
-              )}
+              {entry.notes && <p className="text-xs text-[rgba(15,41,64,.5)] mt-1">{entry.notes}</p>}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
 
 // ---- Review packet export panel ----
 
-function ReviewPacketExportPanel({
-  packet,
-}: {
-  packet: ReviewPacket;
-}) {
+function ReviewPacketExportPanel({ packet }: { packet: ReviewPacket | null }) {
+  if (!packet) {
+    return <section className="partner-panel !bg-white"><EmptyNote message="No review packet available for export." /></section>;
+  }
+
   return (
     <section className="partner-panel !bg-white">
       <div className="mockup-section-heading">
         <div>
-          <span className="mobile-section-kicker">Review packet</span>
-          <h2>Export-ready evidence package</h2>
+          <span className="mobile-section-kicker">Review packet for export</span>
+          <h2>Export packet</h2>
         </div>
         <Download size={18} />
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3">
-          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Worksite</p>
-          <p className="mt-0.5 font-medium text-[rgba(15,41,64,.8)] text-sm truncate">{packet.worksite.worksiteName}</p>
+      <div className="mt-5">
+        <button
+          type="button"
+          className="!bg-[rgba(15,41,64,.9)] !text-white !rounded-lg !px-4 !py-2 !text-sm !font-medium hover:!bg-[rgba(15,41,64,1)] !border !border-[rgba(15,41,64,.3)]"
+          onClick={() => {
+            const blob = new Blob([JSON.stringify(packet, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rule2202-packet-${packet.worksite.sixDigitWorksiteId || packet.worksite.id}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          <Download size={16} className="inline mr-2" />
+          Download review packet (JSON)
+        </button>
+      </div>
+      <div className="mt-5 space-y-3">
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Worksite</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{packet.worksite.worksiteName}</p>
         </div>
-        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3">
-          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Export timestamp</p>
-          <p className="mt-0.5 text-xs font-mono text-[rgba(15,41,64,.6)]">
-            {new Date(packet.exportTimestamp).toLocaleString()}
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Applicability</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{packet.applicability.isSubjectToRule2202 === true ? 'Subject to Rule 2202' : packet.applicability.isSubjectToRule2202 === false ? 'Not subject' : 'Undetermined'}</p>
+        </div>
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Workbench</p>
+          <p className="text-xs text-[rgba(15,41,64,.5)] mt-0.5">
+            AVR: {packet.workbench.avr !== null ? packet.workbench.avr.toFixed(2) : '—'} · 
+            VMT reduced: {packet.workbench.vmtEstimate !== null ? packet.workbench.vmtEstimate.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'} vehicle-miles/year
           </p>
         </div>
-        <div className="bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 col-span-2">
-          <p className="text-[11px] uppercase tracking-wide text-[rgba(15,41,64,.5)]">Contents</p>
-          <ul className="mt-1 text-xs text-[rgba(15,41,64,.7)] list-disc list-inside space-y-0.5">
-            <li>Applicability review — {packet.applicability.isSubjectToRule2202 !== null ? (packet.applicability.isSubjectToRule2202 ? 'subject' : 'not subject') : 'undetermined'}</li>
-            <li>Timeline — {packet.timeline.length} entries</li>
-            <li>AVR/VMT workbench — AVR {packet.workbench.avr !== null ? packet.workbench.avr.toFixed(2) : 'not calculated'}</li>
-            <li>ECRP readiness — {packet.ecrpReadiness.readinessLevel.replace(/_/g, ' ')}</li>
-            <li>Exceptions — {packet.exceptions.length} open</li>
-            <li>Audit history — {packet.auditHistory.length} entries</li>
-          </ul>
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">ECRP Readiness</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{packet.ecrpReadiness.readinessLevel.replace(/_/g, ' ')}</p>
+        </div>
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Exceptions</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{packet.exceptions.filter(e => e.severity === 'error').length} errors, {packet.exceptions.filter(e => e.severity === 'warning').length} warnings</p>
+        </div>
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Audit entries</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{packet.auditHistory.length} event(s)</p>
+        </div>
+        <div className="!bg-[rgba(15,41,64,.02)] !rounded-lg !p-3">
+          <p className="text-sm font-medium">Exported at</p>
+          <p className="text-xs text-[rgba(15,41,64,.6)] mt-0.5">{new Date(packet.exportTimestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
-
-      <div className="mt-4 bg-[rgba(15,41,64,.03)] !rounded-lg !p-3 text-xs text-[rgba(15,41,64,.6)]">
-        <p className="font-medium text-[rgba(15,41,64,.8)] mb-1">Export note</p>
-        <p>{packet.exportNote}</p>
-      </div>
-
-      <button
-        type="button"
-        className="mt-4 inline-flex items-center gap-2 !px-4 !py-2 !bg-[rgba(15,41,64,.9)] !text-white !rounded-lg !text-sm hover:!bg-[rgba(15,41,64,1)] transition"
-        onClick={() => {
-          const json = JSON.stringify(packet, null, 2);
-          const blob = new Blob([json], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `rule2202-review-packet-${packet.worksite.sixDigitWorksiteId || packet.worksite.id}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }}
-      >
-        <Download size={14} />
-        Download review packet
-      </button>
     </section>
   );
 }
 
-// ---- Partner console screen ----
-
-interface PartnerConsoleScreenProps {
-  onBack: () => void;
-}
+// ---- Main screen ----
 
 const navItems = [
   { id: 'overview', label: 'Overview', icon: MapPin },
@@ -612,310 +830,83 @@ const navItems = [
   { id: 'packet', label: 'Export', icon: Download },
 ];
 
+interface PartnerConsoleScreenProps {
+  onBack: () => void;
+}
+
 export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBack }) => {
+  const ctx = usePartnerConsole();
   const [activeTab, setActiveTab] = useState('overview');
+  const [pendingRefresh, setPendingRefresh] = useState(false);
 
-  // Mock worksite for demonstration
-  const mockWorksite: Rule2202Worksite = useMemo(
-    () => ({
-      id: 'ws-001',
-      institutionId: 'inst-001',
-      worksiteName: 'Pasadena Corporate Campus — Building A',
-      sixDigitWorksiteId: '123456',
-      employerName: 'Pasadena Technology Group',
-      facilityDescription: 'Main office building, 4 floors, ~850 employees',
-      streetAddress: '123 East Colorado Boulevard',
-      city: 'Pasadena',
-      state: 'CA',
-      zipCode: '91101',
-      performanceZone: 2,
-      performanceZoneSource: 'AQMD GIS lookup 2026',
-      performanceZoneVerifiedAt: '2026-07-15T00:00:00Z',
-      reportingMethod: 'survey_avr',
-      reportingPeriodStart: '2026-01-01',
-      reportingPeriodEnd: '2026-06-30',
-      employeeCountMonth1: 840,
-      employeeCountMonth2: 845,
-      employeeCountMonth3: 850,
-      employeeCountMonth4: 838,
-      employeeCountMonth5: 852,
-      employeeCountMonth6: 847,
-      employeeCountNotes: 'Headcount based on payroll records',
-      aqrNotificationDate: '2026-03-01',
-      aqrSurveyDueDate: '2026-05-15',
-      aqrSurveyCompleteDate: '2026-05-10',
-      aqrSubmittalDueDate: '2026-07-01',
-      aqrSubmittalActualDate: null,
-      permanentFilingDueDate: '2026-07-01',
-      filingFeeVersion: '2026-07-01',
-      businessClassification: 'commercial',
-      ecrpCandidateZone: 2,
-      ecrpCandidateETC: 'Maria Ortiz, Relay Rider Program',
-      ecrpCandidateETCVerifiedAt: '2026-06-20T00:00:00Z',
-      ecrpCandidateNotes: 'ETC verified via institutional appointment letter',
-      sourceDocumentType: 'AQMD Rule 2202 Application',
-      sourceDocumentReference: 'AQMD-2026-0042',
-      sourceDocumentDate: '2026-03-01',
-      sourceUrl: null,
-      sourceNotes: 'Original application filed with SCAQMD',
-      reviewState: 'ready_for_review',
-      dataCompletenessNotes: 'All required fields populated',
-      validationErrors: [],
-      reviewStartedAt: '2026-06-20T00:00:00Z',
-      reviewedBy: null,
-      reviewedAt: null,
-      reviewDecision: null,
-      reviewDecisionAt: null,
-      filingStatus: 'ready_for_review',
-      feeVerified: true,
-      feeExpected: 250,
-      feeSubmitted: 250,
-      feeVerificationSource: 'AQMD fee schedule effective 2026-07-01',
-      feeVerifiedBy: null,
-      feeVerifiedAt: '2026-06-25T00:00:00Z',
-      requiredForms: ['Rule 2202 Application', 'Worksite Information Form'],
-      completenessNotes: 'All required forms and fee verified',
-      createdAt: '2026-03-01T00:00:00Z',
-      updatedAt: '2026-06-25T00:00:00Z',
-      createdBy: null,
-      updatedBy: null,
-      deletedAt: null,
-    }),
-    []
-  );
+  const worksite = ctx.state.selectedWorksite;
+  const commuterRecords = ctx.state.commuterRecords;
 
-  // Mock commuter records for AVR calculation
-  const mockRecords: CommuterResearchRecord[] = useMemo(
-    () => [
-      {
-        id: 'cr-001',
-        institutionId: 'inst-001',
-        worksiteId: 'ws-001',
-        pseudonymousEmployeeId: 'emp-a1',
-        approximateOriginZone: 'Pasadena - East',
-        approximateDestinationZone: 'Pasadena - Central',
-        arrivalWindowStart: '08:00',
-        arrivalWindowEnd: '09:00',
-        departureWindowStart: '17:00',
-        departureWindowEnd: '18:00',
-        commuteMode: 'drive_alone',
-        commuteModeSource: 'survey',
-        vehicleOccupancy: 1,
-        telecommuteDaysPerWeek: 1,
-        oneWayDistanceMiles: 8.5,
-        distanceSource: 'self_reported',
-        vehicleClass: 'gasoline_diesel',
-        vehicleMake: null,
-        vehicleModel: null,
-        vehicleYear: null,
-        evHybridParticipation: false,
-        interestedInEvRoute: false,
-        interestedInCarpoolRoute: false,
-        interestedInTransitOption: false,
-        routeInterestNotes: null,
-        surveyPeriodStart: '2026-04-01',
-        surveyPeriodEnd: '2026-05-10',
-        responseReceivedAt: '2026-04-15T00:00:00Z',
-        sourceTemplateVersion: '1.0',
-        sourceImportBatchId: null,
-        status: 'submitted',
-        createdAt: '2026-04-15T00:00:00Z',
-        updatedAt: '2026-04-15T00:00:00Z',
-        createdBy: null,
-        updatedBy: null,
-        deletedAt: null,
-      },
-      {
-        id: 'cr-002',
-        institutionId: 'inst-001',
-        worksiteId: 'ws-001',
-        pseudonymousEmployeeId: 'emp-b2',
-        approximateOriginZone: 'Altadena',
-        approximateDestinationZone: 'Pasadena - Central',
-        arrivalWindowStart: '07:30',
-        arrivalWindowEnd: '08:30',
-        departureWindowStart: '16:30',
-        departureWindowEnd: '17:30',
-        commuteMode: 'carpool',
-        commuteModeSource: 'survey',
-        vehicleOccupancy: 3,
-        telecommuteDaysPerWeek: 0,
-        oneWayDistanceMiles: 6.2,
-        distanceSource: 'self_reported',
-        vehicleClass: 'gasoline_diesel',
-        vehicleMake: null,
-        vehicleModel: null,
-        vehicleYear: null,
-        evHybridParticipation: false,
-        interestedInEvRoute: false,
-        interestedInCarpoolRoute: true,
-        interestedInTransitOption: false,
-        routeInterestNotes: null,
-        surveyPeriodStart: '2026-04-01',
-        surveyPeriodEnd: '2026-05-10',
-        responseReceivedAt: '2026-04-18T00:00:00Z',
-        sourceTemplateVersion: '1.0',
-        sourceImportBatchId: null,
-        status: 'submitted',
-        createdAt: '2026-04-18T00:00:00Z',
-        updatedAt: '2026-04-18T00:00:00Z',
-        createdBy: null,
-        updatedBy: null,
-        deletedAt: null,
-      },
-      {
-        id: 'cr-003',
-        institutionId: 'inst-001',
-        worksiteId: 'ws-001',
-        pseudonymousEmployeeId: 'emp-c3',
-        approximateOriginZone: 'South Pasadena',
-        approximateDestinationZone: 'Pasadena - Central',
-        arrivalWindowStart: '08:00',
-        arrivalWindowEnd: '09:00',
-        departureWindowStart: '17:00',
-        departureWindowEnd: '18:00',
-        commuteMode: 'transit',
-        commuteModeSource: 'survey',
-        vehicleOccupancy: null,
-        telecommuteDaysPerWeek: 0,
-        oneWayDistanceMiles: 4.1,
-        distanceSource: 'self_reported',
-        vehicleClass: 'no_vehicle',
-        vehicleMake: null,
-        vehicleModel: null,
-        vehicleYear: null,
-        evHybridParticipation: false,
-        interestedInEvRoute: false,
-        interestedInCarpoolRoute: false,
-        interestedInTransitOption: true,
-        routeInterestNotes: null,
-        surveyPeriodStart: '2026-04-01',
-        surveyPeriodEnd: '2026-05-10',
-        responseReceivedAt: '2026-04-20T00:00:00Z',
-        sourceTemplateVersion: '1.0',
-        sourceImportBatchId: null,
-        status: 'submitted',
-        createdAt: '2026-04-20T00:00:00Z',
-        updatedAt: '2026-04-20T00:00:00Z',
-        createdBy: null,
-        updatedBy: null,
-        deletedAt: null,
-      },
-      {
-        id: 'cr-004',
-        institutionId: 'inst-001',
-        worksiteId: 'ws-001',
-        pseudonymousEmployeeId: 'emp-d4',
-        approximateOriginZone: 'San Marino',
-        approximateDestinationZone: 'Pasadena - Central',
-        arrivalWindowStart: '08:00',
-        arrivalWindowEnd: '09:00',
-        departureWindowStart: '17:00',
-        departureWindowEnd: '18:00',
-        commuteMode: 'telecommute',
-        commuteModeSource: 'survey',
-        vehicleOccupancy: null,
-        telecommuteDaysPerWeek: 3,
-        oneWayDistanceMiles: 5.0,
-        distanceSource: 'self_reported',
-        vehicleClass: 'bev',
-        vehicleMake: 'Tesla',
-        vehicleModel: 'Model 3',
-        vehicleYear: '2023',
-        evHybridParticipation: true,
-        interestedInEvRoute: true,
-        interestedInCarpoolRoute: false,
-        interestedInTransitOption: false,
-        routeInterestNotes: 'Interested in workplace charging',
-        surveyPeriodStart: '2026-04-01',
-        surveyPeriodEnd: '2026-05-10',
-        responseReceivedAt: '2026-04-22T00:00:00Z',
-        sourceTemplateVersion: '1.0',
-        sourceImportBatchId: null,
-        status: 'submitted',
-        createdAt: '2026-04-22T00:00:00Z',
-        updatedAt: '2026-04-22T00:00:00Z',
-        createdBy: null,
-        updatedBy: null,
-        deletedAt: null,
-      },
-      {
-        id: 'cr-005',
-        institutionId: 'inst-001',
-        worksiteId: 'ws-001',
-        pseudonymousEmployeeId: 'emp-e5',
-        approximateOriginZone: 'Arcadia',
-        approximateDestinationZone: 'Pasadena - Central',
-        arrivalWindowStart: '08:30',
-        arrivalWindowEnd: '09:30',
-        departureWindowStart: '17:30',
-        departureWindowEnd: '18:30',
-        commuteMode: 'vanpool',
-        commuteModeSource: 'survey',
-        vehicleOccupancy: 10,
-        telecommuteDaysPerWeek: 0,
-        oneWayDistanceMiles: 12.0,
-        distanceSource: 'self_reported',
-        vehicleClass: 'gasoline_diesel',
-        vehicleMake: null,
-        vehicleModel: null,
-        vehicleYear: null,
-        evHybridParticipation: false,
-        interestedInEvRoute: false,
-        interestedInCarpoolRoute: false,
-        interestedInTransitOption: false,
-        routeInterestNotes: null,
-        surveyPeriodStart: '2026-04-01',
-        surveyPeriodEnd: '2026-05-10',
-        responseReceivedAt: '2026-04-25T00:00:00Z',
-        sourceTemplateVersion: '1.0',
-        sourceImportBatchId: null,
-        status: 'submitted',
-        createdAt: '2026-04-25T00:00:00Z',
-        updatedAt: '2026-04-25T00:00:00Z',
-        createdBy: null,
-        updatedBy: null,
-        deletedAt: null,
-      },
-    ],
-    []
-  );
-
-  // Computed values
+  // Derived values — computed from whatever data source is loaded
   const applicability = useMemo(
-    () => assessApplicability(mockWorksite),
-    [mockWorksite]
+    () => worksite ? assessApplicability(worksite) : null,
+    [worksite]
   );
 
   const timeline = useMemo(
-    () => buildTimeline(mockWorksite),
-    [mockWorksite]
+    () => worksite ? buildTimeline(worksite) : [],
+    [worksite]
   );
 
   const workbenchResult = useMemo(
-    () => runAvrVmtWorkbench({ worksite: mockWorksite, commuterRecords: mockRecords, methodologyId: null }),
-    [mockWorksite, mockRecords]
+    () => worksite && commuterRecords.length > 0
+      ? runAvrVmtWorkbench({ worksite, commuterRecords, methodologyId: null })
+      : null,
+    [worksite, commuterRecords]
   );
 
   const ecrpReadiness = useMemo(
-    () => assessEcrpReadiness(mockWorksite),
-    [mockWorksite]
+    () => worksite ? assessEcrpReadiness(worksite) : null,
+    [worksite]
   );
 
   const exceptions = useMemo(
-    () => collectExceptions(mockWorksite),
-    [mockWorksite]
+    () => worksite ? collectExceptions(worksite) : [],
+    [worksite]
   );
 
   const auditHistory = useMemo(
-    () => buildAuditHistory(mockWorksite),
-    [mockWorksite]
+    () => worksite ? buildAuditHistory(worksite) : [],
+    [worksite]
   );
 
   const reviewPacket = useMemo(
-    () => buildReviewPacket(mockWorksite, mockRecords),
-    [mockWorksite, mockRecords]
+    () => worksite && commuterRecords.length > 0
+      ? buildReviewPacket(worksite, commuterRecords)
+      : null,
+    [worksite, commuterRecords]
   );
+
+  const handleLoadFromSupabase = async () => {
+    setPendingRefresh(true);
+    await ctx.refreshFromApi();
+    setPendingRefresh(false);
+    if (ctx.state.worksites.length > 0 && !ctx.state.selectedWorksite) {
+      ctx.selectWorksiteById(ctx.state.worksites[0].id);
+    }
+  };
+
+  // If no worksite is selected and no loading is happening, fall back to mock
+  const effectiveWorksite = worksite ?? (ctx.state.loading ? null : makeMockWorksite());
+  const effectiveRecords = commuterRecords.length > 0 ? commuterRecords : (worksite ? makeMockRecords() : []);
+
+  // Re-derive using effective data when falling back to mock
+  const finalApplicability = effectiveWorksite ? assessApplicability(effectiveWorksite) : null;
+  const finalTimeline = effectiveWorksite ? buildTimeline(effectiveWorksite) : [];
+  const finalWorkbench = effectiveWorksite && effectiveRecords.length > 0
+    ? runAvrVmtWorkbench({ worksite: effectiveWorksite, commuterRecords: effectiveRecords, methodologyId: null })
+    : null;
+  const finalEcrp = effectiveWorksite ? assessEcrpReadiness(effectiveWorksite) : null;
+  const finalExceptions = effectiveWorksite ? collectExceptions(effectiveWorksite) : [];
+  const finalAudit = effectiveWorksite ? buildAuditHistory(effectiveWorksite) : [];
+  const finalPacket = effectiveWorksite && effectiveRecords.length > 0
+    ? buildReviewPacket(effectiveWorksite, effectiveRecords)
+    : null;
 
   return (
     <div className="partner-workspace-shell">
@@ -943,8 +934,15 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
           </nav>
 
           <div className="partner-sidebar__foot">
-            <strong>Rule 2202 evidence</strong><br />
-            Applicability → Timeline → Workbench → ECRP → Exceptions → Audit → Export
+            <DataSourcePill state={ctx.state} />
+            <button
+              type="button"
+              className="mt-3 !px-0 text-xs text-[rgba(15,41,64,.5)] hover:!text-[rgba(15,41,64,.9)]"
+              onClick={handleLoadFromSupabase}
+              disabled={pendingRefresh || ctx.state.loading}
+            >
+              {pendingRefresh ? 'Loading…' : ctx.state.dataSource === 'supabase' ? 'Refresh' : 'Load from Supabase'}
+            </button>
             <button type="button" className="mt-3 !px-0" onClick={onBack}>
               <ArrowLeft size={14} /> Back to commuter app
             </button>
@@ -961,20 +959,36 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                   : navItems.find((item) => item.id === activeTab)?.label}
               </h1>
               <p>
-                Evidence workflow for {mockWorksite.employerName} — worksite {mockWorksite.sixDigitWorksiteId || mockWorksite.id}.
-                All values are institution-scoped and reviewed before export.
+                Evidence workflow for {effectiveWorksite?.employerName || '—'} — worksite {effectiveWorksite?.sixDigitWorksiteId || effectiveWorksite?.id || '—'}.
+                {ctx.state.dataSource === 'mock' ? ' Values are demonstration data.' : ' All values are institution-scoped and reviewed before export.'}
               </p>
             </div>
-            <span className="partner-source-pill">
-              <ShieldCheck size={14} />
-              {mockWorksite.reviewState.replace(/_/g, ' ')}
-            </span>
+            {effectiveWorksite && (
+              <span className="partner-source-pill">
+                <ShieldCheck size={14} />
+                {effectiveWorksite.reviewState.replace(/_/g, ' ')}
+              </span>
+            )}
           </header>
+
+          {ctx.state.loading && (
+            <div className="flex items-center gap-2 mt-4 text-sm text-[rgba(15,41,64,.6)]">
+              <Loader2 size={16} className="animate-spin" />
+              Loading from Supabase…
+            </div>
+          )}
+
+          {ctx.state.error && (
+            <div className="mt-4 !bg-red-50 !rounded-lg !p-3 !border !border-red-200 text-sm text-red-800">
+              <AlertCircle size={16} className="inline mr-2 shrink-0" />
+              {ctx.state.error}
+            </div>
+          )}
 
           <div className="partner-content-grid">
             {activeTab === 'overview' && (
               <>
-                <OverviewPanel worksite={mockWorksite} applicability={applicability} />
+                <OverviewPanel worksite={effectiveWorksite!} applicability={finalApplicability!} />
                 <section className="partner-panel mt-5">
                   <div className="mockup-section-heading">
                     <div>
@@ -998,8 +1012,8 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Worksite classification, zone, reporting method</td>
                         <td>
                           <StatusBadge
-                            status={applicability.isSubjectToRule2202 !== null ? (applicability.isSubjectToRule2202 ? 'subject' : 'not subject') : 'undetermined'}
-                            color={applicability.isSubjectToRule2202 === true ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
+                            status={effectiveWorksite && finalApplicability && finalApplicability.isSubjectToRule2202 !== null ? (finalApplicability.isSubjectToRule2202 ? 'subject' : 'not subject') : 'undetermined'}
+                            color={effectiveWorksite && finalApplicability && finalApplicability.isSubjectToRule2202 === true ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
                           />
                         </td>
                         <td>Worksite record → zone/source → classification → determination</td>
@@ -1009,7 +1023,7 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Notification, survey, submittal, filing dates</td>
                         <td>
                           <StatusBadge
-                            status={timeline.filter((e) => e.status === 'completed').length > 0 ? 'active' : 'waiting'}
+                            status={finalTimeline.filter((e) => e.status === 'completed').length > 0 ? 'active' : 'waiting'}
                             color="bg-blue-100 text-blue-800"
                           />
                         </td>
@@ -1020,8 +1034,8 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Deterministic calculation from survey records</td>
                         <td>
                           <StatusBadge
-                            status={workbenchResult.avr !== null ? 'calculated' : 'pending'}
-                            color={workbenchResult.avr !== null ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}
+                            status={finalWorkbench && finalWorkbench.avr !== null ? 'calculated' : 'pending'}
+                            color={finalWorkbench && finalWorkbench.avr !== null ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}
                           />
                         </td>
                         <td>Commuter records → weighted vehicle trips → AVR → VMT estimate</td>
@@ -1031,8 +1045,8 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Candidate zone, ETC assignment, readiness</td>
                         <td>
                           <StatusBadge
-                            status={ecrpReadiness.readinessLevel}
-                            color={ecrpReadiness.readinessLevel === 'candidate_ready' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
+                            status={finalEcrp ? finalEcrp.readinessLevel : 'not_assessed'}
+                            color={finalEcrp?.readinessLevel === 'candidate_ready' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
                           />
                         </td>
                         <td>Worksite zone → ETC → verification → readiness level</td>
@@ -1042,8 +1056,8 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Data quality, methodology, filing, fee, review</td>
                         <td>
                           <StatusBadge
-                            status={`${exceptions.filter((e) => e.severity === 'error').length} errors`}
-                            color={exceptions.some((e) => e.severity === 'error') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
+                            status={`${finalExceptions.filter((e) => e.severity === 'error').length} errors`}
+                            color={finalExceptions.some((e) => e.severity === 'error') ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}
                           />
                         </td>
                         <td>State checks → validation → exceptions list</td>
@@ -1053,8 +1067,8 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
                         <td>Review packet with full provenance</td>
                         <td>
                           <StatusBadge
-                            status={workbenchResult.avr !== null ? 'ready' : 'pending data'}
-                            color={workbenchResult.avr !== null ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}
+                            status={finalWorkbench && finalWorkbench.avr !== null ? 'ready' : 'pending data'}
+                            color={finalWorkbench && finalWorkbench.avr !== null ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}
                           />
                         </td>
                         <td>Aggregation → packet build → download</td>
@@ -1065,12 +1079,12 @@ export const PartnerConsoleScreen: React.FC<PartnerConsoleScreenProps> = ({ onBa
               </>
             )}
 
-            {activeTab === 'timeline' && <TimelinePanel entries={timeline} />}
-            {activeTab === 'workbench' && <AvrVmtWorkbenchPanel result={workbenchResult} />}
-            {activeTab === 'ecrp' && <EcrpReadinessPanel readiness={ecrpReadiness} />}
-            {activeTab === 'exceptions' && <ExceptionsPanel exceptions={exceptions} />}
-            {activeTab === 'audit' && <AuditHistoryPanel history={auditHistory} />}
-            {activeTab === 'packet' && <ReviewPacketExportPanel packet={reviewPacket} />}
+            {activeTab === 'timeline' && <TimelinePanel entries={finalTimeline} />}
+            {activeTab === 'workbench' && <AvrVmtWorkbenchPanel result={finalWorkbench} />}
+            {activeTab === 'ecrp' && <EcrpReadinessPanel readiness={finalEcrp} />}
+            {activeTab === 'exceptions' && <ExceptionsPanel exceptions={finalExceptions} />}
+            {activeTab === 'audit' && <AuditHistoryPanel history={finalAudit} />}
+            {activeTab === 'packet' && <ReviewPacketExportPanel packet={finalPacket} />}
           </div>
         </main>
       </div>
