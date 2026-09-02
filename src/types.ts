@@ -14,7 +14,12 @@ export interface EVParticipantSignal { id: string; vehicleType: 'ev' | 'phev' | 
 export interface RelayZone { id: string; name: string; type: string; corridor: string; address: string; reviewStatus: 'candidate' | 'needs-partner' | 'needs-safety' | 'needs-property' | 'needs-legal' | 'not-approved'; suggestedByCount: number; partnerReviewNeeded: boolean; safetyReviewNeeded: boolean; propertyReviewNeeded: boolean; notes: string; }
 export interface CorridorData { id: string; name: string; routeSignals: number; evParticipants: number; relayZones: number; parkingPressure: 'low' | 'medium-high' | 'high'; pilotReadiness: 'research' | 'partner-review' | 'needs-legal' | 'future'; }
 
-export type GreenRouteCreditStatus = 'pending' | 'issued' | 'redeemed' | 'expired' | 'approved';
+/** Values the canonical Django/API contract is allowed to emit. */
+export type CanonicalGreenRouteCreditStatus = 'issued' | 'redeemed' | 'expired';
+/** Temporary in-memory prototype values retained only until legacy flows are migrated. */
+export type LegacyGreenRouteCreditStatus = 'pending' | 'approved';
+export type GreenRouteCreditStatus = CanonicalGreenRouteCreditStatus | LegacyGreenRouteCreditStatus;
+
 export interface GreenRouteCredit {
   id: string;
   activity: string;
