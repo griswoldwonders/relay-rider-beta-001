@@ -1,7 +1,7 @@
 from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import AllowAny
-from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Membership, Profile, RedemptionRequest, RelayZone, RouteSignal
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
 from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
 from .serializers import ChargingHubSerializer, CorridorSerializer, EVParticipantSignalSerializer, GreenRouteCreditSerializer, ProfileSerializer, RedemptionRequestSerializer, RelayZoneSerializer, RouteSignalSerializer
 
@@ -59,10 +59,9 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
         return [IsTenantMember()]
 
     def perform_create(self, serializer):
-        membership = Membership.objects.filter(user=self.request.user).exclude(role='platform_admin').first()
         credit = serializer.validated_data['credit']
         serializer.save(
-            institution=membership.institution if membership else None,
+            institution=credit.institution,
             unit_label=credit.unit_label,
             status='requested',
         )
