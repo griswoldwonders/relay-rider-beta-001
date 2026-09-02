@@ -1,10 +1,5 @@
 from rest_framework import serializers
-from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
-
-# `institution` is read-only on every serializer below: it must be assigned
-# server-side (from the caller's membership, see views.py perform_create)
-# rather than trusted from client input, since these serializers otherwise
-# use fields = '__all__'.
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Membership, Profile, RedemptionRequest, RelayZone, RouteSignal
 
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -49,7 +44,82 @@ class ChargingHubSerializer(serializers.ModelSerializer):
         read_only_fields = ('institution',)
 
 class RedemptionRequestSerializer(serializers.ModelSerializer):
+    ALLOWED_TRANSITIONS = {
+        'requested': {'under-review'},
+        'under-review': {'fulfilled', 'denied'},
+        'fulfilled': set(),
+        'denied': set(),
+    }
+
     class Meta:
         model = RedemptionRequest
         fields = '__all__'
         read_only_fields = ('institution', 'requested_at', 'reviewed_at', 'reviewed_by')
+
+    def validate_status(self, value):
+        if not self.instance:
+            if value != 'requested':
+                raise serializers.ValidationError('New redemption requests must start in requested status.')
+            return value
+
+        current = self.instance.status
+        if value == current:
+            return value
+        if value not in self.ALLOWED_TRANSITIONS.get(current, set()):
+            raise serializers.ValidationError(f'Invalid redemption transition: {current} -> {value}.')
+        return value
+
+    def validate(self, attrs):
+        if self.instance is None:
+            credit = attrs.get('credit')
+            charging_hub = attrs.get('charging_hub')
+            profile = attrs.get('profile')
+            requested_units = attrs.get('requested_units')
+            unit_label = attrs.get('unit_label') or (credit.unit_label if credit else None)
+
+            if credit:
+                request = self.context.get('request')
+                user = getattr(request, 'user', None)
+                is_platform_admin = bool(
+                    user
+                    and user.is_authenticated
+                    and Membership.objects.filter(user=user, role='platform_admin').exists()
+                )
+                is_credit_tenant_member = bool(
+                    user
+                    and user.is_authenticated
+                    and credit.institution_id is not None
+                    and Membership.objects.filter(
+                        user=user,
+                        institution_id=credit.institution_id,
+                    ).exists()
+                )
+                if not is_platform_admin and not is_credit_tenant_member:
+                    raise serializers.ValidationError(
+                        {'credit': 'Credit must belong to one of the caller\'s institutions.'}
+                    )
+                if credit.status != 'issued':
+                    raise serializers.ValidationError(
+                        {'credit': 'Only issued Green Route Credits can be submitted for redemption review.'}
+                    )
+                if unit_label != credit.unit_label:
+                    raise serializers.ValidationError(
+                        {'unit_label': 'Redemption unit must match the credit unit.'}
+                    )
+                if requested_units is not None and requested_units <= 0:
+                    raise serializers.ValidationError(
+                        {'requested_units': 'Requested units must be greater than zero.'}
+                    )
+                if requested_units is not None and requested_units > credit.amount_units:
+                    raise serializers.ValidationError(
+                        {'requested_units': 'Requested units cannot exceed the issued credit amount.'}
+                    )
+                if profile and profile.institution_id != credit.institution_id:
+                    raise serializers.ValidationError(
+                        {'profile': 'Participant profile must belong to the same institution as the credit.'}
+                    )
+                if charging_hub and charging_hub.institution_id not in (None, credit.institution_id):
+                    raise serializers.ValidationError(
+                        {'charging_hub': 'Charging Hub must be shared reference data or belong to the credit institution.'}
+                    )
+        return attrs

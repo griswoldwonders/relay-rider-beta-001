@@ -17,7 +17,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenGreenWallet,
 }) => {
   const { userProfile, routeSignals, greenRouteCredits } = useApp();
-  const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + (credit.amountUnits ?? credit.amount ?? 0), 0);
 
   const menuItems = [
     { label: 'Green Route Wallet', onClick: onOpenGreenWallet },

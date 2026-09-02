@@ -44,7 +44,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenHowItWorks,
 }) => {
   const { routeSignals, greenRouteCredits } = useApp();
-  const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  const totalCredits = greenRouteCredits.reduce((sum, credit) => sum + (credit.amountUnits ?? credit.amount ?? 0), 0);
   const latestSignal = routeSignals.length > 0 ? routeSignals[routeSignals.length - 1] : null;
   const isFirstVisit = !latestSignal;
 
