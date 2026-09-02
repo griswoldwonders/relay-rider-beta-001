@@ -97,6 +97,33 @@ class RedemptionStateMachineTests(APITestCase):
         self.assertEqual(self.request.reviewed_by, self.admin.get_username())
         self.assertNotEqual(self.request.reviewed_at.year, 2020)
 
+    def test_active_requests_cannot_overcommit_credit_units(self):
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit.id,
+            'charging_hub': self.hub.id,
+            'requested_units': '9.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(RedemptionRequest.objects.filter(credit=self.credit).count(), 1)
+
+    def test_denied_request_releases_units_for_a_new_request(self):
+        self.request.status = 'denied'
+        self.request.save(update_fields=['status'])
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit.id,
+            'charging_hub': self.hub.id,
+            'requested_units': '10.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_non_positive_redemption_units_are_rejected(self):
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit.id,
+            'charging_hub': self.hub.id,
+            'requested_units': '0.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class ParticipantWalletProjectionTests(APITestCase):
     def setUp(self):
