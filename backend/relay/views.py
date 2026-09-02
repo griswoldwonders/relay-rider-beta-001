@@ -1,7 +1,7 @@
 from rest_framework import mixins, viewsets
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
-from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, RedemptionRequest, RelayZone, RouteSignal
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Membership, Profile, RedemptionRequest, RelayZone, RouteSignal
+from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
 from .serializers import ChargingHubSerializer, CorridorSerializer, EVParticipantSignalSerializer, GreenRouteCreditSerializer, ProfileSerializer, RedemptionRequestSerializer, RelayZoneSerializer, RouteSignalSerializer
 
 # ---------------------------------------------------------------------------
@@ -23,14 +23,15 @@ from .serializers import ChargingHubSerializer, CorridorSerializer, EVParticipan
 #     (the frontend's only public submission path is /api/signup/, a
 #     separate APIView that is explicitly allowlisted below), so there is no
 #     reason for them to accept unauthenticated writes of participant PII.
-#   - GreenRouteCredit / RedemptionRequest reads REQUIRE an explicit
-#     ?profile=<id> query param; without one they return an empty queryset
-#     instead of every participant's records. This is defense-in-depth on
-#     top of now also requiring authentication -- both are needed until real
-#     per-user authorization exists. (The frontend's greenWalletApi.ts
-#     client currently has no call sites in src/ -- WalletAdminScreen.tsx
-#     uses local session-memory state instead -- but the Django endpoints
-#     are reachable directly regardless of what the UI does.)
+#   - GreenRouteCredit / RedemptionRequest now carry real Institution
+#     tenant scoping (see relay/permissions.py and Institution/Membership in
+#     models.py) instead of the old ?profile=<id> query-param heuristic.
+#     The query-param approach was defense-in-depth for a world with no
+#     concept of "the current user" -- now that requests are authenticated
+#     and each user's institution memberships are known server-side, real
+#     scoping to those memberships is strictly stronger and replaces it
+#     entirely (see TenantScopedQuerySetMixin below). platform_admin
+#     membership bypasses tenant scoping and sees every institution's rows.
 #   - Public reference data (ChargingHub, Corridor, RelayZone) is not
 #     participant data and is explicitly allowlisted with AllowAny below so
 #     it stays read-only and world-listable, matching its existing
@@ -76,46 +77,54 @@ class ChargingHubViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
     permission_classes = [AllowAny]
 
 
-class ProfileScopedReadMixin:
-    """Requires a ?profile=<id> query param on LIST; returns nothing without one.
+class TenantScopedQuerySetMixin:
+    """Filters list/retrieve querysets to the caller's institution membership(s).
 
-    Only scopes the list endpoint. Retrieve/update by primary key (e.g. the
-    admin-review PATCH below) still resolves against the full queryset --
-    scoping those too would make every lookup 404 instead of surfacing the
-    real authorization error, which is enforced separately in
-    RedemptionRequestViewSet.perform_update.
-
-    This is defense-in-depth, not real authorization -- any caller can still
-    pass any profile id, since there is no session tying a request to a
-    specific participant. It only prevents the "list every participant's
-    records with no filter at all" case.
+    platform_admin bypasses scoping and sees every row. Everyone else only
+    sees rows whose `institution` matches one of their memberships; rows
+    with no institution assigned yet (pre-backfill) are invisible to
+    non-platform-admins. Object-level enforcement for retrieve/update still
+    happens via IsTenantMember / CanReviewRedemptionRequest so a scoping bug
+    here would 403/404 rather than leak data.
     """
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.action != 'list':
+        user = self.request.user
+        if user_is_platform_admin(user):
             return queryset
-        profile_id = self.request.query_params.get('profile')
-        if not profile_id:
-            return queryset.none()
-        return queryset.filter(profile_id=profile_id)
+        return queryset.filter(institution_id__in=user_institution_ids(user))
 
 
-class GreenRouteCreditViewSet(ProfileScopedReadMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class GreenRouteCreditViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    # IsTenantMember alone (not [IsAuthenticated, IsTenantMember]) is
+    # sufficient and intentional: setting permission_classes here replaces
+    # the global IsAuthenticated default rather than adding to it, and
+    # IsTenantMember.has_permission already requires request.user.is_authenticated
+    # before any tenant scoping is applied, so the authentication check is
+    # not lost -- it is just performed by the more specific class.
+    permission_classes = [IsTenantMember]
     queryset = GreenRouteCredit.objects.all().order_by('-created_at')
     serializer_class = GreenRouteCreditSerializer
 
-class RedemptionRequestViewSet(ProfileScopedReadMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
     queryset = RedemptionRequest.objects.select_related('credit', 'charging_hub', 'profile').all().order_by('-requested_at')
     serializer_class = RedemptionRequestSerializer
 
-    def perform_update(self, serializer):
-        # Administrative review (approve/deny) has no real admin
-        # authentication behind it yet -- see the module docstring above.
-        # Reject destructive status flips from this open endpoint until a
-        # real admin auth check exists rather than silently trusting the
-        # caller-supplied review fields.
-        raise PermissionDenied(
-            'Administrative review requires authenticated admin access, '
-            'which is not yet implemented on this API. See SECURITY.md.'
-        )
+    def get_permissions(self):
+        # Administrative review (approve/deny) requires a staff-level role
+        # within the request's own institution, not just tenant membership
+        # -- see CanReviewRedemptionRequest. Every other action (list,
+        # retrieve, create) only requires tenant membership.
+        if self.action in ('update', 'partial_update'):
+            return [CanReviewRedemptionRequest()]
+        return [IsTenantMember()]
+
+    def perform_create(self, serializer):
+        # institution is read-only on the serializer -- assign it from the
+        # caller's own (non-platform-admin) membership rather than trusting
+        # client input. platform_admin callers have no single home
+        # institution, so their creates are left unassigned for staff to
+        # triage, same as the public signup flow.
+        membership = Membership.objects.filter(user=self.request.user).exclude(role='platform_admin').first()
+        serializer.save(institution=membership.institution if membership else None)

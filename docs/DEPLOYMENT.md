@@ -146,7 +146,8 @@ The current REST framework configuration uses permissive development permissions
 - Credit ownership, request status, and hub eligibility are validated on the server.
 - All request creation and review events are recorded in an audit trail.
 - Cookies, CSRF, CORS, and trusted origins are configured for the actual production domains.
-- Django admin is protected with strong administrator authentication and should not be exposed without access controls.
+- Django admin is protected with strong administrator authentication and should not be exposed without access controls. This is already true of the framework default (`/admin/` redirects anonymous and non-staff requests to a login page rather than serving data; see `relay/tests.py::DjangoAdminAuthTests`) -- the operational gap is that no admin account exists until one is provisioned. Provision it with `python manage.py ensure_admin`, which reads `DJANGO_SUPERUSER_USERNAME`/`DJANGO_SUPERUSER_EMAIL`/`DJANGO_SUPERUSER_PASSWORD` from the deploy environment's secrets manager and is safe to re-run on every deploy (a no-op if the account already exists). Never hardcode admin credentials in source or commit them.
+- Institution staff (`institution_admin` role) do not get any Django admin access, scoped or otherwise, in this pilot. Admin-site access remains platform-admin/superuser only. Institution-scoped admin tooling is a future consideration, not implemented here.
 - Logs must avoid credit identifiers or participant-sensitive data unless there is a documented operational need.
 
 ## Verification after deployment
