@@ -14,14 +14,19 @@ export interface EVParticipantSignal { id: string; vehicleType: 'ev' | 'phev' | 
 export interface RelayZone { id: string; name: string; type: string; corridor: string; address: string; reviewStatus: 'candidate' | 'needs-partner' | 'needs-safety' | 'needs-property' | 'needs-legal' | 'not-approved'; suggestedByCount: number; partnerReviewNeeded: boolean; safetyReviewNeeded: boolean; propertyReviewNeeded: boolean; notes: string; }
 export interface CorridorData { id: string; name: string; routeSignals: number; evParticipants: number; relayZones: number; parkingPressure: 'low' | 'medium-high' | 'high'; pilotReadiness: 'research' | 'partner-review' | 'needs-legal' | 'future'; }
 
-export type GreenRouteCreditStatus = 'issued' | 'redeemed' | 'expired';
+export type GreenRouteCreditStatus = 'pending' | 'issued' | 'redeemed' | 'expired' | 'approved';
 export interface GreenRouteCredit {
   id: string;
   activity: string;
-  amountUnits: number;
-  unitLabel: string;
+  /** Canonical API projection fields. */
+  amountUnits?: number;
+  unitLabel?: string;
+  issuedAt?: string;
   status: GreenRouteCreditStatus;
-  issuedAt: string;
+  /** @deprecated Session-memory compatibility only. Never part of the canonical API contract. */
+  amount?: number;
+  /** @deprecated Session-memory compatibility only. Never part of the canonical API contract. */
+  date?: string;
 }
 
 export type RedemptionRequestStatus = 'requested' | 'under-review' | 'fulfilled' | 'denied';
