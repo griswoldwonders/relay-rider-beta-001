@@ -15,8 +15,14 @@ export const EVChargeCreditRedemptionFlow: React.FC<Props> = ({ onClose }) => {
   const [acknowledged, setAcknowledged] = useState(false);
   const [requestId, setRequestId] = useState('');
   const reduceMotion = useReducedMotion();
-  const { greenRouteCredits, createRedemptionRequest } = useApp();
-  const selectedCredit = greenRouteCredits.find(credit => credit.status === 'issued' || credit.status === 'approved');
+  const { greenRouteCredits, redemptionRequests, createRedemptionRequest } = useApp();
+  const unavailableCreditIds = useMemo(
+    () => new Set(redemptionRequests.filter(request => request.status !== 'denied').map(request => request.creditId)),
+    [redemptionRequests],
+  );
+  const selectedCredit = greenRouteCredits.find(
+    credit => (credit.status === 'issued' || credit.status === 'approved') && !unavailableCreditIds.has(credit.id),
+  );
   const selectedHub = useMemo(() => chargingHubs.find(hub => hub.id === locationId), [locationId]);
   const selectedUnits = selectedCredit?.amountUnits ?? selectedCredit?.amount ?? 0;
   const selectedUnitLabel = selectedCredit?.unitLabel ?? 'Green Route Credits';
