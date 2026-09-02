@@ -55,7 +55,7 @@ jobs:
           retention-days: 7
 
   backend:
-    name: Django checks and migration validation
+    name: Django checks, tests and migration validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -82,6 +82,9 @@ jobs:
 
       - name: Django system checks
         run: python manage.py check
+
+      - name: Run Django regression tests
+        run: python manage.py test
 
       - name: Detect missing migrations
         run: python manage.py makemigrations --check --dry-run
