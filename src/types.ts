@@ -20,19 +20,35 @@ export type CanonicalGreenRouteCreditStatus = 'issued' | 'redeemed' | 'expired';
 export type LegacyGreenRouteCreditStatus = 'pending' | 'approved';
 export type GreenRouteCreditStatus = CanonicalGreenRouteCreditStatus | LegacyGreenRouteCreditStatus;
 
-export interface GreenRouteCredit {
+type GreenRouteCreditBase = {
   id: string;
   activity: string;
-  /** Canonical API projection fields. */
-  amountUnits?: number;
-  unitLabel?: string;
-  issuedAt?: string;
-  status: GreenRouteCreditStatus;
-  /** @deprecated Session-memory compatibility only. Never part of the canonical API contract. */
-  amount?: number;
-  /** @deprecated Session-memory compatibility only. Never part of the canonical API contract. */
-  date?: string;
-}
+};
+
+/** Canonical participant-facing projection from the Django API. */
+export type CanonicalGreenRouteCredit = GreenRouteCreditBase & {
+  amountUnits: number;
+  unitLabel: string;
+  issuedAt: string;
+  status: CanonicalGreenRouteCreditStatus;
+  amount?: never;
+  date?: never;
+};
+
+/**
+ * @deprecated Research-beta session-memory shape only. New API/domain code must
+ * not emit or persist this shape. Remove after legacy onboarding flows migrate.
+ */
+export type LegacyGreenRouteCredit = GreenRouteCreditBase & {
+  amount: number;
+  date: string;
+  status: LegacyGreenRouteCreditStatus;
+  amountUnits?: never;
+  unitLabel?: never;
+  issuedAt?: never;
+};
+
+export type GreenRouteCredit = CanonicalGreenRouteCredit | LegacyGreenRouteCredit;
 
 export type RedemptionRequestStatus = 'requested' | 'under-review' | 'fulfilled' | 'denied';
 export interface ChargingHub { id: string; name: string; network: string; city: string; stalls: number; connectorTypes: string[]; status: 'candidate' | 'verified' | 'active'; evidenceLabel: 'synthetic' | 'modeled' | 'verified'; }
