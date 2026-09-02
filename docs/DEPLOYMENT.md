@@ -26,12 +26,12 @@ The frontend can be hosted by Vercel, Netlify, Cloudflare Pages, GitHub Pages wi
 
 | Area | Required before public pilot |
 |---|---|
-| Identity | Define how participants and administrators authenticate. Do not deploy the current `AllowAny` REST configuration for real users. |
+| Identity | Define and verify the participant and administrator authentication flow end to end. The API uses authenticated defaults, but the institutional administrator workflow must still be proven before pilot deployment. |
 | Database | Use a persistent database. SQLite is suitable for local development only. |
 | Authorization | Restrict credits and redemption requests to the owning participant; restrict review actions to administrators. |
 | Secrets | Move Django `SECRET_KEY`, database credentials, allowed origins, and any provider credentials to environment variables. |
 | HTTPS | Serve both frontend and API over HTTPS. Configure secure cookies and CSRF protection if using session authentication. |
-| Migrations | Apply the Green Wallet migration, including `0002_green_wallet_redemption.py`, in the deployment environment. |
+| Migrations | Apply Django migrations only after reviewing the migration plan. Do not push new Supabase DDL while the Supabase migration history is unverified. |
 | Operations | Define who reviews requests, what fulfillment means, how denials are handled, and how support issues are escalated. |
 | Product rules | Define credit units, expiration, partial redemption, reversal behavior, eligible hubs, and the meaning of `fulfilled`. |
 | Legal and safety | Complete privacy, accessibility, security, insurance, program, and partner review before a real-world pilot. |
@@ -110,15 +110,32 @@ The exact settings implementation should use a reviewed configuration approach r
 
 ### Database and migration sequence
 
-The beta includes durable models for Charging Hubs and Redemption Requests. Apply migrations in order:
+The beta includes durable Django models and migrations. Apply migrations in order:
 
 ```bash
 python manage.py showmigrations
 python manage.py migrate
 python manage.py makemigrations --check --dry-run
+python manage.py test
 ```
 
 Use a managed PostgreSQL database for a real pilot. Configure automated backups, restore testing, connection limits, and migration rollback procedures. Keep SQLite for local development and disposable demonstrations only.
+
+### Canonical persistence and Rule 2202 migration gate
+
+For the operational institutional workflow, **Django/Postgres is the canonical application persistence owner**. Do not create or deploy duplicate Institution, Site, Cohort, commuter-import, canonical-record, analysis-run, Decision Card, or report domain tables in Supabase.
+
+The Supabase schema track is frozen for this slice while the known remote/local migration-history discrepancy remains unresolved. This work does not repair, rewrite, mark, push, or otherwise mutate Supabase migration history.
+
+Rule 2202 readiness is controlled by `RELAY_RULE2202_STATE`:
+
+```text
+RELAY_RULE2202_STATE=unverified   # default; execution blocked
+RELAY_RULE2202_STATE=verified     # execution may be enabled only after independent reconciliation evidence
+RELAY_RULE2202_STATE=disabled     # execution intentionally disabled
+```
+
+Only `verified` permits a Supabase-backed Rule 2202 calculation adapter to execute. `unverified` must remain the default until authoritative local migration history and intended remote history have been reconciled and independently checked. A deployment with `unverified` may still run the ordinary Core Relay Rider institutional assessment, but it must report Rule 2202 as unavailable and must not claim Rule 2202 is deployed, certified, or submitted to a regulator.
 
 ## Green Wallet API activation
 
@@ -138,17 +155,17 @@ Before activation, add server-side support for an idempotency key on request cre
 
 ## Security hardening
 
-The current REST framework configuration uses permissive development permissions. Replace it with explicit permissions before public deployment. At minimum:
+The REST API now uses authenticated defaults with institution-scoped RBAC for the tenancy work already implemented. Before a public pilot, verify that the complete administrator workflow preserves those boundaries end to end. At minimum:
 
 - Participants may read only their own credits and redemption requests.
-- Administrators may review requests and manage hubs through protected operations.
+- Administrators may review requests only within authorized institutions and roles.
 - Review actions require a denial reason when denying a request.
 - Credit ownership, request status, and hub eligibility are validated on the server.
-- All request creation and review events are recorded in an audit trail.
+- All request creation and review events are recorded in an audit trail where the product claims such auditability.
 - Cookies, CSRF, CORS, and trusted origins are configured for the actual production domains.
 - Django admin is protected with strong administrator authentication and should not be exposed without access controls. This is already true of the framework default (`/admin/` redirects anonymous and non-staff requests to a login page rather than serving data; see `relay/tests.py::DjangoAdminAuthTests`) -- the operational gap is that no admin account exists until one is provisioned. Provision it with `python manage.py ensure_admin`, which reads `DJANGO_SUPERUSER_USERNAME`/`DJANGO_SUPERUSER_EMAIL`/`DJANGO_SUPERUSER_PASSWORD` from the deploy environment's secrets manager and is safe to re-run on every deploy (a no-op if the account already exists). Never hardcode admin credentials in source or commit them.
-- Institution staff (`institution_admin` role) do not get any Django admin access, scoped or otherwise, in this pilot. Admin-site access remains platform-admin/superuser only. Institution-scoped admin tooling is a future consideration, not implemented here.
-- Logs must avoid credit identifiers or participant-sensitive data unless there is a documented operational need.
+- Institution staff (`institution_admin` role) do not get any Django admin access, scoped or otherwise, in this pilot. Admin-site access remains platform-admin/superuser only. Institution-scoped admin tooling is implemented separately from the Django admin surface.
+- Logs must avoid participant-sensitive data unless there is a documented operational need.
 
 ## Verification after deployment
 
@@ -182,6 +199,9 @@ After the supervised pilot validates the terminology and workflow, add durable a
 
 ## Operational references
 
+- Canonical persistence decision: `docs/DECISIONS.md`
+- Current operational state: `docs/CURRENT_STATE.md`
+- Operational workflow design: `docs/superpowers/specs/2026-09-01-operational-institutional-workflow-design.md`
 - Green Wallet architecture: `docs/GREEN_WALLET_INTEGRATION.md`
 - API contract: `docs/GREEN_WALLET_API_CONTRACT.md`
 - End-to-end simulation: `docs/GREEN_WALLET_E2E_TEST.md`
