@@ -175,7 +175,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <em>{activeProgram ? 'View commuter matches' : 'View incentives'} <ArrowRight size={14} /></em>
               </span>
             </button>
-            </button>
 
             <section>
               <div className="home-returning-section-heading"><h2>Continue your EV program journey</h2></div>
