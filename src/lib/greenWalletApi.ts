@@ -1,4 +1,4 @@
-import type { ChargingHub, GreenRouteCredit, RedemptionRequest } from '../types';
+import type { CanonicalGreenRouteCreditStatus, ChargingHub, GreenRouteCredit, RedemptionRequest } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://127.0.0.1:8877/api';
 
@@ -7,7 +7,7 @@ export class GreenWalletApiError extends Error {
   constructor(message: string, status: number, details: unknown = null) { super(message); this.name = 'GreenWalletApiError'; this.status = status; this.details = details; }
 }
 
-type BackendCredit = { id: number | string; amount_units: string | number; unit_label: string; status: GreenRouteCredit['status']; note: string; created_at: string; };
+type BackendCredit = { id: number | string; amount_units: string | number; unit_label: string; status: CanonicalGreenRouteCreditStatus; note: string; created_at: string; };
 type BackendHub = { id: number | string; name: string; network: string; city: string; stalls: number; connector_types: string[]; status: ChargingHub['status']; evidence_label: ChargingHub['evidenceLabel']; };
 type BackendRequest = { id: number | string; credit: number | string; profile: number | string | null; charging_hub: number | string; requested_units: string | number; unit_label: string; status: RedemptionRequest['status']; requested_at: string; reviewed_at: string | null; reviewed_by: string; review_note: string; };
 
