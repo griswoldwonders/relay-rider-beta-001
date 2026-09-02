@@ -17,7 +17,6 @@ IS_AUTHENTICATED = ['rest_framework.permissions.IsAuthenticated']
 
 class DevBoundaryGuardTests(SimpleTestCase):
     def test_localhost_with_debug_and_allow_any_passes(self):
-        # Matches current local-dev settings.py exactly -- must keep working.
         assert_dev_boundary_safe(True, ALLOW_ANY, ['127.0.0.1', 'localhost'])
 
     def test_empty_allowed_hosts_passes(self):
@@ -32,17 +31,10 @@ class DevBoundaryGuardTests(SimpleTestCase):
             assert_dev_boundary_safe(False, ALLOW_ANY, ['app.example.com'])
 
     def test_public_host_is_safe_once_debug_false_and_allow_any_removed(self):
-        # The intended fix path before a real deployment.
         assert_dev_boundary_safe(False, IS_AUTHENTICATED, ['app.example.com'])
 
 
 class TenancyRBACTestCase(APITestCase):
-    """Shared fixtures for institution tenancy + RBAC tests.
-
-    Two institutions (A, B) each with their own GreenRouteCredit and
-    RedemptionRequest rows, plus a platform_admin who belongs to neither.
-    """
-
     def setUp(self):
         self.institution_a = Institution.objects.create(name='Institution A', slug='institution-a')
         self.institution_b = Institution.objects.create(name='Institution B', slug='institution-b')
@@ -59,8 +51,20 @@ class TenancyRBACTestCase(APITestCase):
         self.platform_admin = User.objects.create_user(username='platform-admin', password='pw')
         Membership.objects.create(user=self.platform_admin, institution=self.institution_a, role='platform_admin')
 
-        self.credit_a = GreenRouteCredit.objects.create(institution=self.institution_a, note='credit for A')
-        self.credit_b = GreenRouteCredit.objects.create(institution=self.institution_b, note='credit for B')
+        self.credit_a = GreenRouteCredit.objects.create(
+            institution=self.institution_a,
+            note='credit for A',
+            amount_units='10.00',
+            unit_label='Green Route Credits',
+            status='issued',
+        )
+        self.credit_b = GreenRouteCredit.objects.create(
+            institution=self.institution_b,
+            note='credit for B',
+            amount_units='10.00',
+            unit_label='Green Route Credits',
+            status='issued',
+        )
 
         self.charging_hub = ChargingHub.objects.create(name='Hub', network='Net', city='City')
         self.redemption_a = RedemptionRequest.objects.create(
@@ -68,12 +72,16 @@ class TenancyRBACTestCase(APITestCase):
             credit=self.credit_a,
             charging_hub=self.charging_hub,
             requested_units='1.00',
+            unit_label='Green Route Credits',
+            status='requested',
         )
         self.redemption_b = RedemptionRequest.objects.create(
             institution=self.institution_b,
             credit=self.credit_b,
             charging_hub=self.charging_hub,
             requested_units='1.00',
+            unit_label='Green Route Credits',
+            status='requested',
         )
 
 
@@ -82,8 +90,7 @@ class GreenRouteCreditTenancyTests(TenancyRBACTestCase):
         self.client.force_authenticate(user=self.user_a)
         response = self.client.get('/api/green-route-credits/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        ids = {row['id'] for row in response.data}
-        self.assertEqual(ids, {self.credit_a.id})
+        self.assertEqual({row['id'] for row in response.data}, {self.credit_a.id})
 
     def test_same_tenant_retrieve_allowed(self):
         self.client.force_authenticate(user=self.user_a)
@@ -107,8 +114,7 @@ class GreenRouteCreditTenancyTests(TenancyRBACTestCase):
         self.client.force_authenticate(user=self.platform_admin)
         response = self.client.get('/api/green-route-credits/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        ids = {row['id'] for row in response.data}
-        self.assertEqual(ids, {self.credit_a.id, self.credit_b.id})
+        self.assertEqual({row['id'] for row in response.data}, {self.credit_a.id, self.credit_b.id})
 
     def test_platform_admin_can_retrieve_any_institution_row(self):
         self.client.force_authenticate(user=self.platform_admin)
@@ -123,51 +129,111 @@ class GreenRouteCreditTenancyTests(TenancyRBACTestCase):
         response = self.client.get(f'/api/green-route-credits/{self.credit_a.id}/')
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
+    def test_api_exposes_explicit_credit_units_separate_from_impact_estimates(self):
+        self.credit_a.estimated_miles_reduced = '99.00'
+        self.credit_a.save(update_fields=['estimated_miles_reduced'])
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.get(f'/api/green-route-credits/{self.credit_a.id}/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['amount_units'], '10.00')
+        self.assertEqual(response.data['estimated_miles_reduced'], '99.00')
+        self.assertEqual(response.data['unit_label'], 'Green Route Credits')
+        self.assertEqual(response.data['status'], 'issued')
+
 
 class RedemptionRequestTenancyTests(TenancyRBACTestCase):
-    def test_same_tenant_review_update_allowed(self):
+    def test_same_tenant_review_follows_canonical_state_machine(self):
         self.client.force_authenticate(user=self.user_a)
-        response = self.client.patch(f'/api/redemption-requests/{self.redemption_a.id}/', {'status': 'approved'})
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        started = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_a.id}/',
+            {'status': 'under-review'},
+            format='json',
+        )
+        self.assertEqual(started.status_code, status.HTTP_200_OK)
+
+        completed = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_a.id}/',
+            {'status': 'fulfilled', 'review_note': 'Approved for pilot review.'},
+            format='json',
+        )
+        self.assertEqual(completed.status_code, status.HTTP_200_OK)
         self.redemption_a.refresh_from_db()
-        self.assertEqual(self.redemption_a.status, 'approved')
+        self.assertEqual(self.redemption_a.status, 'fulfilled')
+        self.assertEqual(self.redemption_a.reviewed_by, self.user_a.username)
+        self.assertIsNotNone(self.redemption_a.reviewed_at)
+
+    def test_requested_cannot_skip_directly_to_fulfilled(self):
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_a.id}/',
+            {'status': 'fulfilled'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.redemption_a.refresh_from_db()
+        self.assertEqual(self.redemption_a.status, 'requested')
 
     def test_cross_tenant_review_update_denied(self):
         self.client.force_authenticate(user=self.user_a)
-        response = self.client.patch(f'/api/redemption-requests/{self.redemption_b.id}/', {'status': 'approved'})
+        response = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_b.id}/',
+            {'status': 'under-review'},
+            format='json',
+        )
         self.assertIn(response.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
         self.redemption_b.refresh_from_db()
         self.assertEqual(self.redemption_b.status, 'requested')
 
     def test_viewer_role_cannot_review_update(self):
         self.client.force_authenticate(user=self.viewer_a)
-        response = self.client.patch(f'/api/redemption-requests/{self.redemption_a.id}/', {'status': 'approved'})
+        response = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_a.id}/',
+            {'status': 'under-review'},
+            format='json',
+        )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_platform_admin_can_review_any_institution(self):
         self.client.force_authenticate(user=self.platform_admin)
-        response = self.client.patch(f'/api/redemption-requests/{self.redemption_b.id}/', {'status': 'approved'})
+        response = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_b.id}/',
+            {'status': 'under-review'},
+            format='json',
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_unauthenticated_update_rejected(self):
-        response = self.client.patch(f'/api/redemption-requests/{self.redemption_a.id}/', {'status': 'approved'})
+        response = self.client.patch(
+            f'/api/redemption-requests/{self.redemption_a.id}/',
+            {'status': 'under-review'},
+            format='json',
+        )
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
-    def test_same_tenant_create_assigns_caller_institution(self):
+    def test_same_tenant_create_assigns_caller_institution_and_canonical_unit(self):
         self.client.force_authenticate(user=self.user_a)
         response = self.client.post('/api/redemption-requests/', {
             'credit': self.credit_a.id,
             'charging_hub': self.charging_hub.id,
             'requested_units': '2.00',
-        })
+        }, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         created = RedemptionRequest.objects.get(id=response.data['id'])
         self.assertEqual(created.institution_id, self.institution_a.id)
+        self.assertEqual(created.unit_label, self.credit_a.unit_label)
+        self.assertEqual(created.status, 'requested')
+
+    def test_create_rejects_request_above_credit_amount(self):
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit_a.id,
+            'charging_hub': self.charging_hub.id,
+            'requested_units': '11.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class PublicReferenceDataStaysPublicTests(TenancyRBACTestCase):
-    """Confirms the pre-tenancy public reference-data endpoints are unchanged."""
-
     def test_relay_zone_list_is_public(self):
         RelayZone.objects.create(name='Zone 1')
         response = self.client.get('/api/relay-zones/')
@@ -183,18 +249,11 @@ class PublicReferenceDataStaysPublicTests(TenancyRBACTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_profile_create_requires_authentication(self):
-        # ProfileViewSet is CREATE-ONLY and relies on the global
-        # IsAuthenticated default (see relay/views.py module docstring) --
-        # unauthenticated participant signup goes through the separate
-        # AllowAny SignupView instead (relay/signup_view.py).
         response = self.client.post('/api/profiles/', {'name': 'Anon Signup', 'email': 'anon@example.com'})
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
 
 
 class DjangoAdminAuthTests(TestCase):
-    """Django admin ships stock (no permission override); it must stay
-    behind real staff/superuser login rather than serving data to anyone."""
-
     def test_unauthenticated_request_redirects_to_login_not_data(self):
         response = self.client.get('/admin/')
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
