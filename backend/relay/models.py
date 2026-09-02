@@ -91,6 +91,110 @@ class Membership(TimestampedModel):
         return f'{self.user} @ {self.institution} ({self.role})'
 
 
+class ImportBatch(TimestampedModel):
+    STATUS_CHOICES = [
+        ('uploaded', 'Uploaded'),
+        ('validated', 'Validated'),
+        ('failed', 'Failed'),
+    ]
+
+    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='import_batches')
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='import_batches')
+    cohort = models.ForeignKey(Cohort, on_delete=models.PROTECT, related_name='import_batches')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='relay_import_batches')
+    original_filename = models.CharField(max_length=255)
+    file_sha256 = models.CharField(max_length=64)
+    schema_version = models.CharField(max_length=32)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='uploaded')
+    total_rows = models.PositiveIntegerField(default=0)
+    accepted_rows = models.PositiveIntegerField(default=0)
+    rejected_rows = models.PositiveIntegerField(default=0)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.site_id and self.institution_id and self.site.institution_id != self.institution_id:
+            errors['site'] = 'Site must belong to the import institution.'
+        if self.cohort_id and self.institution_id and self.cohort.institution_id != self.institution_id:
+            errors['cohort'] = 'Cohort must belong to the import institution.'
+        if self.cohort_id and self.site_id and self.cohort.site_id != self.site_id:
+            errors['cohort'] = 'Cohort must belong to the import site.'
+        if errors:
+            raise ValidationError(errors)
+
+
+class ImportRow(TimestampedModel):
+    VALIDATION_CHOICES = [
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+
+    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='import_rows')
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='import_rows')
+    cohort = models.ForeignKey(Cohort, on_delete=models.PROTECT, related_name='import_rows')
+    batch = models.ForeignKey(ImportBatch, on_delete=models.PROTECT, related_name='rows')
+    row_number = models.PositiveIntegerField()
+    raw_payload = models.JSONField(default=dict)
+    normalized_payload = models.JSONField(default=dict)
+    validation_status = models.CharField(max_length=16, choices=VALIDATION_CHOICES)
+    error_codes = models.JSONField(default=list)
+    warning_codes = models.JSONField(default=list)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['batch', 'row_number'], name='unique_row_number_per_import_batch'),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.batch_id:
+            if self.institution_id != self.batch.institution_id:
+                raise ValidationError({'institution': 'Import row institution must match its batch.'})
+            if self.site_id != self.batch.site_id:
+                raise ValidationError({'site': 'Import row site must match its batch.'})
+            if self.cohort_id != self.batch.cohort_id:
+                raise ValidationError({'cohort': 'Import row cohort must match its batch.'})
+
+
+class CanonicalCommuterRecord(TimestampedModel):
+    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='canonical_commuters')
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='canonical_commuters')
+    cohort = models.ForeignKey(Cohort, on_delete=models.PROTECT, related_name='canonical_commuters')
+    source_row = models.OneToOneField(ImportRow, on_delete=models.PROTECT, related_name='canonical_record')
+    participant_key = models.CharField(max_length=160)
+    origin_zone = models.CharField(max_length=160)
+    destination_zone = models.CharField(max_length=160)
+    commute_days = models.JSONField(default=list)
+    arrival_window_start = models.TimeField(null=True, blank=True)
+    arrival_window_end = models.TimeField(null=True, blank=True)
+    departure_window_start = models.TimeField(null=True, blank=True)
+    departure_window_end = models.TimeField(null=True, blank=True)
+    flexibility_minutes = models.PositiveIntegerField(default=0)
+    current_mode = models.CharField(max_length=80, blank=True)
+    vehicle_classification = models.CharField(max_length=80, blank=True)
+    commute_distance_miles = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    commute_time_minutes = models.PositiveIntegerField(null=True, blank=True)
+    parking_difficulty = models.CharField(max_length=80, blank=True)
+    ev_hybrid_signal = models.CharField(max_length=80, blank=True)
+    canonicalization_version = models.CharField(max_length=32, default='1.0')
+
+    def clean(self):
+        super().clean()
+        if not self.source_row_id:
+            return
+        errors = {}
+        if self.source_row.validation_status != 'accepted':
+            errors['source_row'] = 'Canonical records require an accepted import row.'
+        if self.institution_id != self.source_row.institution_id:
+            errors['institution'] = 'Canonical record institution must match its source row.'
+        if self.site_id != self.source_row.site_id:
+            errors['site'] = 'Canonical record site must match its source row.'
+        if self.cohort_id != self.source_row.cohort_id:
+            errors['cohort'] = 'Canonical record cohort must match its source row.'
+        if errors:
+            raise ValidationError(errors)
+
+
 class Profile(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='profiles')
     name = models.CharField(max_length=120, blank=True)
