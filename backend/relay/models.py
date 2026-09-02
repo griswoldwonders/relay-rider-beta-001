@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+
 
 class TimestampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -25,6 +27,47 @@ class Institution(TimestampedModel):
 
     def __str__(self):
         return self.name
+
+
+class Site(TimestampedModel):
+    STATUS_CHOICES = Institution.STATUS_CHOICES
+
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='sites')
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=160)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='active')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['institution', 'slug'], name='unique_site_slug_per_institution'),
+        ]
+
+    def __str__(self):
+        return f'{self.institution}: {self.name}'
+
+
+class Cohort(TimestampedModel):
+    STATUS_CHOICES = Institution.STATUS_CHOICES
+
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='cohorts')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='cohorts')
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=160)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='active')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['institution', 'slug'], name='unique_cohort_slug_per_institution'),
+            models.UniqueConstraint(fields=['site', 'slug'], name='unique_cohort_slug_per_site'),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.site_id and self.institution_id and self.site.institution_id != self.institution_id:
+            raise ValidationError({'site': 'Site must belong to the same institution as the cohort.'})
+
+    def __str__(self):
+        return f'{self.site}: {self.name}'
 
 
 class Membership(TimestampedModel):
@@ -59,6 +102,7 @@ class Profile(TimestampedModel):
     def __str__(self):
         return self.name or self.email or f'Profile {self.pk}'
 
+
 class RouteSignal(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='route_signals')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
@@ -70,6 +114,7 @@ class RouteSignal(TimestampedModel):
 
     def __str__(self):
         return f'{self.origin_zone} → {self.destination_zone}'.strip(' →') or f'Route signal {self.pk}'
+
 
 class EVParticipantSignal(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='ev_participant_signals')
@@ -83,6 +128,7 @@ class EVParticipantSignal(TimestampedModel):
     def __str__(self):
         return self.corridor or f'EV participant signal {self.pk}'
 
+
 class RelayZone(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='relay_zones')
     name = models.CharField(max_length=120)
@@ -90,6 +136,7 @@ class RelayZone(TimestampedModel):
 
     def __str__(self):
         return self.name
+
 
 class Corridor(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='corridors')
@@ -101,6 +148,7 @@ class Corridor(TimestampedModel):
     def __str__(self):
         return self.name
 
+
 class GreenRouteCredit(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='green_route_credits')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
@@ -111,6 +159,7 @@ class GreenRouteCredit(TimestampedModel):
 
     def __str__(self):
         return f'Green route credit {self.pk}'
+
 
 class ChargingHub(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='charging_hubs')
@@ -124,6 +173,7 @@ class ChargingHub(TimestampedModel):
 
     def __str__(self):
         return self.name
+
 
 class RedemptionRequest(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='redemption_requests')
