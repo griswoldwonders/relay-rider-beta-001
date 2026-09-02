@@ -195,6 +195,76 @@ class CanonicalCommuterRecord(TimestampedModel):
             raise ValidationError(errors)
 
 
+class AnalysisRun(TimestampedModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='analysis_runs')
+    site = models.ForeignKey(Site, on_delete=models.PROTECT, related_name='analysis_runs')
+    cohort = models.ForeignKey(Cohort, on_delete=models.PROTECT, related_name='analysis_runs')
+    source_batch = models.ForeignKey(ImportBatch, on_delete=models.PROTECT, related_name='analysis_runs')
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='relay_analysis_runs')
+    engine_version = models.CharField(max_length=64)
+    configuration_version = models.CharField(max_length=64)
+    code_version = models.CharField(max_length=128)
+    canonical_dataset_fingerprint = models.CharField(max_length=64)
+    reproducibility_fingerprint = models.CharField(max_length=64)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='pending')
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    error_code = models.CharField(max_length=160, blank=True)
+    error_detail = models.TextField(blank=True)
+
+    def clean(self):
+        super().clean()
+        if not self.source_batch_id:
+            return
+        errors = {}
+        if self.institution_id != self.source_batch.institution_id:
+            errors['institution'] = 'Analysis institution must match its source batch.'
+        if self.site_id != self.source_batch.site_id:
+            errors['site'] = 'Analysis site must match its source batch.'
+        if self.cohort_id != self.source_batch.cohort_id:
+            errors['cohort'] = 'Analysis cohort must match its source batch.'
+        if errors:
+            raise ValidationError(errors)
+
+
+class AnalysisMetric(TimestampedModel):
+    EVIDENCE_CHOICES = [
+        ('observed', 'Observed'),
+        ('calculated', 'Calculated'),
+        ('modeled', 'Modeled'),
+    ]
+
+    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='analysis_metrics')
+    analysis_run = models.ForeignKey(AnalysisRun, on_delete=models.CASCADE, related_name='metrics')
+    metric_key = models.CharField(max_length=160)
+    evidence_class = models.CharField(max_length=16, choices=EVIDENCE_CHOICES)
+    value = models.JSONField()
+    unit = models.CharField(max_length=80, blank=True)
+    source_manifest = models.JSONField(default=dict)
+    method_identifier = models.CharField(max_length=160)
+    confidence = models.CharField(max_length=160, blank=True)
+    privacy_treatment = models.CharField(max_length=160)
+    caveat = models.TextField(blank=True)
+    partner_wording = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['analysis_run', 'metric_key'], name='unique_metric_key_per_analysis_run'),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.analysis_run_id and self.institution_id != self.analysis_run.institution_id:
+            raise ValidationError({'institution': 'Analysis metric institution must match its analysis run.'})
+
+
 class Profile(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='profiles')
     name = models.CharField(max_length=120, blank=True)
