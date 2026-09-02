@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, feat/operational-institutional-workflow]
   workflow_dispatch:
 
 permissions:
@@ -85,3 +85,6 @@ jobs:
 
       - name: Detect missing migrations
         run: python manage.py makemigrations --check --dry-run
+
+      - name: Run backend tests
+        run: python manage.py test -v 1
