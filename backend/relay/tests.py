@@ -223,6 +223,33 @@ class RedemptionRequestTenancyTests(TenancyRBACTestCase):
         self.assertEqual(created.unit_label, self.credit_a.unit_label)
         self.assertEqual(created.status, 'requested')
 
+    def test_create_rejects_cross_tenant_credit_reference(self):
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit_b.id,
+            'charging_hub': self.charging_hub.id,
+            'requested_units': '2.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(
+            RedemptionRequest.objects.filter(
+                institution=self.institution_a,
+                credit=self.credit_b,
+            ).exists()
+        )
+
+    def test_create_uses_credit_institution_for_multi_membership_user(self):
+        Membership.objects.create(user=self.user_a, institution=self.institution_b, role='viewer')
+        self.client.force_authenticate(user=self.user_a)
+        response = self.client.post('/api/redemption-requests/', {
+            'credit': self.credit_b.id,
+            'charging_hub': self.charging_hub.id,
+            'requested_units': '2.00',
+        }, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        created = RedemptionRequest.objects.get(id=response.data['id'])
+        self.assertEqual(created.institution_id, self.institution_b.id)
+
     def test_create_rejects_request_above_credit_amount(self):
         self.client.force_authenticate(user=self.user_a)
         response = self.client.post('/api/redemption-requests/', {
