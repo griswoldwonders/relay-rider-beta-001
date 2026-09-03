@@ -1,3 +1,8 @@
 Django>=5,<6
 djangorestframework>=3.16,<4
 django-cors-headers>=4.4,<5
+# Used only for pure, testable certificate validation functions in
+# relay/ocpi/certs.py (chain/SAN/key-usage/expiration checks). No
+# network TLS handshake code depends on this; test certs are generated
+# at test time and never committed. See docs/OCPI_PRODUCTION_SECURITY_AND_SESSION_LINKING.md.
+cryptography>=42,<51

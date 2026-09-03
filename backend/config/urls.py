@@ -28,4 +28,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/signup/', SignupView.as_view(), name='signup'),
+    # Authenticated, service-to-service internal OCPI connector boundary --
+    # not participant-facing. See relay/ocpi/views.py and
+    # docs/OCPI_GREEN_WALLET_REPO_INTEGRATION.md.
+    path('api/internal/ocpi/', include('relay.ocpi.urls')),
 ]
