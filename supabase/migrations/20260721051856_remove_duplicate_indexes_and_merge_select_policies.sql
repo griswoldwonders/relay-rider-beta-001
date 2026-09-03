@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260721051856 remove_duplicate_indexes_and_merge_select_policies.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

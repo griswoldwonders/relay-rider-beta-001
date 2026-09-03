@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260820030336 enable_rls_on_private_audit_events.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

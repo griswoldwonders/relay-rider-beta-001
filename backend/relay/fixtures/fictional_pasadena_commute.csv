@@ -1,0 +1,7 @@
+external_id,origin_zone,destination_zone,commute_days,arrival_window,departure_window,schedule_flex_minutes,current_mode,occupants,vehicle_fuel_type,parking_difficulty,ev_interest,access_point_willing,consent_confirmed
+DEMO-001,Eagle Rock,Pasadena Campus,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:30-17:00,20,drive_alone,,gasoline,high,yes,yes,yes
+DEMO-002,Glendale,Pasadena Campus,Mon|Wed|Fri,08:00-08:30,17:00-17:30,10,drive_alone,,gasoline,medium,no,yes,yes
+DEMO-003,Highland Park,Pasadena Campus,Tue|Thu,08:00-08:30,16:00-16:30,15,transit,,,low,no,no,yes
+DEMO-004,Arcadia,Pasadena Campus,Mon|Tue|Wed|Thu,07:00-07:30,15:30-16:00,5,carpool,2,hybrid,medium,no,yes,yes
+DEMO-005,Pasadena,Pasadena Campus,Mon|Tue|Wed|Thu|Fri,08:30-09:00,17:30-18:00,30,drive_alone,,gasoline,very_high,yes,yes,yes
+DEMO-006,Glendale,Pasadena Campus,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:30-17:00,15,drive_alone,,ev,high,no,yes,yes

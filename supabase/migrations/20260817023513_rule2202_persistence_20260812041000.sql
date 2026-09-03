@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260817023513 rule2202_persistence_20260812041000.
+-- Legacy Supabase Rule 2202 persistence already exists remotely; Django ORM is now the canonical application persistence contract.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
