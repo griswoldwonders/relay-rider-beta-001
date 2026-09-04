@@ -1,0 +1,1 @@
+Temporary synchronization branch for Operational Research Beta v1. No product functionality. Intended only to carry current `main` into `codex/institutional-vertical-slice` for fresh integrated-head verification.
