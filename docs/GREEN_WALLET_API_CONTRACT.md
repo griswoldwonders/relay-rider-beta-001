@@ -48,13 +48,14 @@ Canonical machine values:
 - evidence label: `synthetic | modeled | verified`
 
 `candidate`, `verified`, or `active` describe the Relay Rider program record;
-they do not guarantee charger access or availability.
+they do not guarantee charger access or availability. Only `active` hubs are
+selectable in the current frontend pilot copy.
 
 ### Redemption Request
 
 A request references a Green Route Credit, an optional participant profile, and
 a Charging Hub. It stores requested units, unit label, status, timestamps,
-reviewer identity, and review note.
+reviewer identity, review note, and any later manual-program fulfillment label.
 
 Canonical lifecycle:
 
@@ -62,6 +63,8 @@ Canonical lifecycle:
 
 Direct `requested → fulfilled` or `requested → denied` transitions are rejected.
 `fulfilled` and `denied` are terminal in the current research-beta state machine.
+`fulfilled` records a manual program decision only; it is not a charging-session
+completion, payment capture, or live network settlement event.
 
 ## Current endpoints
 
@@ -74,7 +77,7 @@ Direct `requested → fulfilled` or `requested → denied` transitions are rejec
 | `GET` | `/api/redemption-requests/` | Authenticated tenant member; platform admin sees all | List visible requests. |
 | `GET` | `/api/redemption-requests/{id}/` | Same tenant rules | Read one visible request. |
 | `POST` | `/api/redemption-requests/` | Authenticated tenant member | Submit a request against an eligible credit visible to the caller. |
-| `PATCH` | `/api/redemption-requests/{id}/` | Institution admin/program staff for that tenant, or platform admin | Move a request through the canonical administrative-review state machine. |
+| `PATCH` | `/api/redemption-requests/{id}/` | Institution admin/program staff for that tenant, or platform admin | Move a request through the canonical administrative-review state machine and record the manual program decision. |
 
 Tenant access is derived from authenticated `Membership` records; client-supplied
 `?profile=` parameters do not define authorization.
@@ -218,5 +221,9 @@ The contract still requires founder/program decisions for:
   `[NEEDS FOUNDER INPUT]`;
 - what real-world `fulfilled` means and who performs fulfillment —
   `[NEEDS FOUNDER INPUT]`.
+
+`fulfilled` currently means the manual program decision has been recorded and
+the request is terminal. It does not imply an external charging or payment
+system has executed.
 
 No live charging integration should be inferred from this API contract.

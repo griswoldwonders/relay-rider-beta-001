@@ -9,7 +9,7 @@ export class GreenWalletApiError extends Error {
 
 type BackendCredit = { id: number | string; amount_units: string | number; unit_label: string; status: CanonicalGreenRouteCreditStatus; note: string; created_at: string; };
 type BackendHub = { id: number | string; name: string; network: string; city: string; stalls: number; connector_types: string[]; status: ChargingHub['status']; evidence_label: ChargingHub['evidenceLabel']; };
-type BackendRequest = { id: number | string; credit: number | string; profile: number | string | null; charging_hub: number | string; requested_units: string | number; unit_label: string; status: RedemptionRequest['status']; requested_at: string; reviewed_at: string | null; reviewed_by: string; review_note: string; };
+type BackendRequest = { id: number | string; credit: number | string; profile: number | string | null; charging_hub: number | string; requested_units: string | number; unit_label: string; status: RedemptionRequest['status']; requested_at: string; reviewed_at: string | null; reviewed_by: string; review_note: string; fulfillment_method?: RedemptionRequest['fulfillmentMethod']; };
 
 const jsonHeaders = () => ({ 'Content-Type': 'application/json', Accept: 'application/json' });
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -28,14 +28,14 @@ const toCredit = (credit: BackendCredit): GreenRouteCredit => ({
   issuedAt: credit.created_at,
 });
 const toHub = (hub: BackendHub): ChargingHub => ({ id: String(hub.id), name: hub.name, network: hub.network, city: hub.city, stalls: hub.stalls, connectorTypes: hub.connector_types, status: hub.status, evidenceLabel: hub.evidence_label });
-const toRequest = (r: BackendRequest): RedemptionRequest => ({ id: String(r.id), creditId: String(r.credit), participantId: r.profile ? String(r.profile) : 'unassigned', chargingHubId: String(r.charging_hub), requestedUnits: Number(r.requested_units), unitLabel: r.unit_label, status: r.status, requestedAt: r.requested_at, reviewedAt: r.reviewed_at || undefined, reviewedBy: r.reviewed_by || undefined, reviewNote: r.review_note || undefined });
+const toRequest = (r: BackendRequest): RedemptionRequest => ({ id: String(r.id), creditId: String(r.credit), participantId: r.profile ? String(r.profile) : 'unassigned', chargingHubId: String(r.charging_hub), requestedUnits: Number(r.requested_units), unitLabel: r.unit_label, status: r.status, requestedAt: r.requested_at, reviewedAt: r.reviewed_at || undefined, reviewedBy: r.reviewed_by || undefined, reviewNote: r.review_note || undefined, fulfillmentMethod: r.fulfillment_method || undefined });
 
 export const greenWalletApi = {
   async listCredits(): Promise<GreenRouteCredit[]> { return (await request<BackendCredit[]>('/green-route-credits/')).map(toCredit); },
   async listChargingHubs(): Promise<ChargingHub[]> { return (await request<BackendHub[]>('/charging-hubs/')).map(toHub); },
   async listRedemptionRequests(): Promise<RedemptionRequest[]> { return (await request<BackendRequest[]>('/redemption-requests/')).map(toRequest); },
-  async createRedemptionRequest(input: { creditId: string; participantId: string; chargingHubId: string; requestedUnits: number }): Promise<RedemptionRequest> {
-    return toRequest(await request<BackendRequest>('/redemption-requests/', { method: 'POST', body: JSON.stringify({ credit: input.creditId, profile: input.participantId, charging_hub: input.chargingHubId, requested_units: input.requestedUnits }) }));
+  async createRedemptionRequest(input: { creditId: string; participantId: string; chargingHubId: string; requestedUnits: number; idempotencyKey?: string }): Promise<RedemptionRequest> {
+    return toRequest(await request<BackendRequest>('/redemption-requests/', { method: 'POST', body: JSON.stringify({ credit: input.creditId, profile: input.participantId, charging_hub: input.chargingHubId, requested_units: input.requestedUnits, idempotency_key: input.idempotencyKey }) }));
   },
   async startRedemptionReview(id: string): Promise<RedemptionRequest> {
     return toRequest(await request<BackendRequest>(`/redemption-requests/${encodeURIComponent(id)}/`, { method: 'PATCH', body: JSON.stringify({ status: 'under-review' }) }));

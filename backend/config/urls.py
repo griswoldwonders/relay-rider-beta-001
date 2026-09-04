@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from relay.views import ChargingHubViewSet, CorridorViewSet, GreenRouteCreditViewSet, ProfileViewSet, RedemptionRequestViewSet, RelayZoneViewSet, RouteSignalViewSet, EVParticipantSignalViewSet
+from relay.views import ChargingHubViewSet, CorridorViewSet, GreenRouteCreditViewSet, ProfileViewSet, ProgramBenefitPolicyViewSet, RedemptionRequestViewSet, RelayZoneViewSet, RouteSignalViewSet, EVParticipantSignalViewSet
 from relay.signup_view import SignupView
 
 router = DefaultRouter()
@@ -14,6 +14,7 @@ router.register('corridors', CorridorViewSet)
 router.register('green-route-credits', GreenRouteCreditViewSet)
 router.register('charging-hubs', ChargingHubViewSet)
 router.register('redemption-requests', RedemptionRequestViewSet)
+router.register('program-benefit-policies', ProgramBenefitPolicyViewSet)
 
 def home(request):
     return JsonResponse({
