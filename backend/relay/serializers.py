@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Membership, Profile, RedemptionRequest, RelayZone, RouteSignal
+from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Membership, Profile, ProgramBenefitPolicy, RedemptionRequest, RelayZone, RouteSignal
 
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,6 +43,13 @@ class ChargingHubSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ('institution',)
 
+class ProgramBenefitPolicySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProgramBenefitPolicy
+        fields = '__all__'
+        read_only_fields = ('institution',)
+
+
 class RedemptionRequestSerializer(serializers.ModelSerializer):
     ALLOWED_TRANSITIONS = {
         'requested': {'under-review'},
@@ -55,6 +62,7 @@ class RedemptionRequestSerializer(serializers.ModelSerializer):
         model = RedemptionRequest
         fields = '__all__'
         read_only_fields = ('institution', 'requested_at', 'reviewed_at', 'reviewed_by')
+        validators = []
 
     def validate_status(self, value):
         if not self.instance:
@@ -121,5 +129,9 @@ class RedemptionRequestSerializer(serializers.ModelSerializer):
                 if charging_hub and charging_hub.institution_id not in (None, credit.institution_id):
                     raise serializers.ValidationError(
                         {'charging_hub': 'Charging Hub must be shared reference data or belong to the credit institution.'}
+                    )
+                if charging_hub and charging_hub.status != 'active':
+                    raise serializers.ValidationError(
+                        {'charging_hub': 'Only active Charging Hub records are selectable for a new redemption request.'}
                     )
         return attrs

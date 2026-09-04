@@ -66,7 +66,7 @@ class TenancyRBACTestCase(APITestCase):
             status='issued',
         )
 
-        self.charging_hub = ChargingHub.objects.create(name='Hub', network='Net', city='City')
+        self.charging_hub = ChargingHub.objects.create(name='Hub', network='Net', city='City', status='active')
         self.redemption_a = RedemptionRequest.objects.create(
             institution=self.institution_a,
             credit=self.credit_a,
