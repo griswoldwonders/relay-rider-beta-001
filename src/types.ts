@@ -52,5 +52,6 @@ export type GreenRouteCredit = CanonicalGreenRouteCredit | LegacyGreenRouteCredi
 
 export type RedemptionRequestStatus = 'requested' | 'under-review' | 'fulfilled' | 'denied';
 export interface ChargingHub { id: string; name: string; network: string; city: string; stalls: number; connectorTypes: string[]; status: 'candidate' | 'verified' | 'active'; evidenceLabel: 'synthetic' | 'modeled' | 'verified'; }
-export interface RedemptionRequest { id: string; creditId: string; participantId: string; chargingHubId: string; requestedUnits: number; unitLabel: string; status: RedemptionRequestStatus; requestedAt: string; reviewedAt?: string; reviewedBy?: string; reviewNote?: string; }
+export type RedemptionFulfillmentMethod = 'unspecified' | 'manual_program_action';
+export interface RedemptionRequest { id: string; creditId: string; participantId: string; chargingHubId: string; requestedUnits: number; unitLabel: string; status: RedemptionRequestStatus; requestedAt: string; reviewedAt?: string; reviewedBy?: string; reviewNote?: string; fulfillmentMethod?: RedemptionFulfillmentMethod; }
 export interface UserProfile { id: string; name: string; email: string; role: UserRole; adultConfirmed: boolean; researchConsentGiven: boolean; preferredCorridor: string; preferredRelayZoneType: string; evHybridPreference: string; privacyPreference: string; notificationPreference: boolean; }

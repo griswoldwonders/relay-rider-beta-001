@@ -35,7 +35,7 @@ class RedemptionStateMachineTests(APITestCase):
             amount_units='10.00',
             unit_label='Green Route Credits',
         )
-        self.hub = ChargingHub.objects.create(name='Hub', network='Network', city='Pasadena')
+        self.hub = ChargingHub.objects.create(name='Hub', network='Network', city='Pasadena', status='active')
         self.request = RedemptionRequest.objects.create(
             institution=self.institution,
             credit=self.credit,
