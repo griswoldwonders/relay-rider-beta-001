@@ -29,6 +29,7 @@ class Membership(TimestampedModel):
         ('institution_admin', 'Institution admin'),
         ('program_staff', 'Program staff'),
         ('viewer', 'Viewer'),
+        ('participant', 'Participant'),
     ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='memberships')
@@ -215,6 +216,15 @@ class DecisionCard(TimestampedModel):
     recommended_action = models.TextField()
     owner_label = models.CharField(max_length=160, blank=True)
     provenance = models.JSONField(default=dict)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reviewed_decision_cards',
+    )
+    review_note = models.TextField(blank=True)
 
     def __str__(self):
         return self.title
@@ -239,6 +249,13 @@ class AssessmentAuditEvent(models.Model):
 
 class Profile(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='profiles')
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='relay_profile',
+    )
     name = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     role = models.CharField(max_length=80, blank=True)
