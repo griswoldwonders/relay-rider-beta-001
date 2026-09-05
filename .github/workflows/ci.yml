@@ -85,9 +85,10 @@ jobs:
           rm -f db.sqlite3
           python manage.py migrate relay 0003 --noinput
           python manage.py migrate relay 0004 --noinput
-          python manage.py migrate relay 0005 --noinput
-          python manage.py migrate relay 0004 --noinput
-          python manage.py migrate relay 0005 --noinput
+          python manage.py migrate relay 0005_green_wallet_ledger_and_policy --noinput
+          python manage.py migrate relay 0006_institutional_vertical_slice --noinput
+          python manage.py migrate relay 0005_green_wallet_ledger_and_policy --noinput
+          python manage.py migrate relay 0006_institutional_vertical_slice --noinput
           python manage.py migrate --noinput
           python manage.py showmigrations relay
 
