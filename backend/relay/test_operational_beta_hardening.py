@@ -211,7 +211,7 @@ class OperationalBetaHardeningTests(APITestCase):
             {'review_note': 'Participant must not review.'},
             format='json',
         )
-        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(denied.status_code, status.HTTP_404_NOT_FOUND)
 
         self.auth(self.admin_token)
         reviewed = self.client.post(
