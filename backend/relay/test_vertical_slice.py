@@ -18,6 +18,14 @@ R1,Eagle Rock,Pasadena Campus,Mon|Tue|Wed,07:30-08:00,16:30-17:00,20,drive_alone
 R2,Glendale,Pasadena Campus,Mon|Wed,08:00-08:30,17:00-17:30,10,carpool,2,hybrid,medium,no,yes,yes
 """
 
+INVALID_CSV_CONTENT = """external_id,origin_zone,destination_zone,commute_days,arrival_window,departure_window,schedule_flex_minutes,current_mode,occupants,vehicle_fuel_type,parking_difficulty,ev_interest,access_point_willing,consent_confirmed,extra_note
+BAD1,,Pasadena Campus,,07:30-08:00,16:30-17:00,-5,carpool,1,gasoline,high,maybe,no,maybe,retain this raw field
+"""
+
+MISSING_HEADER_CSV = """external_id,origin_zone,destination_zone,commute_days,arrival_window,departure_window,current_mode
+R1,Eagle Rock,Pasadena Campus,Mon,07:30-08:00,16:30-17:00,drive_alone
+"""
+
 
 class FakeRule2202Calculator:
     def vehicle_trip_weight(self, mode, occupants=None):
@@ -46,26 +54,56 @@ class VerticalSliceTestCase(TestCase):
             provenance_label='synthetic',
         )
 
-    def test_import_validation_exposes_canonical_schema_contract(self):
-        self.assertTrue(hasattr(ingestion, 'COMMUTE_IMPORT_SCHEMA'))
-        self.assertEqual(ingestion.COMMUTE_IMPORT_SCHEMA.name, 'relay_rider_commute_import_v1')
-
-    def test_csv_import_persists_provenance_and_canonical_records(self):
-        commute_import = import_commute_csv(
+    def _import(self, content=CSV_CONTENT, file_name='demo.csv'):
+        return import_commute_csv(
             institution=self.institution,
             site=self.site,
             cohort=self.cohort,
             data_source=self.source,
             actor=self.user,
-            file_name='demo.csv',
-            content=CSV_CONTENT,
+            file_name=file_name,
+            content=content,
         )
+
+    def test_import_validation_exposes_canonical_schema_contract(self):
+        self.assertTrue(hasattr(ingestion, 'COMMUTE_IMPORT_SCHEMA'))
+        self.assertEqual(ingestion.COMMUTE_IMPORT_SCHEMA.name, 'relay_rider_commute_import_v1')
+
+    def test_csv_import_persists_provenance_and_canonical_records(self):
+        commute_import = self._import()
         self.assertEqual(commute_import.total_rows, 2)
         self.assertEqual(commute_import.valid_rows, 2)
         self.assertEqual(commute_import.invalid_rows, 0)
         self.assertEqual(commute_import.records.count(), 2)
         self.assertEqual(len(commute_import.file_sha256), 64)
         self.assertEqual(commute_import.validation_summary['provenance_label'], 'synthetic')
+
+    def test_pandera_validation_retains_invalid_row_errors_and_raw_payload(self):
+        commute_import = self._import(INVALID_CSV_CONTENT, file_name='invalid.csv')
+        self.assertEqual(commute_import.total_rows, 1)
+        self.assertEqual(commute_import.valid_rows, 0)
+        self.assertEqual(commute_import.invalid_rows, 1)
+        self.assertEqual(commute_import.status, 'completed')
+
+        record = commute_import.records.get(external_id='BAD1')
+        self.assertEqual(record.validation_status, 'invalid')
+        self.assertIn('origin_zone is required', record.validation_errors)
+        self.assertIn('commute_days is required', record.validation_errors)
+        self.assertIn('schedule_flex_minutes must be non-negative', record.validation_errors)
+        self.assertIn('ev_interest must be yes/no or true/false', record.validation_errors)
+        self.assertIn('consent_confirmed must be yes/no or true/false', record.validation_errors)
+        self.assertIn('carpool occupants must be between 2 and 6', record.validation_errors)
+        self.assertEqual(record.schedule_flex_minutes, 0)
+        self.assertEqual(record.occupants, 1)
+        self.assertFalse(record.ev_interest)
+        self.assertFalse(record.consent_confirmed)
+        self.assertEqual(record.source_row_number, 2)
+        self.assertEqual(record.source_payload['extra_note'], 'retain this raw field')
+
+    def test_missing_required_header_still_fails_before_import_persistence(self):
+        with self.assertRaisesMessage(ValueError, 'missing required CSV columns: consent_confirmed'):
+            self._import(MISSING_HEADER_CSV, file_name='missing-header.csv')
+        self.assertFalse(self.institution.commute_imports.filter(file_name='missing-header.csv').exists())
 
     def test_import_rejects_cross_tenant_hierarchy(self):
         other = Institution.objects.create(name='Other', slug='other')
@@ -82,16 +120,19 @@ class VerticalSliceTestCase(TestCase):
             )
 
     def test_core_engine_score_is_explainable_and_non_regulatory(self):
-        commute_import = import_commute_csv(
-            institution=self.institution,
-            site=self.site,
-            cohort=self.cohort,
-            data_source=self.source,
-            actor=self.user,
-            file_name='demo.csv',
-            content=CSV_CONTENT,
-        )
+        commute_import = self._import()
         record = commute_import.records.get(external_id='R1')
+        self.assertEqual(record.origin_zone, 'Eagle Rock')
+        self.assertEqual(record.destination_zone, 'Pasadena Campus')
+        self.assertEqual(record.commute_days, ['Mon', 'Tue', 'Wed'])
+        self.assertEqual(record.schedule_flex_minutes, 20)
+        self.assertEqual(record.current_mode, 'drive_alone')
+        self.assertEqual(record.vehicle_fuel_type, 'gasoline')
+        self.assertEqual(record.parking_difficulty, 'high')
+        self.assertTrue(record.ev_interest)
+        self.assertTrue(record.access_point_willing)
+        self.assertTrue(record.consent_confirmed)
+
         score, factors, explanation = score_commuter_record(record)
         self.assertEqual(score, 100)
         self.assertEqual(factors['drive_alone'], 35)
