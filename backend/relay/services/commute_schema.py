@@ -90,28 +90,31 @@ def _parse_optional_nonnegative_int(value):
     return parsed if parsed >= 0 else None
 
 
-def _shared_mode_has_occupants(frame: pd.DataFrame):
+def _shared_mode_has_occupants(frame: pd.DataFrame) -> pd.Series:
     modes = frame['current_mode'].map(_lower_text)
     occupants = frame['occupants'].map(_parse_optional_nonnegative_int)
-    return [mode not in SHARED_MODES or bool(count) for mode, count in zip(modes, occupants)]
+    values = [mode not in SHARED_MODES or bool(count) for mode, count in zip(modes, occupants)]
+    return pd.Series(values, index=frame.index)
 
 
-def _carpool_occupancy_in_range(frame: pd.DataFrame):
+def _carpool_occupancy_in_range(frame: pd.DataFrame) -> pd.Series:
     modes = frame['current_mode'].map(_lower_text)
     occupants = frame['occupants'].map(_parse_optional_nonnegative_int)
-    return [
+    values = [
         mode != 'carpool' or count is None or 2 <= count <= 6
         for mode, count in zip(modes, occupants)
     ]
+    return pd.Series(values, index=frame.index)
 
 
-def _vanpool_occupancy_in_range(frame: pd.DataFrame):
+def _vanpool_occupancy_in_range(frame: pd.DataFrame) -> pd.Series:
     modes = frame['current_mode'].map(_lower_text)
     occupants = frame['occupants'].map(_parse_optional_nonnegative_int)
-    return [
+    values = [
         mode != 'vanpool' or count is None or 7 <= count <= 15
         for mode, count in zip(modes, occupants)
     ]
+    return pd.Series(values, index=frame.index)
 
 
 def _required_column(name: str):
