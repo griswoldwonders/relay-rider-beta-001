@@ -6,6 +6,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from relay.models import Cohort, DataSource, Institution, Membership, Site
+from relay.services import ingestion
 from relay.services.core_engine import score_commuter_record
 from relay.services.exports import dashboard_payload
 from relay.services.ingestion import import_commute_csv
@@ -44,6 +45,10 @@ class VerticalSliceTestCase(TestCase):
             source_type='synthetic',
             provenance_label='synthetic',
         )
+
+    def test_import_validation_exposes_canonical_schema_contract(self):
+        self.assertTrue(hasattr(ingestion, 'COMMUTE_IMPORT_SCHEMA'))
+        self.assertEqual(ingestion.COMMUTE_IMPORT_SCHEMA.name, 'relay_rider_commute_import_v1')
 
     def test_csv_import_persists_provenance_and_canonical_records(self):
         commute_import = import_commute_csv(
