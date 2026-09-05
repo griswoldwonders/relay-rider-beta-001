@@ -334,6 +334,10 @@ class RedemptionRequest(TimestampedModel):
         ('fulfilled', 'Fulfilled'),
         ('denied', 'Denied'),
     ]
+    FULFILLMENT_METHOD_CHOICES = [
+        ('unspecified', 'Unspecified'),
+        ('manual_program_action', 'Manual program action'),
+    ]
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='redemption_requests')
     credit = models.ForeignKey(GreenRouteCredit, on_delete=models.PROTECT, related_name='redemption_requests')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
@@ -341,10 +345,121 @@ class RedemptionRequest(TimestampedModel):
     requested_units = models.DecimalField(max_digits=10, decimal_places=2)
     unit_label = models.CharField(max_length=80, default='Green Route Credits')
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='requested')
+    fulfillment_method = models.CharField(
+        max_length=32,
+        choices=FULFILLMENT_METHOD_CHOICES,
+        default='unspecified',
+        blank=True,
+        help_text=(
+            'Records how a research-beta fulfillment decision was carried out. '
+            "'fulfilled' status is a program fulfillment decision recorded by an "
+            'administrator; it is not evidence of an actual charge session and does '
+            'not imply automatic settlement with a charging network.'
+        ),
+    )
+    idempotency_key = models.CharField(max_length=160, null=True, blank=True)
     requested_at = models.DateTimeField(auto_now_add=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.CharField(max_length=160, blank=True)
     review_note = models.TextField(blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['credit', 'idempotency_key'],
+                condition=models.Q(idempotency_key__isnull=False),
+                name='unique_credit_idempotency_key',
+            ),
+        ]
+
     def __str__(self):
         return f'Redemption request {self.pk}'
+
+
+class ProgramBenefitPolicy(TimestampedModel):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('retired', 'Retired'),
+    ]
+    EVIDENCE_LABEL_CHOICES = [
+        ('synthetic', 'Synthetic'),
+        ('modeled', 'Modeled'),
+        ('verified', 'Verified'),
+    ]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='benefit_policies')
+    version = models.PositiveIntegerField(default=1)
+    unit_label = models.CharField(max_length=80, default='Green Route Credits')
+    max_units_per_participant = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_units_program_wide = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    expiry_days = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text='Days after issuance a credit expires. NEEDS_FOUNDER_INPUT until a program default is approved.',
+    )
+    eligibility_description = models.TextField(
+        blank=True,
+        help_text='Descriptive-only eligibility notes. NEEDS_FOUNDER_INPUT for a binding eligibility rule.',
+    )
+    earning_rule_description = models.TextField(
+        blank=True,
+        help_text='Descriptive-only earning-rule notes. NEEDS_FOUNDER_INPUT for a binding earning rule.',
+    )
+    effective_start = models.DateField(null=True, blank=True)
+    effective_end = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='draft')
+    evidence_label = models.CharField(max_length=32, choices=EVIDENCE_LABEL_CHOICES, default='synthetic')
+    founder_approval_reference = models.CharField(
+        max_length=160, blank=True,
+        help_text='Reference to the founder/program approval record for this policy version. NEEDS_FOUNDER_INPUT until approved.',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['institution', 'version'], name='unique_institution_policy_version'),
+        ]
+
+    def __str__(self):
+        return f'{self.institution} policy v{self.version}'
+
+
+class ImmutableLedgerQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValueError('WalletLedgerEntry is immutable and cannot be updated after creation.')
+
+    def delete(self):
+        raise ValueError('WalletLedgerEntry is immutable and cannot be deleted.')
+
+
+class WalletLedgerEntry(TimestampedModel):
+    ENTRY_TYPE_CHOICES = [
+        ('ISSUE', 'Issue'),
+        ('HOLD', 'Hold'),
+        ('RELEASE', 'Release'),
+        ('DEBIT', 'Debit'),
+        ('REVERSAL', 'Reversal'),
+        ('EXPIRE', 'Expire'),
+        ('ADJUSTMENT', 'Adjustment'),
+    ]
+    credit = models.ForeignKey(GreenRouteCredit, on_delete=models.PROTECT, related_name='ledger_entries')
+    institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='wallet_ledger_entries')
+    redemption_request = models.ForeignKey(
+        RedemptionRequest, null=True, blank=True, on_delete=models.SET_NULL, related_name='ledger_entries',
+    )
+    entry_type = models.CharField(max_length=16, choices=ENTRY_TYPE_CHOICES)
+    quantity_delta = models.DecimalField(max_digits=10, decimal_places=2)
+    reason = models.CharField(max_length=200, blank=True)
+    correlation_id = models.CharField(max_length=160, blank=True, db_index=True)
+    actor_reference = models.CharField(max_length=160, blank=True)
+
+    objects = ImmutableLedgerQuerySet.as_manager()
+
+    def __str__(self):
+        return f'{self.entry_type} {self.quantity_delta} on credit {self.credit_id}'
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError('WalletLedgerEntry is immutable and cannot be updated after creation.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError('WalletLedgerEntry is immutable and cannot be deleted.')
