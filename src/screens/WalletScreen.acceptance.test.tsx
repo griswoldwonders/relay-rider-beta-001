@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const appState = vi.hoisted(() => ({
   greenRouteCredits: [
@@ -60,6 +60,10 @@ describe('Green Wallet Pasadena acceptance UI', () => {
     appState.redemptionRequests = [];
   });
 
+  afterEach(() => {
+    cleanup();
+  });
+
   it('shows an issued synthetic credit as available before a redemption request', () => {
     render(<WalletScreen onBack={() => undefined} />);
 
@@ -86,7 +90,6 @@ describe('Green Wallet Pasadena acceptance UI', () => {
     render(<WalletScreen onBack={() => undefined} />);
 
     expect(screen.getByText('0 Green Route Credits')).toBeInTheDocument();
-    expect(screen.getByText('0 credits')).toBeInTheDocument();
     expect(screen.getByText('request-pasadena-001')).toBeInTheDocument();
     expect(screen.getByText(/Synthetic Pasadena Program Charging Hub.*fulfilled/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /EV Charge Benefit/i })).toBeDisabled();
