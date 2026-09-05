@@ -36,7 +36,7 @@ A future schema migration may persist derived H3 cells only after the service co
 
 Use the official Python H3 bindings from `uber/h3-py`.
 
-Pin the dependency in `backend/requirements.txt` to an explicitly reviewed version during implementation. The design target is H3 Python v4.5.x compatibility.
+Pin `h3==4.5.0` in `backend/requirements.txt` for this implementation.
 
 No H3 PostgreSQL extension, PostGIS dependency, routing engine, or additional geospatial service is introduced in this phase.
 
@@ -139,9 +139,9 @@ This prevents sparse cells from being exposed merely because a caller asks for a
 
 ## Deduplication
 
-Within a single aggregation request, an opaque record identifier may contribute at most once to the same analysis scope.
+Within a single aggregation request, an opaque record identifier may contribute at most once to the selected analysis scope.
 
-Duplicate observations for the same record identifier must fail closed or be deterministically deduplicated before counting. The implementation plan will use one explicit behavior and test it; silent double-counting is prohibited.
+A duplicate record identifier is a hard error. The entire aggregation request fails closed with `duplicate observation identifier`; duplicates are never silently filtered, merged, or double-counted.
 
 ## Tenant isolation
 
@@ -218,13 +218,13 @@ Existing vertical-slice and acceptance suites remain unchanged except for depend
 
 ### `backend/requirements.txt`
 
-Adds one pinned H3 Python dependency.
+Adds `h3==4.5.0`.
 
 No Django migration should be generated.
 
 ## Error handling
 
-The service fails closed for invalid scope, invalid coordinates, or malformed observations.
+The service fails closed for invalid scope, invalid coordinates, duplicate identifiers, or malformed observations.
 
 Errors are deterministic and privacy-safe. They identify the field/category of failure without embedding sensitive values.
 
@@ -253,7 +253,7 @@ Required tests:
 6. Mixed-institution observations fail closed.
 7. Site-scope mismatch fails closed.
 8. Cohort-scope mismatch fails closed.
-9. Duplicate record identifiers cannot double-count.
+9. Duplicate record identifiers fail the complete request and cannot double-count.
 10. Five compatible observations publish one corridor at the default threshold.
 11. Four compatible observations suppress the corridor.
 12. Suppression summary does not reveal suppressed H3 cells.
