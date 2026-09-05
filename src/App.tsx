@@ -156,7 +156,7 @@ function AppContent() {
 
       {currentScreen === 'map' && (
         <>
-          <MapScreen onSuggestZone={() => {}} />
+          <MapScreen />
           <BottomNav currentTab={currentTab} onTabChange={handleTabChange} />
         </>
       )}

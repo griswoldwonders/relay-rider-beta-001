@@ -1,5 +1,20 @@
 export type MapLocationKind = 'anchor' | 'ev-hub' | 'school';
 
+/**
+ * official-source: operated/published by the institution, agency, or utility the
+ *   location belongs to (a campus, a city utility, a charging network's own listing).
+ * directory: a third-party aggregator or advocacy site, not the operator itself.
+ * provisional-reference: a general-reference source (e.g. Wikipedia) standing in until
+ *   an official-source or directory citation is confirmed.
+ */
+export type EvidenceSourceType = 'official-source' | 'directory' | 'provisional-reference';
+
+export interface LocationEvidence {
+  sourceType: EvidenceSourceType;
+  /** ISO date this location's source link/details were last checked in this prototype. */
+  checkedOn: string;
+}
+
 export interface MapLocation {
   id: string;
   name: string;
@@ -10,6 +25,11 @@ export interface MapLocation {
   lat: number;
   lng: number;
   reviewStatus: 'candidate' | 'partner-review';
+  /** Whether this location is a candidate Access Point (commute-need intake / route
+   * registration site), independent of its `kind` or `type` label. EV charging hubs
+   * are existing infrastructure, not candidate Access Points. */
+  accessPointCandidate: boolean;
+  evidence: LocationEvidence;
   notes: string;
   sourceLabel: string;
   sourceUrl: string;
@@ -21,6 +41,12 @@ export interface MapLocation {
     label: string;
     summary: string;
   };
+}
+
+/** Candidate Access Points, defined by the per-location `accessPointCandidate` flag
+ * rather than by matching on `kind`/`type` strings. */
+export function selectAccessPointCandidates(locations: MapLocation[]): MapLocation[] {
+  return locations.filter(location => location.accessPointCandidate);
 }
 
 export const corridorPath: [number, number][] = [
@@ -47,6 +73,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1478,
     lng: -118.1145,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'Candidate campus Access Point for commute-need intake and EV/hybrid route registration. Not yet an approved program site.',
     sourceLabel: 'PCC — Directions',
     sourceUrl: 'https://pasadena.edu/about/directions.php',
@@ -66,6 +94,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1377,
     lng: -118.1253,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'Candidate campus Access Point near the Fillmore Station leg of the corridor. Not yet an approved program site.',
     sourceLabel: 'Caltech Parking & Commuter Services',
     sourceUrl: 'https://parking.caltech.edu/parking-info/electric-car-chargers',
@@ -81,6 +111,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1263,
     lng: -118.2115,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'Candidate campus Access Point in Eagle Rock, between the Pasadena and Glendale legs of the corridor. Not yet an approved program site.',
     sourceLabel: 'Occidental College — Maps & Directions',
     sourceUrl: 'https://www.oxy.edu/contact-us/maps-directions',
@@ -99,6 +131,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1636,
     lng: -118.2437,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'Candidate campus Access Point at the Glendale end of the corridor. Not yet an approved program site.',
     sourceLabel: 'Glendale Community College — Home',
     sourceUrl: 'https://www.glendale.edu/index.html',
@@ -119,6 +153,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1327,
     lng: -118.1436,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'directory', checkedOn: '2026-08-26' },
     notes: 'A Line light-rail station with on-site parking and bike racks. Candidate Access Point for park-and-ride style route matching. Verify live schedules and service alerts with Metro before travel.',
     sourceLabel: 'Metro — A Line',
     sourceUrl: 'https://foothillgoldline.org/cities_stations/pasadena/',
@@ -133,6 +169,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1112,
     lng: -118.1926,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'provisional-reference', checkedOn: '2026-08-26' },
     notes: 'A Line light-rail station roughly midway along the corridor. Candidate Access Point. Verify live schedules and service alerts with Metro before travel.',
     sourceLabel: 'LA Metro — Highland Park Station',
     sourceUrl: 'https://en.wikipedia.org/wiki/Highland_Park_station_(Los_Angeles_Metro)',
@@ -147,6 +185,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.0983,
     lng: -118.2067,
     reviewStatus: 'candidate',
+    accessPointCandidate: true,
+    evidence: { sourceType: 'provisional-reference', checkedOn: '2026-08-26' },
     notes: 'A Line light-rail station near the western leg of the corridor toward Eagle Rock/Glendale. Candidate Access Point. Verify live schedules and service alerts with Metro before travel.',
     sourceLabel: 'LA Metro / Wikipedia — Southwest Museum Station',
     sourceUrl: 'https://en.wikipedia.org/wiki/Southwest_Museum_station',
@@ -163,6 +203,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1445,
     lng: -118.1445,
     reviewStatus: 'candidate',
+    accessPointCandidate: false,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'City of Pasadena Water & Power public charging plaza near Old Town/Paseo Colorado. Verify live stall availability and pricing before relying on a charge.',
     sourceLabel: 'Pasadena Water & Power — EV Charging',
     sourceUrl: 'https://pwp.cityofpasadena.net/ev-find-a-charging-station/',
@@ -178,6 +220,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1445,
     lng: -118.2551,
     reviewStatus: 'candidate',
+    accessPointCandidate: false,
+    evidence: { sourceType: 'directory', checkedOn: '2026-08-26' },
     notes: 'ChargePoint Level 2 charging at The Americana at Brand shopping/retail center. Verify live stall availability and pricing before relying on a charge.',
     sourceLabel: 'ChargePoint — The Americana at Brand',
     sourceUrl: 'https://chargehub.com/en/ev-charging-stations/united-states/california/glendale/the-americana-at-brand/electric-car-stations-near-me?locId=47974',
@@ -193,6 +237,8 @@ export const mapLocations: MapLocation[] = [
     lat: 34.1156,
     lng: -118.1553,
     reviewStatus: 'candidate',
+    accessPointCandidate: false,
+    evidence: { sourceType: 'official-source', checkedOn: '2026-08-26' },
     notes: 'EVgo DC fast-charging stalls just south of the Pasadena corridor leg. Verify live stall availability and pricing before relying on a charge.',
     sourceLabel: 'EVgo — Find a Charger',
     sourceUrl: 'https://www.evgo.com/find-a-charger/ca/south-pasadena/820-mound-ave-204665/',

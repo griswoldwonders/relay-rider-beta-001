@@ -56,7 +56,7 @@ export function sessionDemandZones(signals: RouteSignal[]): CommuterDemandZone[]
     const destination = resolveArea(signal.destinationArea);
     const accessPointWilling = signal.relayZoneType.length > 0 ? 1 : 0;
     const evPreference = signal.evPreference === 'any' ? 0 : 1;
-    const destinationLabel = destination?.label ?? (signal.destinationArea || 'Destination area not resolved');
+    const destinationLabel = destination?.label ?? 'Unresolved area';
 
     return [{
       id: `session-demand-${signal.id}`,
