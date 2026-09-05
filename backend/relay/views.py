@@ -1,7 +1,8 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -11,8 +12,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import (
+    AssessmentAuditEvent,
     ChargingHub,
     Corridor,
+    DecisionCard,
     EVParticipantSignal,
     GreenRouteCredit,
     Institution,
@@ -24,7 +27,15 @@ from .models import (
     RouteSignal,
     WalletLedgerEntry,
 )
-from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
+from .permissions import (
+    CanReviewRedemptionRequest,
+    CanSubmitRedemptionRequest,
+    IsTenantMember,
+    user_institution_ids,
+    user_is_platform_admin,
+    user_participant_institution_ids,
+    user_staff_institution_ids,
+)
 from .serializers import (
     ChargingHubSerializer,
     CorridorSerializer,
@@ -86,9 +97,26 @@ class TenantScopedQuerySetMixin:
         return queryset.filter(institution_id__in=user_institution_ids(user))
 
 
-class GreenRouteCreditViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class ParticipantOwnedWalletQuerySetMixin:
+    """Staff see their tenant; participants only see rows owned by their Profile."""
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        if user_is_platform_admin(user):
+            return queryset
+
+        staff_institutions = user_staff_institution_ids(user)
+        participant_institutions = user_participant_institution_ids(user)
+        return queryset.filter(
+            Q(institution_id__in=staff_institutions)
+            | Q(institution_id__in=participant_institutions, profile__user=user)
+        ).distinct()
+
+
+class GreenRouteCreditViewSet(ParticipantOwnedWalletQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsTenantMember]
-    queryset = GreenRouteCredit.objects.all().order_by('-created_at')
+    queryset = GreenRouteCredit.objects.select_related('profile').all().order_by('-created_at')
     serializer_class = GreenRouteCreditSerializer
 
 
@@ -99,26 +127,29 @@ class ProgramBenefitPolicyViewSet(TenantScopedQuerySetMixin, mixins.ListModelMix
 
 
 class RedemptionRequestViewSet(
-    TenantScopedQuerySetMixin,
+    ParticipantOwnedWalletQuerySetMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = RedemptionRequest.objects.select_related('credit', 'charging_hub', 'profile').all().order_by('-requested_at')
+    queryset = RedemptionRequest.objects.select_related('credit', 'charging_hub', 'profile', 'profile__user').all().order_by('-requested_at')
     serializer_class = RedemptionRequestSerializer
 
     def get_permissions(self):
         if self.action in ('update', 'partial_update'):
             return [CanReviewRedemptionRequest()]
+        if self.action == 'create':
+            return [CanSubmitRedemptionRequest()]
         return [IsTenantMember()]
 
     def _find_existing_redemption_request(self, credit_id, idempotency_key):
         if not (idempotency_key and credit_id):
             return None
-        return RedemptionRequest.objects.filter(
-            credit_id=credit_id, idempotency_key=idempotency_key,
+        return self.get_queryset().filter(
+            credit_id=credit_id,
+            idempotency_key=idempotency_key,
         ).first()
 
     def create(self, request, *args, **kwargs):
@@ -199,6 +230,123 @@ class RedemptionRequestViewSet(
                 correlation_id=f'redemption:{redemption_request.pk}',
                 actor_reference=self.request.user.get_username(),
             )
+
+
+class ProfileBindUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, profile_id):
+        User = get_user_model()
+        target_user_id = request.data.get('user')
+        if not target_user_id:
+            return Response({'user': 'A target user is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            try:
+                profile = Profile.objects.select_for_update().select_related('institution', 'user').get(pk=profile_id)
+            except Profile.DoesNotExist as exc:
+                raise NotFound('Profile not found') from exc
+
+            if profile.institution_id is None:
+                return Response(
+                    {'profile': 'Unscoped research-beta profiles cannot be bound until an institution is assigned.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            caller_is_admin = user_is_platform_admin(request.user) or Membership.objects.filter(
+                user=request.user,
+                institution_id=profile.institution_id,
+                role='institution_admin',
+            ).exists()
+            if not caller_is_admin:
+                raise PermissionDenied('Institution administrator access is required to bind a profile owner.')
+
+            try:
+                target_user = User.objects.get(pk=target_user_id)
+            except User.DoesNotExist:
+                return Response({'user': 'Target user is not eligible for this profile.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            eligible_membership = Membership.objects.filter(
+                user=target_user,
+                institution_id=profile.institution_id,
+                role='participant',
+            ).exists()
+            if not eligible_membership:
+                return Response({'user': 'Target user is not an eligible participant in this institution.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if profile.user_id is not None:
+                if profile.user_id == target_user.id:
+                    return Response({'profile': profile.id, 'user': target_user.id}, status=status.HTTP_200_OK)
+                return Response({'profile': 'Profile ownership is already bound and cannot be reassigned.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            if Profile.objects.filter(user=target_user).exclude(pk=profile.pk).exists():
+                return Response({'user': 'Target user already owns another Relay Rider profile.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            profile.user = target_user
+            profile.save(update_fields=['user', 'updated_at'])
+            AssessmentAuditEvent.objects.create(
+                institution=profile.institution,
+                actor=request.user,
+                action='profile_owner_bound',
+                entity_type='Profile',
+                entity_id=str(profile.id),
+                metadata={'target_user_id': target_user.id},
+            )
+
+        return Response({'profile': profile.id, 'user': target_user.id}, status=status.HTTP_200_OK)
+
+
+class DecisionCardReviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, card_id):
+        with transaction.atomic():
+            try:
+                card = DecisionCard.objects.select_for_update().select_related('institution', 'site').get(pk=card_id)
+            except DecisionCard.DoesNotExist as exc:
+                raise NotFound('Decision Card not found') from exc
+
+            caller_can_review = user_is_platform_admin(request.user) or Membership.objects.filter(
+                user=request.user,
+                institution_id=card.institution_id,
+                role__in={'institution_admin', 'program_staff'},
+            ).exists()
+            if not caller_can_review:
+                raise PermissionDenied('Administrative review permission is required.')
+
+            if card.status != 'ready_for_review':
+                return Response(
+                    {'status': f'Decision Card cannot transition from {card.status} to reviewed.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            review_note = (request.data.get('review_note') or '').strip()
+            card.status = 'reviewed'
+            card.reviewed_at = timezone.now()
+            card.reviewed_by = request.user
+            card.review_note = review_note
+            card.save(update_fields=['status', 'reviewed_at', 'reviewed_by', 'review_note', 'updated_at'])
+            AssessmentAuditEvent.objects.create(
+                institution=card.institution,
+                site=card.site,
+                actor=request.user,
+                action='decision_card_reviewed',
+                entity_type='DecisionCard',
+                entity_id=str(card.id),
+                metadata={
+                    'previous_status': 'ready_for_review',
+                    'new_status': 'reviewed',
+                    'review_note_present': bool(review_note),
+                },
+            )
+
+        return Response({
+            'id': card.id,
+            'status': card.status,
+            'reviewed_at': card.reviewed_at,
+            'reviewed_by': card.reviewed_by_id,
+            'review_note': card.review_note,
+        }, status=status.HTTP_200_OK)
 
 
 def _institution_for_user(user, institution_id):
