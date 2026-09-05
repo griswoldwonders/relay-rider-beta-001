@@ -5,94 +5,22 @@ import io
 from django.db import transaction
 
 from relay.models import AssessmentAuditEvent, CommuteImport, CommuterRecord
-
-
-REQUIRED_COLUMNS = {
-    'external_id',
-    'origin_zone',
-    'destination_zone',
-    'commute_days',
-    'arrival_window',
-    'departure_window',
-    'current_mode',
-    'consent_confirmed',
-}
-
-TRUTHY = {'1', 'true', 'yes', 'y'}
-FALSY = {'0', 'false', 'no', 'n', ''}
-
-
-def _parse_bool(value, field_name, errors):
-    normalized = (value or '').strip().lower()
-    if normalized in TRUTHY:
-        return True
-    if normalized in FALSY:
-        return False
-    errors.append(f'{field_name} must be yes/no or true/false')
-    return False
-
-
-def _parse_nonnegative_int(value, field_name, errors, *, optional=False):
-    raw = (value or '').strip()
-    if optional and raw == '':
-        return None
-    try:
-        parsed = int(raw or '0')
-    except ValueError:
-        errors.append(f'{field_name} must be an integer')
-        return None if optional else 0
-    if parsed < 0:
-        errors.append(f'{field_name} must be non-negative')
-        return None if optional else 0
-    return parsed
-
-
-def _validate_row(row):
-    errors = []
-    for field in REQUIRED_COLUMNS:
-        if not (row.get(field) or '').strip():
-            errors.append(f'{field} is required')
-
-    days = [day.strip() for day in (row.get('commute_days') or '').split('|') if day.strip()]
-    flex = _parse_nonnegative_int(row.get('schedule_flex_minutes'), 'schedule_flex_minutes', errors)
-    occupants = _parse_nonnegative_int(row.get('occupants'), 'occupants', errors, optional=True)
-    ev_interest = _parse_bool(row.get('ev_interest'), 'ev_interest', errors)
-    access_point_willing = _parse_bool(row.get('access_point_willing'), 'access_point_willing', errors)
-    consent_confirmed = _parse_bool(row.get('consent_confirmed'), 'consent_confirmed', errors)
-
-    mode = (row.get('current_mode') or '').strip().lower()
-    if mode in {'carpool', 'vanpool', 'shared_motorcycle'} and not occupants:
-        errors.append(f'occupants is required for {mode}')
-    if mode == 'carpool' and occupants is not None and not 2 <= occupants <= 6:
-        errors.append('carpool occupants must be between 2 and 6')
-    if mode == 'vanpool' and occupants is not None and not 7 <= occupants <= 15:
-        errors.append('vanpool occupants must be between 7 and 15')
-
-    normalized = {
-        'external_id': (row.get('external_id') or '').strip(),
-        'origin_zone': (row.get('origin_zone') or '').strip(),
-        'destination_zone': (row.get('destination_zone') or '').strip(),
-        'commute_days': days,
-        'arrival_window': (row.get('arrival_window') or '').strip(),
-        'departure_window': (row.get('departure_window') or '').strip(),
-        'schedule_flex_minutes': flex,
-        'current_mode': mode,
-        'occupants': occupants,
-        'vehicle_fuel_type': (row.get('vehicle_fuel_type') or '').strip().lower(),
-        'parking_difficulty': (row.get('parking_difficulty') or '').strip().lower(),
-        'ev_interest': ev_interest,
-        'access_point_willing': access_point_willing,
-        'consent_confirmed': consent_confirmed,
-    }
-    return normalized, errors
+from relay.services.commute_schema import (
+    COMMUTE_IMPORT_SCHEMA,
+    REQUIRED_COLUMNS,
+    missing_required_columns,
+    validate_and_normalize_rows,
+)
 
 
 @transaction.atomic
 def import_commute_csv(*, institution, site, cohort, data_source, actor, file_name, content):
     """Validate and persist canonical commuter records with row-level provenance.
 
-    Invalid rows are persisted with validation errors so source quality remains
-    auditable. Only valid rows are eligible for downstream engine/calculation use.
+    Pandera owns the canonical tabular validation contract. Invalid rows are
+    still persisted with retained validation errors so source quality remains
+    auditable. Only valid rows are eligible for downstream engine/calculation
+    use.
     """
 
     if cohort.site_id != site.id or site.institution_id != institution.id or cohort.institution_id != institution.id:
@@ -104,7 +32,7 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
     text = encoded.decode('utf-8-sig')
     reader = csv.DictReader(io.StringIO(text))
     headers = set(reader.fieldnames or [])
-    missing = sorted(REQUIRED_COLUMNS - headers)
+    missing = missing_required_columns(headers)
     if missing:
         raise ValueError(f'missing required CSV columns: {", ".join(missing)}')
 
@@ -119,10 +47,13 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
         status='pending',
     )
 
+    raw_rows = list(reader)
+    validated_rows = validate_and_normalize_rows(raw_rows)
+
     valid_rows = 0
     invalid_rows = 0
-    for row_number, row in enumerate(reader, start=2):
-        normalized, errors = _validate_row(row)
+    for row_number, (raw_row, validation_result) in enumerate(zip(raw_rows, validated_rows), start=2):
+        normalized, errors = validation_result
         validation_status = 'invalid' if errors else 'valid'
         if errors:
             invalid_rows += 1
@@ -137,7 +68,7 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
             validation_status=validation_status,
             validation_errors=errors,
             source_row_number=row_number,
-            source_payload=row,
+            source_payload=raw_row,
             **normalized,
         )
 
