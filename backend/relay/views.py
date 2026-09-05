@@ -242,8 +242,15 @@ class ProfileBindUserView(APIView):
             return Response({'user': 'A target user is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            profile_queryset = Profile.objects.select_for_update().select_related('institution', 'user')
+            if not user_is_platform_admin(request.user):
+                admin_institution_ids = Membership.objects.filter(
+                    user=request.user,
+                    role='institution_admin',
+                ).values_list('institution_id', flat=True)
+                profile_queryset = profile_queryset.filter(institution_id__in=admin_institution_ids)
             try:
-                profile = Profile.objects.select_for_update().select_related('institution', 'user').get(pk=profile_id)
+                profile = profile_queryset.get(pk=profile_id)
             except Profile.DoesNotExist as exc:
                 raise NotFound('Profile not found') from exc
 
@@ -252,14 +259,6 @@ class ProfileBindUserView(APIView):
                     {'profile': 'Unscoped research-beta profiles cannot be bound until an institution is assigned.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            caller_is_admin = user_is_platform_admin(request.user) or Membership.objects.filter(
-                user=request.user,
-                institution_id=profile.institution_id,
-                role='institution_admin',
-            ).exists()
-            if not caller_is_admin:
-                raise PermissionDenied('Institution administrator access is required to bind a profile owner.')
 
             try:
                 target_user = User.objects.get(pk=target_user_id)
@@ -301,18 +300,15 @@ class DecisionCardReviewView(APIView):
 
     def post(self, request, card_id):
         with transaction.atomic():
+            card_queryset = DecisionCard.objects.select_for_update().select_related('institution', 'site')
+            if not user_is_platform_admin(request.user):
+                card_queryset = card_queryset.filter(
+                    institution_id__in=user_staff_institution_ids(request.user)
+                )
             try:
-                card = DecisionCard.objects.select_for_update().select_related('institution', 'site').get(pk=card_id)
+                card = card_queryset.get(pk=card_id)
             except DecisionCard.DoesNotExist as exc:
                 raise NotFound('Decision Card not found') from exc
-
-            caller_can_review = user_is_platform_admin(request.user) or Membership.objects.filter(
-                user=request.user,
-                institution_id=card.institution_id,
-                role__in={'institution_admin', 'program_staff'},
-            ).exists()
-            if not caller_can_review:
-                raise PermissionDenied('Administrative review permission is required.')
 
             if card.status != 'ready_for_review':
                 return Response(
