@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260808052302 saas_foundation_rbac_directory.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

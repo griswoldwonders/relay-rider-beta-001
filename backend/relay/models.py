@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+
 class TimestampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -23,16 +24,217 @@ class Institution(TimestampedModel):
 
 
 class Membership(TimestampedModel):
-    ROLE_CHOICES = [('platform_admin', 'Platform admin'), ('institution_admin', 'Institution admin'), ('program_staff', 'Program staff'), ('viewer', 'Viewer')]
+    ROLE_CHOICES = [
+        ('platform_admin', 'Platform admin'),
+        ('institution_admin', 'Institution admin'),
+        ('program_staff', 'Program staff'),
+        ('viewer', 'Viewer'),
+    ]
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='memberships')
     role = models.CharField(max_length=32, choices=ROLE_CHOICES, default='viewer')
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=['user', 'institution'], name='unique_user_institution_membership')]
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'institution'], name='unique_user_institution_membership'),
+        ]
 
     def __str__(self):
         return f'{self.user} @ {self.institution} ({self.role})'
+
+
+class Site(TimestampedModel):
+    """Institution-owned worksite/campus used as the assessment boundary."""
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='sites')
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=160)
+    site_type = models.CharField(max_length=64, default='worksite')
+    city = models.CharField(max_length=120, blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['institution', 'slug'], name='unique_site_slug_per_institution'),
+        ]
+
+    def __str__(self):
+        return f'{self.institution}: {self.name}'
+
+
+class Cohort(TimestampedModel):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='cohorts')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='cohorts')
+    name = models.CharField(max_length=160)
+    slug = models.SlugField(max_length=160)
+    cohort_type = models.CharField(max_length=64, default='participant_group')
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['site', 'slug'], name='unique_cohort_slug_per_site'),
+        ]
+
+    def __str__(self):
+        return f'{self.site}: {self.name}'
+
+
+class DataSource(TimestampedModel):
+    SOURCE_TYPES = [
+        ('csv', 'CSV import'),
+        ('survey', 'Survey'),
+        ('api', 'API'),
+        ('manual', 'Manual entry'),
+        ('synthetic', 'Synthetic fixture'),
+    ]
+    PROVENANCE_LABELS = [
+        ('imported', 'Imported'),
+        ('reported', 'Reported'),
+        ('synthetic', 'Synthetic'),
+        ('modeled', 'Modeled'),
+    ]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='data_sources')
+    site = models.ForeignKey(Site, null=True, blank=True, on_delete=models.CASCADE, related_name='data_sources')
+    name = models.CharField(max_length=160)
+    source_type = models.CharField(max_length=32, choices=SOURCE_TYPES)
+    provenance_label = models.CharField(max_length=32, choices=PROVENANCE_LABELS)
+    source_reference = models.CharField(max_length=255, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class CommuteImport(TimestampedModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('validated', 'Validated'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='commute_imports')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='commute_imports')
+    cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='commute_imports')
+    data_source = models.ForeignKey(DataSource, on_delete=models.PROTECT, related_name='commute_imports')
+    imported_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='commute_imports')
+    file_name = models.CharField(max_length=255)
+    file_sha256 = models.CharField(max_length=64)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='pending')
+    total_rows = models.PositiveIntegerField(default=0)
+    valid_rows = models.PositiveIntegerField(default=0)
+    invalid_rows = models.PositiveIntegerField(default=0)
+    validation_summary = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f'{self.file_name} ({self.status})'
+
+
+class CommuterRecord(TimestampedModel):
+    VALIDATION_CHOICES = [('valid', 'Valid'), ('invalid', 'Invalid')]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='commuter_records')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='commuter_records')
+    cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='commuter_records')
+    commute_import = models.ForeignKey(CommuteImport, on_delete=models.CASCADE, related_name='records')
+    external_id = models.CharField(max_length=120)
+    origin_zone = models.CharField(max_length=120)
+    destination_zone = models.CharField(max_length=120)
+    commute_days = models.JSONField(default=list)
+    arrival_window = models.CharField(max_length=80)
+    departure_window = models.CharField(max_length=80)
+    schedule_flex_minutes = models.PositiveIntegerField(default=0)
+    current_mode = models.CharField(max_length=64)
+    occupants = models.PositiveIntegerField(null=True, blank=True)
+    vehicle_fuel_type = models.CharField(max_length=64, blank=True)
+    parking_difficulty = models.CharField(max_length=32, blank=True)
+    ev_interest = models.BooleanField(default=False)
+    access_point_willing = models.BooleanField(default=False)
+    consent_confirmed = models.BooleanField(default=False)
+    validation_status = models.CharField(max_length=16, choices=VALIDATION_CHOICES, default='valid')
+    validation_errors = models.JSONField(default=list, blank=True)
+    source_row_number = models.PositiveIntegerField()
+    source_payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['commute_import', 'external_id'], name='unique_external_id_per_import'),
+        ]
+
+    def __str__(self):
+        return f'{self.external_id}: {self.origin_zone} → {self.destination_zone}'
+
+
+class EngineScore(TimestampedModel):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='engine_scores')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='engine_scores')
+    cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='engine_scores')
+    commuter_record = models.OneToOneField(CommuterRecord, on_delete=models.CASCADE, related_name='engine_score')
+    score_type = models.CharField(max_length=80, default='intervention_opportunity')
+    score = models.PositiveSmallIntegerField()
+    factors = models.JSONField(default=dict)
+    explanation = models.TextField()
+    engine_version = models.CharField(max_length=64)
+
+    def __str__(self):
+        return f'{self.score_type}: {self.score}'
+
+
+class Rule2202CalculationRun(TimestampedModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('blocked', 'Blocked'),
+        ('failed', 'Failed'),
+    ]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='rule2202_runs')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='rule2202_runs')
+    cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='rule2202_runs')
+    commute_import = models.ForeignKey(CommuteImport, on_delete=models.PROTECT, related_name='rule2202_runs')
+    initiated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='rule2202_runs')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='pending')
+    calculation_version = models.CharField(max_length=80, default='rule2202-sql-202609020001')
+    input_snapshot = models.JSONField(default=dict)
+    result_snapshot = models.JSONField(default=dict)
+    validation_snapshot = models.JSONField(default=dict)
+    blocked_reason = models.TextField(blank=True)
+
+    def __str__(self):
+        return f'Rule 2202 run {self.pk} ({self.status})'
+
+
+class DecisionCard(TimestampedModel):
+    STATUS_CHOICES = [('draft', 'Draft'), ('ready_for_review', 'Ready for review'), ('reviewed', 'Reviewed')]
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='decision_cards')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='decision_cards')
+    cohort = models.ForeignKey(Cohort, on_delete=models.CASCADE, related_name='decision_cards')
+    commute_import = models.ForeignKey(CommuteImport, on_delete=models.PROTECT, related_name='decision_cards')
+    rule2202_run = models.ForeignKey(Rule2202CalculationRun, null=True, blank=True, on_delete=models.SET_NULL, related_name='decision_cards')
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='draft')
+    title = models.CharField(max_length=200)
+    finding = models.TextField()
+    evidence = models.JSONField(default=list)
+    interpretation = models.TextField(blank=True)
+    recommended_action = models.TextField()
+    owner_label = models.CharField(max_length=160, blank=True)
+    provenance = models.JSONField(default=dict)
+
+    def __str__(self):
+        return self.title
+
+
+class AssessmentAuditEvent(models.Model):
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='assessment_audit_events')
+    site = models.ForeignKey(Site, null=True, blank=True, on_delete=models.SET_NULL, related_name='assessment_audit_events')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='assessment_audit_events')
+    action = models.CharField(max_length=100)
+    entity_type = models.CharField(max_length=80)
+    entity_id = models.CharField(max_length=80, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    occurred_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['occurred_at', 'id']
+
+    def __str__(self):
+        return f'{self.action} {self.entity_type}:{self.entity_id}'
 
 
 class Profile(TimestampedModel):
@@ -46,6 +248,7 @@ class Profile(TimestampedModel):
     def __str__(self):
         return self.name or self.email or f'Profile {self.pk}'
 
+
 class RouteSignal(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='route_signals')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
@@ -57,6 +260,7 @@ class RouteSignal(TimestampedModel):
 
     def __str__(self):
         return f'{self.origin_zone} → {self.destination_zone}'.strip(' →') or f'Route signal {self.pk}'
+
 
 class EVParticipantSignal(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='ev_participant_signals')
@@ -70,6 +274,7 @@ class EVParticipantSignal(TimestampedModel):
     def __str__(self):
         return self.corridor or f'EV participant signal {self.pk}'
 
+
 class RelayZone(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='relay_zones')
     name = models.CharField(max_length=120)
@@ -77,6 +282,7 @@ class RelayZone(TimestampedModel):
 
     def __str__(self):
         return self.name
+
 
 class Corridor(TimestampedModel):
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='corridors')
@@ -88,19 +294,15 @@ class Corridor(TimestampedModel):
     def __str__(self):
         return self.name
 
+
 class GreenRouteCredit(TimestampedModel):
     STATUS_CHOICES = [('issued', 'Issued'), ('redeemed', 'Redeemed'), ('expired', 'Expired')]
-
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='green_route_credits')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
     corridor = models.ForeignKey(Corridor, null=True, blank=True, on_delete=models.SET_NULL)
-    # Canonical program-defined incentive quantity. It is not currency, a fare,
-    # a charging reimbursement, or an emissions metric.
     amount_units = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     unit_label = models.CharField(max_length=80, default='Green Route Credits')
     status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='issued')
-    # Impact estimates remain separate evidence fields and must never be used as
-    # a proxy for the incentive quantity.
     estimated_miles_reduced = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     estimated_co2_lbs_reduced = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     note = models.TextField(blank=True)
@@ -108,10 +310,10 @@ class GreenRouteCredit(TimestampedModel):
     def __str__(self):
         return f'Green route credit {self.pk}'
 
+
 class ChargingHub(TimestampedModel):
     STATUS_CHOICES = [('candidate', 'Candidate'), ('verified', 'Verified'), ('active', 'Active')]
     EVIDENCE_LABEL_CHOICES = [('synthetic', 'Synthetic'), ('modeled', 'Modeled'), ('verified', 'Verified')]
-
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='charging_hubs')
     name = models.CharField(max_length=160)
     network = models.CharField(max_length=120)
@@ -124,6 +326,7 @@ class ChargingHub(TimestampedModel):
     def __str__(self):
         return self.name
 
+
 class RedemptionRequest(TimestampedModel):
     STATUS_CHOICES = [
         ('requested', 'Requested'),
@@ -135,7 +338,6 @@ class RedemptionRequest(TimestampedModel):
         ('unspecified', 'Unspecified'),
         ('manual_program_action', 'Manual program action'),
     ]
-
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='redemption_requests')
     credit = models.ForeignKey(GreenRouteCredit, on_delete=models.PROTECT, related_name='redemption_requests')
     profile = models.ForeignKey(Profile, null=True, blank=True, on_delete=models.SET_NULL)
@@ -175,13 +377,6 @@ class RedemptionRequest(TimestampedModel):
 
 
 class ProgramBenefitPolicy(TimestampedModel):
-    """Institution-scoped, versioned program-benefit rules.
-
-    Real earning rules, caps, and expiry values require founder/program
-    approval. Fields default to conservative null/blank values so this model
-    can be migrated in ahead of that decision without inventing values.
-    """
-
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('active', 'Active'),
@@ -192,7 +387,6 @@ class ProgramBenefitPolicy(TimestampedModel):
         ('modeled', 'Modeled'),
         ('verified', 'Verified'),
     ]
-
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='benefit_policies')
     version = models.PositiveIntegerField(default=1)
     unit_label = models.CharField(max_length=80, default='Green Route Credits')
@@ -229,8 +423,6 @@ class ProgramBenefitPolicy(TimestampedModel):
 
 
 class ImmutableLedgerQuerySet(models.QuerySet):
-    """Blocks bulk update/delete so immutability can't be bypassed via the queryset API."""
-
     def update(self, **kwargs):
         raise ValueError('WalletLedgerEntry is immutable and cannot be updated after creation.')
 
@@ -239,14 +431,6 @@ class ImmutableLedgerQuerySet(models.QuerySet):
 
 
 class WalletLedgerEntry(TimestampedModel):
-    """Immutable Green Wallet ledger event.
-
-    Entries are created and never mutated or deleted at the application
-    layer; there is no generic CRUD endpoint for this model. This vertical
-    slice records events for audit/traceability. It does not compute or
-    expose a running balance, and it is not a payment or settlement ledger.
-    """
-
     ENTRY_TYPE_CHOICES = [
         ('ISSUE', 'Issue'),
         ('HOLD', 'Hold'),
@@ -256,7 +440,6 @@ class WalletLedgerEntry(TimestampedModel):
         ('EXPIRE', 'Expire'),
         ('ADJUSTMENT', 'Adjustment'),
     ]
-
     credit = models.ForeignKey(GreenRouteCredit, on_delete=models.PROTECT, related_name='ledger_entries')
     institution = models.ForeignKey(Institution, null=True, blank=True, on_delete=models.SET_NULL, related_name='wallet_ledger_entries')
     redemption_request = models.ForeignKey(

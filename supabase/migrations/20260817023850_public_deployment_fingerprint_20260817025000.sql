@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260817023850 public_deployment_fingerprint_20260817025000.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

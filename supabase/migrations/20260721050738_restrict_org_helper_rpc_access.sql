@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor.
+-- Authoritative SQL body is stored in production supabase_migrations.schema_migrations.
+-- This version was already applied to Relay-Rider-RD before repository history was recovered.

@@ -2,45 +2,80 @@ from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 from django.db.models import Sum
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Profile, ProgramBenefitPolicy, RedemptionRequest, RelayZone, RouteSignal, WalletLedgerEntry
+from rest_framework.views import APIView
+
+from .models import (
+    ChargingHub,
+    Corridor,
+    EVParticipantSignal,
+    GreenRouteCredit,
+    Institution,
+    Membership,
+    Profile,
+    ProgramBenefitPolicy,
+    RedemptionRequest,
+    RelayZone,
+    RouteSignal,
+    WalletLedgerEntry,
+)
 from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
-from .serializers import ChargingHubSerializer, CorridorSerializer, EVParticipantSignalSerializer, GreenRouteCreditSerializer, ProfileSerializer, ProgramBenefitPolicySerializer, RedemptionRequestSerializer, RelayZoneSerializer, RouteSignalSerializer
+from .serializers import (
+    ChargingHubSerializer,
+    CorridorSerializer,
+    EVParticipantSignalSerializer,
+    GreenRouteCreditSerializer,
+    ProfileSerializer,
+    ProgramBenefitPolicySerializer,
+    RedemptionRequestSerializer,
+    RelayZoneSerializer,
+    RouteSignalSerializer,
+)
+from .services.exports import commuter_records_csv, dashboard_payload
+
 
 class CreateOnlyViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
     """Accepts submissions but exposes no list/retrieve/update/delete."""
+
 
 class ProfileViewSet(CreateOnlyViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
 
+
 class RouteSignalViewSet(CreateOnlyViewSet):
     queryset = RouteSignal.objects.all()
     serializer_class = RouteSignalSerializer
 
+
 class EVParticipantSignalViewSet(CreateOnlyViewSet):
     queryset = EVParticipantSignal.objects.all()
     serializer_class = EVParticipantSignalSerializer
+
 
 class RelayZoneViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = RelayZone.objects.all().order_by('name')
     serializer_class = RelayZoneSerializer
     permission_classes = [AllowAny]
 
+
 class CorridorViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = Corridor.objects.all().order_by('name')
     serializer_class = CorridorSerializer
     permission_classes = [AllowAny]
+
 
 class ChargingHubViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """Public research-beta reference data; not a private charger inventory."""
     queryset = ChargingHub.objects.all().order_by('name')
     serializer_class = ChargingHubSerializer
     permission_classes = [AllowAny]
+
 
 class TenantScopedQuerySetMixin:
     def get_queryset(self):
@@ -50,10 +85,12 @@ class TenantScopedQuerySetMixin:
             return queryset
         return queryset.filter(institution_id__in=user_institution_ids(user))
 
+
 class GreenRouteCreditViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsTenantMember]
     queryset = GreenRouteCredit.objects.all().order_by('-created_at')
     serializer_class = GreenRouteCreditSerializer
+
 
 class ProgramBenefitPolicyViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsTenantMember]
@@ -61,7 +98,14 @@ class ProgramBenefitPolicyViewSet(TenantScopedQuerySetMixin, mixins.ListModelMix
     serializer_class = ProgramBenefitPolicySerializer
 
 
-class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class RedemptionRequestViewSet(
+    TenantScopedQuerySetMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = RedemptionRequest.objects.select_related('credit', 'charging_hub', 'profile').all().order_by('-requested_at')
     serializer_class = RedemptionRequestSerializer
 
@@ -71,13 +115,6 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
         return [IsTenantMember()]
 
     def _find_existing_redemption_request(self, credit_id, idempotency_key):
-        """Looks up a prior request for the same (credit, idempotency_key) pair.
-
-        Extracted to an instance method (rather than a local closure) so
-        tests can deterministically force a "miss" on the pre-insert fast
-        path -- simulating the window where a concurrent request has not
-        committed yet -- without relying on real thread timing.
-        """
         if not (idempotency_key and credit_id):
             return None
         return RedemptionRequest.objects.filter(
@@ -87,8 +124,6 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
     def create(self, request, *args, **kwargs):
         idempotency_key = request.data.get('idempotency_key')
         credit_id = request.data.get('credit')
-
-        # Fast path: a prior request with this idempotency key already committed.
         existing = self._find_existing_redemption_request(credit_id, idempotency_key)
         if existing is not None:
             return Response(self.get_serializer(existing).data, status=status.HTTP_201_CREATED)
@@ -96,16 +131,6 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
         try:
             return super().create(request, *args, **kwargs)
         except IntegrityError:
-            # Concurrency-safe fallback: another request committed the same
-            # (credit, idempotency_key) pair after our fast-path check above
-            # ran but before our insert. The database's unique constraint
-            # (unique_credit_idempotency_key) lets exactly one insert --
-            # and therefore exactly one HOLD ledger entry, written in the
-            # same perform_create transaction -- succeed; our
-            # transaction.atomic() block rolls back our insert (and we never
-            # reach the ledger write, which happens after serializer.save())
-            # automatically on the IntegrityError. We recover by returning
-            # the winner's row instead of surfacing a 500.
             existing = self._find_existing_redemption_request(credit_id, idempotency_key)
             if existing is not None:
                 return Response(self.get_serializer(existing).data, status=status.HTTP_201_CREATED)
@@ -174,3 +199,34 @@ class RedemptionRequestViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin,
                 correlation_id=f'redemption:{redemption_request.pk}',
                 actor_reference=self.request.user.get_username(),
             )
+
+
+def _institution_for_user(user, institution_id):
+    try:
+        institution = Institution.objects.get(pk=institution_id)
+    except Institution.DoesNotExist as exc:
+        raise NotFound('Institution not found') from exc
+
+    if user_is_platform_admin(user):
+        return institution
+    if not Membership.objects.filter(user=user, institution=institution).exists():
+        raise PermissionDenied('You do not have access to this institution')
+    return institution
+
+
+class InstitutionDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, institution_id):
+        institution = _institution_for_user(request.user, institution_id)
+        return Response(dashboard_payload(institution))
+
+
+class InstitutionCommuterExportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, institution_id):
+        institution = _institution_for_user(request.user, institution_id)
+        response = HttpResponse(commuter_records_csv(institution), content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{institution.slug}-commuter-records.csv"'
+        return response
