@@ -1,1 +1,0 @@
-Implementation branch base: `codex/institutional-vertical-slice` at `49bc5ee1dd8bda14fb127187067196333e8bb604`. This branch does not resolve PR #57 and must not be merged ahead of the release-branch reconciliation gate.
