@@ -1,10 +1,10 @@
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -18,9 +18,11 @@ from .models import (
     Institution,
     Membership,
     Profile,
+    ProgramBenefitPolicy,
     RedemptionRequest,
     RelayZone,
     RouteSignal,
+    WalletLedgerEntry,
 )
 from .permissions import CanReviewRedemptionRequest, IsTenantMember, user_institution_ids, user_is_platform_admin
 from .serializers import (
@@ -29,6 +31,7 @@ from .serializers import (
     EVParticipantSignalSerializer,
     GreenRouteCreditSerializer,
     ProfileSerializer,
+    ProgramBenefitPolicySerializer,
     RedemptionRequestSerializer,
     RelayZoneSerializer,
     RouteSignalSerializer,
@@ -89,6 +92,12 @@ class GreenRouteCreditViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, 
     serializer_class = GreenRouteCreditSerializer
 
 
+class ProgramBenefitPolicyViewSet(TenantScopedQuerySetMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsTenantMember]
+    queryset = ProgramBenefitPolicy.objects.all().order_by('-created_at')
+    serializer_class = ProgramBenefitPolicySerializer
+
+
 class RedemptionRequestViewSet(
     TenantScopedQuerySetMixin,
     mixins.ListModelMixin,
@@ -104,6 +113,28 @@ class RedemptionRequestViewSet(
         if self.action in ('update', 'partial_update'):
             return [CanReviewRedemptionRequest()]
         return [IsTenantMember()]
+
+    def _find_existing_redemption_request(self, credit_id, idempotency_key):
+        if not (idempotency_key and credit_id):
+            return None
+        return RedemptionRequest.objects.filter(
+            credit_id=credit_id, idempotency_key=idempotency_key,
+        ).first()
+
+    def create(self, request, *args, **kwargs):
+        idempotency_key = request.data.get('idempotency_key')
+        credit_id = request.data.get('credit')
+        existing = self._find_existing_redemption_request(credit_id, idempotency_key)
+        if existing is not None:
+            return Response(self.get_serializer(existing).data, status=status.HTTP_201_CREATED)
+
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            existing = self._find_existing_redemption_request(credit_id, idempotency_key)
+            if existing is not None:
+                return Response(self.get_serializer(existing).data, status=status.HTTP_201_CREATED)
+            raise
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -125,22 +156,49 @@ class RedemptionRequestViewSet(
                     'requested_units': 'Requested units exceed the uncommitted Green Route Credit balance.'
                 })
 
-            serializer.save(
+            redemption_request = serializer.save(
                 institution=credit.institution,
                 unit_label=credit.unit_label,
                 status='requested',
             )
+            WalletLedgerEntry.objects.create(
+                credit=credit,
+                institution=credit.institution,
+                redemption_request=redemption_request,
+                entry_type='HOLD',
+                quantity_delta=requested_units,
+                reason='Redemption request submitted for administrative review.',
+                correlation_id=redemption_request.idempotency_key or f'redemption:{redemption_request.pk}',
+                actor_reference=self.request.user.get_username(),
+            )
 
     def perform_update(self, serializer):
-        next_status = serializer.validated_data.get('status', serializer.instance.status)
+        previous_status = serializer.instance.status
+        next_status = serializer.validated_data.get('status', previous_status)
         review_started = next_status in {'under-review', 'fulfilled', 'denied'}
         if review_started:
-            serializer.save(
+            redemption_request = serializer.save(
                 reviewed_at=timezone.now(),
                 reviewed_by=self.request.user.get_username(),
             )
         else:
-            serializer.save()
+            redemption_request = serializer.save()
+
+        if previous_status != next_status and next_status in {'fulfilled', 'denied'}:
+            WalletLedgerEntry.objects.create(
+                credit=redemption_request.credit,
+                institution=redemption_request.institution,
+                redemption_request=redemption_request,
+                entry_type='DEBIT' if next_status == 'fulfilled' else 'RELEASE',
+                quantity_delta=redemption_request.requested_units,
+                reason=(
+                    'Redemption request fulfilled by manual research-beta program action.'
+                    if next_status == 'fulfilled'
+                    else 'Redemption request denied; held units released.'
+                ),
+                correlation_id=f'redemption:{redemption_request.pk}',
+                actor_reference=self.request.user.get_username(),
+            )
 
 
 def _institution_for_user(user, institution_id):
