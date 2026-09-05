@@ -106,16 +106,11 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from .models import (
-    BenefitCapacityReservation,
     GreenRouteCredit,
     Institution,
-    IssuanceDecision,
     IssuanceDecisionEvidence,
     Membership,
     Profile,
-    ProgramBenefit,
-    QualifyingEvidence,
-    RedemptionAllocation,
     RedemptionRequest,
 )
 
@@ -144,14 +139,11 @@ class GreenWalletV1SchemaTests(TestCase):
         self.assertEqual(credit.provenance_state, 'legacy')
 
     def test_legacy_redemption_fields_are_nullable_for_v1_pooled_requests(self):
-        credit_field = RedemptionRequest._meta.get_field('credit')
-        hub_field = RedemptionRequest._meta.get_field('charging_hub')
-        self.assertTrue(credit_field.null)
-        self.assertTrue(hub_field.null)
+        self.assertTrue(RedemptionRequest._meta.get_field('credit').null)
+        self.assertTrue(RedemptionRequest._meta.get_field('charging_hub').null)
 
     def test_each_evidence_record_can_feed_only_one_v1_issuance_decision(self):
-        evidence_field = IssuanceDecisionEvidence._meta.get_field('evidence')
-        self.assertTrue(evidence_field.unique)
+        self.assertTrue(IssuanceDecisionEvidence._meta.get_field('evidence').unique)
 ```
 
 - [ ] **Step 2: Run the schema test and verify it fails before model changes**
@@ -165,27 +157,14 @@ Expected: FAIL because v1 fields/models do not exist.
 
 - [ ] **Step 3: Add participant identity and policy-framework fields**
 
-In `backend/relay/models.py`, add:
+In `backend/relay/models.py`, add nullable `Profile.user` with `SET_NULL` and related name `relay_profiles`, then add this conditional uniqueness constraint:
 
 ```python
-class Profile(TimestampedModel):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='relay_profiles',
-    )
-    # existing fields stay
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'institution'],
-                condition=models.Q(user__isnull=False),
-                name='unique_claimed_profile_user_institution',
-            ),
-        ]
+models.UniqueConstraint(
+    fields=['user', 'institution'],
+    condition=models.Q(user__isnull=False),
+    name='unique_claimed_profile_user_institution',
+)
 ```
 
 Add `'participant'` to `Membership.ROLE_CHOICES`.
@@ -206,95 +185,38 @@ activated_by = models.ForeignKey(
 activated_at = models.DateTimeField(null=True, blank=True)
 ```
 
-Keep the existing `max_units_per_participant`, `max_units_program_wide`, and `expiry_days` columns as the canonical cap/expiry fields. Do not duplicate those values in `parameters`.
+Keep existing `max_units_per_participant`, `max_units_program_wide`, and `expiry_days` as canonical cap/expiry fields; do not duplicate those values in `parameters`.
 
 - [ ] **Step 4: Add evidence and issuance provenance models**
 
-Add `QualifyingEvidence`:
+Add `QualifyingEvidence` with institution/profile PROTECT FKs, source type choices `relay_rider | authorized_import | admin_attestation`, evidence label, observed time, provenance JSON, created-by user, and unique nonblank `(institution, source_type, source_reference)`.
 
-```python
-class QualifyingEvidence(TimestampedModel):
-    SOURCE_TYPES = [
-        ('relay_rider', 'Relay Rider'),
-        ('authorized_import', 'Authorized import'),
-        ('admin_attestation', 'Administrative attestation'),
-    ]
-    EVIDENCE_LABELS = [('synthetic', 'Synthetic'), ('modeled', 'Modeled'), ('verified', 'Verified')]
+Add `IssuanceDecision` with statuses `evaluated | approved | denied`, fields `institution`, `profile`, `policy`, `calculated_units`, `evaluation_metadata`, `evaluated_at`, approval/denial actors/times, denial reason, and indexed correlation ID.
 
-    institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='qualifying_evidence')
-    profile = models.ForeignKey(Profile, on_delete=models.PROTECT, related_name='qualifying_evidence')
-    source_type = models.CharField(max_length=32, choices=SOURCE_TYPES)
-    source_reference = models.CharField(max_length=160, blank=True)
-    evidence_label = models.CharField(max_length=32, choices=EVIDENCE_LABELS, default='synthetic')
-    observed_at = models.DateTimeField()
-    provenance = models.JSONField(default=dict, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='created_qualifying_evidence')
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['institution', 'source_type', 'source_reference'],
-                condition=~models.Q(source_reference=''),
-                name='unique_evidence_source_reference_per_institution',
-            ),
-        ]
-```
-
-Add `IssuanceDecision` with statuses `evaluated | approved | denied`, fields `institution`, `profile`, `policy`, `calculated_units`, `evaluation_metadata`, `evaluated_at`, `approved_by`, `approved_at`, `denied_by`, `denied_at`, `denial_reason`, and indexed `correlation_id`.
-
-Add `IssuanceDecisionEvidence` with:
+Add `IssuanceDecisionEvidence`:
 
 ```python
 issuance_decision = models.ForeignKey(IssuanceDecision, on_delete=models.PROTECT, related_name='evidence_links')
 evidence = models.OneToOneField(QualifyingEvidence, on_delete=models.PROTECT, related_name='issuance_link')
 ```
 
-V1 intentionally prevents one evidence record from creating multiple credit awards. Corrections use superseding evidence instead of reusing an already-decided evidence row.
+V1 intentionally prevents one evidence record from creating multiple credit awards; corrections use superseding evidence.
 
 - [ ] **Step 5: Add generic ProgramBenefit and pooled-redemption models**
 
-Add `ProgramBenefit` fields:
+Add `ProgramBenefit` with institution, name/description, benefit type `ev_charging | transit | access_point | other`, status `draft | active | retired`, unit label, positive min/max/increment fields, optional finite `capacity_total`, optional ChargingHub, and effective dates.
 
-```python
-institution = models.ForeignKey(Institution, on_delete=models.PROTECT, related_name='program_benefits')
-name = models.CharField(max_length=160)
-description = models.TextField(blank=True)
-benefit_type = models.CharField(max_length=32, choices=[
-    ('ev_charging', 'EV charging'),
-    ('transit', 'Transit'),
-    ('access_point', 'Access Point'),
-    ('other', 'Other'),
-])
-status = models.CharField(max_length=32, choices=[('draft', 'Draft'), ('active', 'Active'), ('retired', 'Retired')], default='draft')
-unit_label = models.CharField(max_length=80, default='Green Route Credits')
-min_requested_units = models.DecimalField(max_digits=10, decimal_places=2)
-max_requested_units = models.DecimalField(max_digits=10, decimal_places=2)
-request_increment = models.DecimalField(max_digits=10, decimal_places=2)
-capacity_total = models.PositiveIntegerField(null=True, blank=True)
-charging_hub = models.ForeignKey('ChargingHub', null=True, blank=True, on_delete=models.PROTECT, related_name='program_benefits')
-effective_start = models.DateField(null=True, blank=True)
-effective_end = models.DateField(null=True, blank=True)
-```
-
-Alter legacy `RedemptionRequest.credit` and `RedemptionRequest.charging_hub` to `null=True, blank=True` so v1 pooled requests can exist without fabricating a single credit or ChargingHub. Add nullable `program_benefit` FK.
+Alter legacy `RedemptionRequest.credit` and `RedemptionRequest.charging_hub` to `null=True, blank=True`; add nullable `program_benefit` FK.
 
 Add `RedemptionAllocation(redemption_request, credit, allocated_units)` with unique `(redemption_request, credit)`.
 
-Add `BenefitCapacityReservation` as a OneToOneField to `RedemptionRequest`, with state choices `reserved | consumed | released`.
+Add `BenefitCapacityReservation` as one-to-one with RedemptionRequest, states `reserved | consumed | released`.
 
 - [ ] **Step 6: Add v1 provenance fields to credits and ledger**
 
-Extend `GreenRouteCredit` with:
+Extend GreenRouteCredit with nullable policy, nullable one-to-one issuance decision (`related_name='green_route_credit'`), nullable issued/expires timestamps, and `provenance_state = legacy | v1` defaulting to legacy.
 
-```python
-policy = models.ForeignKey('ProgramBenefitPolicy', null=True, blank=True, on_delete=models.PROTECT, related_name='issued_credits')
-issuance_decision = models.OneToOneField('IssuanceDecision', null=True, blank=True, on_delete=models.PROTECT, related_name='green_route_credit')
-issued_at = models.DateTimeField(null=True, blank=True)
-expires_at = models.DateTimeField(null=True, blank=True)
-provenance_state = models.CharField(max_length=16, choices=[('legacy', 'Legacy/pre-v1'), ('v1', 'Lifecycle v1')], default='legacy')
-```
-
-Extend `WalletLedgerEntry` with nullable `redemption_allocation` and nullable self-reference `reverses_entry`, both `PROTECT`.
+Extend WalletLedgerEntry with nullable `redemption_allocation` and nullable self-reference `reverses_entry`, both PROTECT.
 
 - [ ] **Step 7: Generate and inspect migration `0006`**
 
@@ -304,9 +226,7 @@ python manage.py makemigrations relay --name green_wallet_lifecycle_v1_spine
 python manage.py makemigrations --check --dry-run
 ```
 
-Expected: first command creates `0006_green_wallet_lifecycle_v1_spine.py`; second reports `No changes detected`.
-
-Confirm `0006` does not delete migrations 0001-0005 or remove legacy redemption fields.
+Expected: `0006_green_wallet_lifecycle_v1_spine.py`, then `No changes detected`.
 
 - [ ] **Step 8: Run schema and existing Green Wallet tests**
 
@@ -317,7 +237,7 @@ python manage.py test relay.test_green_wallet_v1_schema relay.test_green_wallet_
 
 Expected: PASS.
 
-- [ ] **Step 9: Verify migration forward/backward/forward while it is still additive**
+- [ ] **Step 9: Verify 0006 forward/backward/forward**
 
 ```bash
 cd backend
@@ -329,7 +249,7 @@ python manage.py migrate relay 0006
 python manage.py migrate
 ```
 
-Expected: all commands succeed on synthetic/local data.
+Expected: PASS on synthetic/local data.
 
 - [ ] **Step 10: Commit Task 1**
 
@@ -350,12 +270,10 @@ git commit -m "feat(wallet): add lifecycle v1 schema spine"
 - Test: `backend/relay/test_green_wallet_v1_identity.py`
 
 **Interfaces:**
-- Produces: `resolve_participant_profile(*, user, institution) -> Profile`, `GreenWalletDomainError`, `can_start_redemption_review`, `can_finalize_redemption`, `can_approve_issuance`.
-- Consumes: `Membership`, `Profile`, `Institution`.
+- Produces: `resolve_participant_profile(*, user, institution)`, `GreenWalletDomainError`, operation-specific role helpers.
+- Consumes: Membership, Profile, Institution.
 
 - [ ] **Step 1: Define domain-error contract**
-
-Create `backend/relay/services/errors.py`:
 
 ```python
 class GreenWalletDomainError(Exception):
@@ -367,19 +285,7 @@ class GreenWalletDomainError(Exception):
 
 - [ ] **Step 2: Write failing identity and role tests**
 
-Create tests for:
-
-```python
-def test_resolves_claimed_profile_for_user_and_institution(): ...
-def test_unclaimed_profile_is_not_resolved(): ...
-def test_wrong_users_same_tenant_profile_is_not_resolved(): ...
-def test_same_user_can_have_one_claimed_profile_in_two_institutions(): ...
-def test_viewer_without_claimed_profile_has_no_participant_authority(): ...
-def test_program_staff_can_start_review_but_cannot_finalize(): ...
-def test_institution_admin_can_approve_issuance_and_finalize(): ...
-```
-
-Use exact error code `PARTICIPANT_PROFILE_NOT_CLAIMED` when resolution fails.
+Cover claimed/unclaimed resolution, wrong same-tenant user, one user in two institutions, viewer without claimed profile, program_staff triage-only, and institution_admin approval/finalization. Use exact error code `PARTICIPANT_PROFILE_NOT_CLAIMED` when participant resolution fails.
 
 - [ ] **Step 3: Run identity tests and verify failure**
 
@@ -391,8 +297,6 @@ python manage.py test relay.test_green_wallet_v1_identity -v 2
 Expected: FAIL.
 
 - [ ] **Step 4: Implement participant identity service**
-
-Create `backend/relay/services/participant_identity.py`:
 
 ```python
 from relay.models import Membership, Profile
@@ -409,19 +313,11 @@ def resolve_participant_profile(*, user, institution):
             'No claimed participant Profile exists for this user and institution.',
         )
     return profile
-
-
-def has_role(user, institution, roles):
-    return bool(
-        user
-        and user.is_authenticated
-        and Membership.objects.filter(user=user, institution=institution, role__in=roles).exists()
-    )
 ```
 
-- [ ] **Step 5: Split permissions by operation**
+Add `has_role(user, institution, roles)` helper.
 
-In `backend/relay/permissions.py` define:
+- [ ] **Step 5: Split permissions by operation**
 
 ```python
 TRIAGE_ROLES = {'program_staff', 'institution_admin'}
@@ -429,7 +325,7 @@ TERMINAL_REVIEW_ROLES = {'institution_admin'}
 ISSUANCE_APPROVAL_ROLES = {'institution_admin'}
 ```
 
-Keep `platform_admin` as explicit bypass. Retain the legacy `CanReviewRedemptionRequest` only for the old endpoint until Task 11; v1 actions must use the stricter operation-specific helpers.
+Keep platform_admin as explicit bypass. Legacy `CanReviewRedemptionRequest` remains only for the old endpoint until Task 11.
 
 - [ ] **Step 6: Run identity plus existing security/RBAC tests**
 
@@ -458,40 +354,19 @@ git commit -m "feat(wallet): bind participant identity and role gates"
 
 **Interfaces:**
 - Produces: `PolicyEvaluationResult`, `validate_policy_configuration(policy)`, `activate_policy(*, actor, policy)`, `evaluate_policy(*, policy, profile, evidence_records)`.
-- Consumes: `ProgramBenefitPolicy`, `QualifyingEvidence`, role helpers.
 
 - [ ] **Step 1: Write failing policy tests**
 
-Use fixture-only values:
+Use fixture-only parameters:
 
 ```python
-PARAMETERS = {
+parameters = {
     'units_per_qualifying_event': '5.00',
     'allowed_evidence_source_types': ['relay_rider', 'authorized_import'],
 }
 ```
 
-Store caps/expiry in existing policy fields:
-
-```python
-max_units_per_participant='20.00'
-max_units_program_wide='100.00'
-expiry_days=90
-```
-
-Tests:
-
-```python
-def test_verified_participation_is_deterministic(): ...
-def test_rejects_unknown_rule_type(): ...
-def test_rejects_non_positive_units_per_event(): ...
-def test_rejects_missing_evidence_sources(): ...
-def test_rejects_missing_or_non_positive_caps_and_expiry(): ...
-def test_rejects_evidence_source_not_allowed_by_policy(): ...
-def test_rejects_policy_outside_effective_period(): ...
-def test_activation_retires_prior_active_version_atomically(): ...
-def test_non_admin_cannot_activate_policy(): ...
-```
+Store `max_units_per_participant='20.00'`, `max_units_program_wide='100.00'`, `expiry_days=90` in existing policy fields. Test deterministic output, unknown rule rejection, invalid units/evidence sources/caps/expiry, out-of-period policy, activation retiring prior active version, and non-admin activation denial.
 
 - [ ] **Step 2: Run policy tests and verify failure**
 
@@ -504,59 +379,21 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement code-owned rule registry**
 
-Create `backend/relay/services/policy_rules.py`:
-
-```python
-from dataclasses import dataclass
-from decimal import Decimal
-from django.db import transaction
-from django.utils import timezone
-
-from relay.models import ProgramBenefitPolicy
-from .errors import GreenWalletDomainError
-
-
-@dataclass(frozen=True)
-class PolicyEvaluationResult:
-    calculated_units: Decimal
-    qualifying_evidence_ids: tuple[int, ...]
-    metadata: dict
-
-
-def _validate_verified_participation(policy):
-    parameters = policy.parameters
-    units = Decimal(str(parameters.get('units_per_qualifying_event', '0')))
-    allowed_sources = parameters.get('allowed_evidence_source_types') or []
-    if units <= 0:
-        raise GreenWalletDomainError('POLICY_CONFIGURATION_INVALID', 'units_per_qualifying_event must be positive.')
-    if not allowed_sources:
-        raise GreenWalletDomainError('POLICY_CONFIGURATION_INVALID', 'At least one evidence source type is required.')
-    if policy.max_units_per_participant is None or policy.max_units_per_participant <= 0:
-        raise GreenWalletDomainError('POLICY_CONFIGURATION_INVALID', 'Participant issuance cap must be positive.')
-    if policy.max_units_program_wide is None or policy.max_units_program_wide <= 0:
-        raise GreenWalletDomainError('POLICY_CONFIGURATION_INVALID', 'Program issuance cap must be positive.')
-    if policy.expiry_days is None or policy.expiry_days <= 0:
-        raise GreenWalletDomainError('POLICY_CONFIGURATION_INVALID', 'expiry_days must be positive.')
-```
-
-Register only `verified_participation` for v1.
+Create a frozen `PolicyEvaluationResult` dataclass with calculated_units, evidence IDs, and metadata. Register only `verified_participation` for v1. Validate positive units per event, nonempty allowed source list, positive existing cap fields, positive existing expiry field, and valid effective dates.
 
 - [ ] **Step 4: Implement governed activation**
 
-`activate_policy(*, actor, policy)` must run inside `transaction.atomic()`, authorize `institution_admin`/platform admin, validate configuration, lock all policy rows for the institution, mark any other active policy `retired`, then mark the requested policy `active` with `activated_by` and `activated_at`.
-
-This yields exactly one active policy per institution without deleting historical versions.
+Inside one transaction, authorize institution_admin/platform_admin, validate the policy, lock institution policy rows, mark any prior active version retired, then activate the requested version with actor/time. No historical policy is deleted.
 
 - [ ] **Step 5: Implement deterministic evaluation**
 
-`evaluate_policy` must:
+Require active/in-period policy; same institution/profile evidence; allowed evidence sources; no previously linked evidence. Calculate:
 
-1. require active/in-period policy;
-2. require evidence institution/profile match;
-3. require evidence source types from policy `parameters`;
-4. calculate `Decimal(units_per_qualifying_event) * len(evidence_records)`;
-5. return evidence IDs and minimal explanation metadata;
-6. reject any evidence already linked to an IssuanceDecision with `EVIDENCE_ALREADY_USED`.
+```python
+Decimal(str(policy.parameters['units_per_qualifying_event'])) * len(evidence_records)
+```
+
+Return exact evidence IDs and minimal explanation metadata.
 
 - [ ] **Step 6: Run policy tests**
 
@@ -584,23 +421,11 @@ git commit -m "feat(wallet): add deterministic benefit policy rules"
 - Test: `backend/relay/test_green_wallet_v1_issuance.py`
 
 **Interfaces:**
-- Produces: `evaluate_issuance(...) -> IssuanceDecision`, `approve_issuance(...) -> GreenRouteCredit`.
-- Consumes: `evaluate_policy`, `WalletLedgerEntry`, v1 policy caps, role helpers.
+- Produces: `evaluate_issuance(...)`, `approve_issuance(...)`.
 
 - [ ] **Step 1: Write failing issuance tests**
 
-```python
-def test_evaluation_records_policy_and_all_evidence_links(): ...
-def test_same_evidence_cannot_be_awarded_twice(): ...
-def test_program_staff_cannot_approve_issuance(): ...
-def test_admin_approval_creates_one_credit_and_one_issue_atomically(): ...
-def test_approval_replay_returns_existing_credit_without_second_issue(): ...
-def test_participant_cap_is_enforced(): ...
-def test_program_cap_is_enforced(): ...
-def test_issue_failure_rolls_back_credit_and_approval_state(): ...
-```
-
-Patch `WalletLedgerEntry.objects.create` to raise in the rollback test and assert no v1 credit remains.
+Test complete evidence linking, single-use evidence, program_staff denial, admin issuance creating one credit/one ISSUE, replay idempotency, participant cap, program cap, and forced ledger-write rollback.
 
 - [ ] **Step 2: Run issuance tests and verify failure**
 
@@ -613,47 +438,15 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement evaluation operation**
 
-`evaluate_issuance` calls `evaluate_policy` and creates `IssuanceDecision(status='evaluated')` plus one `IssuanceDecisionEvidence` per evidence record. It creates no spendable credit.
+Call `evaluate_policy`, create IssuanceDecision(status evaluated), then one IssuanceDecisionEvidence link per evidence record. No credit is created during evaluation.
 
 - [ ] **Step 4: Implement atomic approval operation**
 
-Inside `transaction.atomic()` and after locking decision, policy, and Profile:
-
-```python
-if decision.status == 'approved':
-    return decision.green_route_credit
-```
-
-Authorize `institution_admin`/platform admin. Calculate already-issued v1 units under the same policy and same profile using `GreenRouteCredit` rows, and enforce:
-
-```python
-participant_total + decision.calculated_units <= decision.policy.max_units_per_participant
-program_total + decision.calculated_units <= decision.policy.max_units_program_wide
-```
-
-Create the v1 credit:
-
-```python
-now = timezone.now()
-credit = GreenRouteCredit.objects.create(
-    institution=decision.institution,
-    profile=decision.profile,
-    policy=decision.policy,
-    issuance_decision=decision,
-    amount_units=decision.calculated_units,
-    unit_label=decision.policy.unit_label,
-    status='issued',
-    provenance_state='v1',
-    issued_at=now,
-    expires_at=now + timedelta(days=decision.policy.expiry_days),
-)
-```
-
-Create exactly one `ISSUE` ledger event in the same transaction, then mark the decision approved. If any write fails, the transaction must leave no v1 credit, ISSUE event, or approved decision.
+Inside transaction.atomic, lock decision, policy, and Profile. If already approved, return `decision.green_route_credit`. Authorize institution_admin/platform_admin. Sum existing v1 policy issuance for the participant and program, enforce existing model cap fields, then create the credit with policy/decision provenance, issued_at, expires_at derived from policy.expiry_days, and provenance_state v1. Create exactly one ISSUE event, then mark decision approved. Any failure rolls back all writes.
 
 - [ ] **Step 5: Make GreenRouteCredit read-only in Django Admin**
 
-Replace generic registration with a ModelAdmin whose add/change/delete permissions all return `False`. Historical inspection remains available.
+Custom ModelAdmin: add/change/delete all return False; historical inspection remains.
 
 - [ ] **Step 6: Run issuance and existing Green Wallet tests**
 
@@ -680,25 +473,24 @@ git commit -m "feat(wallet): govern credit issuance and issue ledger events"
 - Test: `backend/relay/test_green_wallet_v1_projection.py`
 
 **Interfaces:**
-- Produces: `BucketProjection`, `WalletProjection`, `project_credit_bucket(credit)`, `project_wallet(*, profile, institution, unit_label='Green Route Credits')`.
-- Consumes: `GreenRouteCredit`, `WalletLedgerEntry`.
+- Produces: `BucketProjection`, `WalletProjection`, `project_credit_bucket(credit)`, `project_wallet(...)`.
 
 - [ ] **Step 1: Write failing accounting tests**
 
-Prove exact event semantics:
+Prove:
 
 ```text
 ISSUE 10       => available 10
 HOLD 4         => available 6, held 4
 RELEASE 4      => available 10, held 0
 HOLD 4
-DEBIT 4        => available 6, held 0, fulfilled 4
+DEBIT 4        => available 6, fulfilled 4
 EXPIRE 2       => available 4, expired 2
 ADJUSTMENT +1  => available 5
 ADJUSTMENT -1  => available 4
 ```
 
-Also test one valid REVERSAL for each of ISSUE/HOLD/RELEASE/DEBIT/EXPIRE semantics and reject reversal that would make any bucket negative or that exceeds unreversed quantity.
+Also test exact REVERSAL inverse semantics and reject over-reversal/negative state.
 
 - [ ] **Step 2: Run projection tests and verify failure**
 
@@ -709,34 +501,11 @@ python manage.py test relay.test_green_wallet_v1_projection -v 2
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement explicit projection dataclasses**
+- [ ] **Step 3: Implement projection dataclasses**
 
-```python
-@dataclass(frozen=True)
-class BucketProjection:
-    credit_id: int
-    issued_units: Decimal
-    available_units: Decimal
-    held_units: Decimal
-    fulfilled_units: Decimal
-    expired_units: Decimal
+`BucketProjection` contains credit_id, issued, available, held, fulfilled, expired. `WalletProjection` contains aggregated issued/available/held/fulfilled/expired, unit_label, and buckets.
 
-@dataclass(frozen=True)
-class WalletProjection:
-    issued_units: Decimal
-    available_units: Decimal
-    held_units: Decimal
-    fulfilled_units: Decimal
-    expired_units: Decimal
-    unit_label: str
-    buckets: tuple[BucketProjection, ...]
-```
-
-Process ledger rows ordered by `(created_at, id)`.
-
-- [ ] **Step 4: Implement event transitions without blind summation**
-
-Rules:
+- [ ] **Step 4: Implement event transitions explicitly**
 
 ```text
 ISSUE      available += q; issued += q
@@ -745,12 +514,10 @@ RELEASE    held -= q; available += q
 DEBIT      held -= q; fulfilled += q
 EXPIRE     available -= q; expired += q
 ADJUSTMENT available += signed quantity_delta
-REVERSAL   apply exact inverse of the referenced event's remaining unreversed quantity
+REVERSAL   exact inverse of referenced event's remaining unreversed quantity
 ```
 
-For non-ADJUSTMENT event types, require positive event quantity. For ADJUSTMENT, signed `quantity_delta` is authoritative and the API must never expose participant-controlled creation.
-
-At every transition reject negative state with `LEDGER_INTEGRITY_ERROR`.
+Non-ADJUSTMENT normal event quantities must be positive. Reject any negative bucket state with `LEDGER_INTEGRITY_ERROR`.
 
 - [ ] **Step 5: Run projection tests**
 
@@ -778,35 +545,11 @@ git commit -m "feat(wallet): add authoritative ledger projection"
 - Test: `backend/relay/test_green_wallet_v1_redemption.py`
 
 **Interfaces:**
-- Produces: `create_redemption(*, actor, institution, program_benefit, requested_units, idempotency_key) -> RedemptionRequest`.
-- Consumes: participant identity, wallet projection, ProgramBenefit, RedemptionAllocation, BenefitCapacityReservation, WalletLedgerEntry.
+- Produces: `create_redemption(*, actor, institution, program_benefit, requested_units, idempotency_key)`.
 
 - [ ] **Step 1: Write failing pooled-redemption tests**
 
-Fixture:
-
-```text
-Award A = 5 units, earlier expiry
-Award B = 10 units, later expiry
-Request = 7 units
-Expected allocation = 5 from A + 2 from B
-```
-
-Tests:
-
-```python
-def test_uuid_is_required(): ...
-def test_invalid_uuid_is_rejected(): ...
-def test_replay_same_uuid_returns_same_request_without_duplicate_holds(): ...
-def test_oldest_expiring_credit_allocates_first(): ...
-def test_ties_break_by_issued_at_then_id(): ...
-def test_partial_bucket_allocation_is_supported(): ...
-def test_insufficient_balance_rolls_back_everything(): ...
-def test_wrong_participant_same_tenant_cannot_spend_other_profile_credit(): ...
-def test_cross_tenant_benefit_is_rejected(): ...
-def test_finite_benefit_capacity_is_reserved_atomically(): ...
-def test_capacity_exhaustion_leaves_no_hold(): ...
-```
+Use Award A=5 earlier expiry, Award B=10 later expiry, Request=7, expected allocations 5+2. Test required/valid UUID, replay, expiry ordering, deterministic ties, partial bucket use, insufficient balance rollback, wrong same-tenant participant, cross-tenant benefit, finite capacity reservation, and capacity exhaustion rollback.
 
 - [ ] **Step 2: Run redemption tests and verify failure**
 
@@ -819,24 +562,11 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement UUID replay contract**
 
-Use `uuid.UUID(str(idempotency_key))`; reject missing/invalid keys with stable codes. Replay lookup is exactly `(institution, profile, idempotency_key)`.
+Validate with `uuid.UUID(str(idempotency_key))`; lookup replay by `(institution, profile, idempotency_key)`.
 
-- [ ] **Step 4: Implement deterministic pooled allocation in one transaction**
+- [ ] **Step 4: Implement pooled allocation in one transaction**
 
-Inside `transaction.atomic()`:
-
-1. resolve participant Profile from actor + institution;
-2. validate ProgramBenefit tenant/status/effective dates and min/max/increment;
-3. return existing request on UUID replay;
-4. lock candidate v1 credits ordered by `expires_at`, `issued_at`, `id`;
-5. project each bucket and allocate only current available units;
-6. reject insufficient total before durable request/hold writes;
-7. lock finite ProgramBenefit and reject exhausted capacity;
-8. create v1 RedemptionRequest with `program_benefit`, Profile, requested units, UUID, and legacy `credit=None`, `charging_hub=None`;
-9. create allocations summing exactly to requested units;
-10. create one HOLD ledger event per allocation;
-11. create one capacity reservation when finite;
-12. commit all-or-nothing.
+Resolve participant Profile server-side; validate active/in-period ProgramBenefit and min/max/increment; replay UUID; lock candidate v1 credits ordered expires_at/issued_at/id; project available units; fully fund or fail; lock finite benefit and check capacity; create v1 request with legacy credit/hub null; create allocations; one HOLD per allocation; optional reserved capacity row; commit all-or-nothing.
 
 - [ ] **Step 5: Run redemption plus legacy regression tests**
 
@@ -864,23 +594,9 @@ git commit -m "feat(wallet): add pooled benefit redemption"
 - Create: `backend/relay/migrations/0007_green_wallet_lifecycle_v1_constraints.py`
 - Test: `backend/relay/test_green_wallet_v1_review.py`
 
-**Interfaces:**
-- Produces: `start_review(...)`, `finalize_redemption(...)`.
-- Consumes: strict RBAC, allocations, capacity reservations, ledger events.
-
 - [ ] **Step 1: Write failing review tests**
 
-```python
-def test_program_staff_can_move_requested_to_under_review(): ...
-def test_program_staff_cannot_fulfill_or_deny(): ...
-def test_institution_admin_can_fulfill(): ...
-def test_institution_admin_can_deny(): ...
-def test_requested_cannot_skip_directly_to_terminal(): ...
-def test_fulfillment_writes_one_debit_per_allocation_and_consumes_capacity(): ...
-def test_denial_writes_one_release_per_allocation_and_releases_capacity(): ...
-def test_terminal_ledger_failure_rolls_back_status_and_capacity(): ...
-def test_second_terminal_attempt_creates_no_extra_ledger_events(): ...
-```
+Prove program_staff triage only, admin fulfill/deny, no direct requested->terminal, one DEBIT/RELEASE per allocation, capacity consume/release, rollback on ledger failure, and no duplicate terminal effects.
 
 - [ ] **Step 2: Run review tests and verify failure**
 
@@ -893,39 +609,19 @@ Expected: FAIL.
 
 - [ ] **Step 3: Add v1 reviewer user reference**
 
-Add nullable `reviewed_by_user` FK to `RedemptionRequest`, retaining existing string `reviewed_by` for legacy compatibility.
+Add nullable `reviewed_by_user` FK to RedemptionRequest; retain legacy string `reviewed_by`.
 
 - [ ] **Step 4: Implement `start_review` with row lock**
 
-Require current state `requested`, authorize program_staff/institution_admin/platform_admin, set `under-review`, reviewer metadata, and commit atomically.
+Require requested state, authorize program_staff/institution_admin/platform_admin, set under-review and server reviewer metadata atomically.
 
 - [ ] **Step 5: Implement atomic terminal processing**
 
-Inside one transaction:
+Lock request, require under-review, authorize admin/platform admin, lock allocations/reservation, then fulfilled=>DEBIT per allocation + consumed reservation; denied=>RELEASE per allocation + released reservation; if a released credit is already naturally expired, immediately create matching EXPIRE in the same transaction. Update terminal reviewer metadata and commit together.
 
-1. lock request;
-2. require `under-review`;
-3. authorize institution_admin/platform_admin only;
-4. lock allocations and reservation;
-5. fulfilled => one DEBIT per allocation + reservation consumed;
-6. denied => one RELEASE per allocation + reservation released;
-7. if denied credit is naturally expired, immediately add matching EXPIRE after RELEASE in same transaction;
-8. update terminal state and reviewer metadata;
-9. commit all effects together.
+- [ ] **Step 6: Add `0007` constraints**
 
-- [ ] **Step 6: Add post-spine database constraints in `0007`**
-
-Add:
-
-```text
-- v1 credit requires profile, policy, issuance_decision, issued_at, expires_at
-- RedemptionAllocation.allocated_units > 0
-- unique active ProgramBenefitPolicy per institution (conditional status='active')
-- unique v1 redemption idempotency key per (institution, profile, idempotency_key) when key is non-null
-- supporting indexes for wallet projection and review queues
-```
-
-Do not remove legacy `(credit, idempotency_key)` yet.
+Add database checks/indexes for v1 credit provenance completeness, positive allocation units, one active policy per institution, unique `(institution, profile, idempotency_key)` when non-null, and wallet/review indexes. Keep legacy `(credit, idempotency_key)` while legacy route exists.
 
 - [ ] **Step 7: Run review/schema/migration tests**
 
@@ -955,20 +651,9 @@ git commit -m "feat(wallet): make redemption review atomic"
 - Create: `backend/relay/management/commands/expire_green_route_credits.py`
 - Test: `backend/relay/test_green_wallet_v1_expiration.py`
 
-**Interfaces:**
-- Produces: `expire_due_credits(*, as_of=None, institution=None) -> ExpirationResult`.
-- Consumes: wallet projection, v1 credits, ledger.
-
 - [ ] **Step 1: Write failing expiration tests**
 
-```python
-def test_available_units_expire_after_expires_at(): ...
-def test_held_units_are_not_expired_by_worker(): ...
-def test_worker_retry_does_not_duplicate_expire_event(): ...
-def test_partially_available_bucket_expires_only_remaining_available_units(): ...
-def test_fulfillment_after_natural_expiry_of_preexpiry_hold_is_valid(): ...
-def test_denial_after_natural_expiry_has_zero_available_and_expired_quantity(): ...
-```
+Test available expiry, held protection, retry idempotency, partial remaining expiry, valid fulfillment after natural expiry, and denial-after-expiry leaving zero restored availability.
 
 - [ ] **Step 2: Run expiration tests and verify failure**
 
@@ -981,21 +666,13 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement idempotent expiration service**
 
-```python
-@dataclass(frozen=True)
-class ExpirationResult:
-    credits_scanned: int
-    credits_expired: int
-    units_expired: Decimal
-```
-
-For each v1 credit with `expires_at <= as_of`, lock it, project it, and create EXPIRE only for current available units. Held units remain protected.
+Frozen result: credits_scanned, credits_expired, units_expired. For each due v1 credit, lock, project, write EXPIRE only for current available units. Held units stay protected.
 
 - [ ] **Step 4: Add management command**
 
-`expire_green_route_credits.py` calls the service and prints counts only; no accounting logic in the command.
+Command invokes service and prints counts only.
 
-- [ ] **Step 5: Run expiration and review tests together**
+- [ ] **Step 5: Run expiration and review tests**
 
 ```bash
 cd backend
@@ -1021,24 +698,9 @@ git commit -m "feat(wallet): add ledger driven credit expiration"
 - Modify: `backend/config/urls.py`
 - Test: `backend/relay/test_green_wallet_v1_api.py`
 
-**Interfaces:**
-- Produces: exact institution-scoped target endpoints from spec Section 17.
-- Consumes: Tasks 2-8 services.
-
 - [ ] **Step 1: Write failing API tests**
 
-```python
-def test_wallet_returns_server_projection(): ...
-def test_benefits_list_only_active_in_period_records(): ...
-def test_redemption_post_does_not_accept_profile_or_credit_as_authority(): ...
-def test_redemption_post_requires_uuid(): ...
-def test_program_staff_start_review_succeeds(): ...
-def test_program_staff_fulfill_returns_403(): ...
-def test_institution_admin_fulfill_succeeds(): ...
-def test_cross_tenant_resource_returns_404(): ...
-def test_business_rule_failure_returns_422_machine_code(): ...
-def test_state_conflict_returns_409_machine_code(): ...
-```
+Test wallet projection, active benefits, no client profile/credit authority, required UUID, staff triage, staff terminal denial, admin terminal success, cross-tenant 404, business 422, state 409.
 
 - [ ] **Step 2: Run API tests and verify failure**
 
@@ -1051,11 +713,9 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement transport-only serializers**
 
-Define serializers for evidence create, issuance evaluate/approve, redemption create, review start, terminal decision, wallet projection, benefits, and activity. Do not duplicate service invariants in serializer validation.
+Define serializers for evidence create, issuance evaluate/approve, redemption create, review start, terminal decision, wallet projection, benefits, and activity. Keep business invariants in services.
 
-- [ ] **Step 4: Implement explicit action views and tenant resolution**
-
-Mount:
+- [ ] **Step 4: Implement exact institution-scoped action endpoints**
 
 ```text
 GET  /api/institutions/{institution_id}/wallet/
@@ -1074,21 +734,15 @@ POST /api/institutions/{institution_id}/redemptions/{id}/fulfill/
 POST /api/institutions/{institution_id}/redemptions/{id}/deny/
 ```
 
-URL institution scope is authoritative; JSON cannot override it.
+URL institution scope is authoritative.
 
-- [ ] **Step 5: Centralize domain-error mapping**
+- [ ] **Step 5: Centralize error mapping**
 
-Use stable JSON:
-
-```json
-{"code":"INSUFFICIENT_AVAILABLE_UNITS","message":"Requested units exceed the participant's available Green Route Credit balance."}
-```
-
-Map unauthenticated => 401, authorization => 403, tenant invisibility => 404, state/idempotency conflict => 409, program-rule/business rejection => 422, malformed transport => 400.
+Return stable `{"code":...,"message":...}`. Map unauthenticated 401, unauthorized 403, tenant invisibility 404, state/idempotency conflict 409, business/policy rejection 422, malformed transport 400.
 
 - [ ] **Step 6: Keep legacy routes mounted temporarily**
 
-Do not remove current router endpoints until Task 11 confirms the frontend no longer uses them.
+Do not remove router endpoints until Task 11 verifies frontend cutover.
 
 - [ ] **Step 7: Run complete backend suite**
 
@@ -1122,37 +776,9 @@ git commit -m "feat(wallet): add institution scoped lifecycle api"
 - Test: `src/screens/WalletScreen.v1.test.tsx`
 - Test: `src/flows/ProgramBenefitRedemptionFlow.test.tsx`
 
-**Interfaces:**
-- Produces: canonical `WalletProjection`, `ProgramBenefit`, v1 RedemptionRequest adapter methods.
-- Consumes: Task 9 API.
+- [ ] **Step 1: Write failing adapter tests and canonical types**
 
-- [ ] **Step 1: Write failing adapter tests and types**
-
-Define:
-
-```ts
-export interface WalletProjection {
-  issuedUnits: number;
-  availableUnits: number;
-  heldUnits: number;
-  fulfilledUnits: number;
-  expiredUnits: number;
-  unitLabel: string;
-  recentActivity: WalletActivity[];
-}
-
-export interface ProgramBenefit {
-  id: string;
-  name: string;
-  description: string;
-  benefitType: 'ev_charging' | 'transit' | 'access_point' | 'other';
-  status: 'draft' | 'active' | 'retired';
-  minRequestedUnits: number;
-  maxRequestedUnits: number;
-  requestIncrement: number;
-  chargingHubId?: string;
-}
-```
+Define WalletProjection with issued/available/held/fulfilled/expired/unitLabel/recentActivity and ProgramBenefit with type/status/min/max/increment/optional chargingHubId.
 
 - [ ] **Step 2: Run adapter test and verify failure**
 
@@ -1167,47 +793,29 @@ Expected: FAIL.
 ```ts
 getWallet(institutionId: string): Promise<WalletProjection>
 listProgramBenefits(institutionId: string): Promise<ProgramBenefit[]>
-createRedemption(institutionId: string, input: {
-  programBenefitId: string;
-  requestedUnits: number;
-  idempotencyKey: string;
-}): Promise<RedemptionRequest>
+createRedemption(institutionId: string, input: {programBenefitId: string; requestedUnits: number; idempotencyKey: string}): Promise<RedemptionRequest>
 startReview(institutionId: string, redemptionId: string): Promise<RedemptionRequest>
 fulfillRedemption(institutionId: string, redemptionId: string, reviewNote: string): Promise<RedemptionRequest>
 denyRedemption(institutionId: string, redemptionId: string, reviewNote: string): Promise<RedemptionRequest>
 ```
 
-Extend `GreenWalletApiError` with optional `code`.
+Extend GreenWalletApiError with optional machine `code`.
 
 - [ ] **Step 4: Write failing WalletScreen tests**
 
-Mock server projection:
-
-```ts
-{
-  issuedUnits: 15,
-  availableUnits: 8,
-  heldUnits: 7,
-  fulfilledUnits: 0,
-  expiredUnits: 0,
-  unitLabel: 'Green Route Credits',
-  recentActivity: [],
-}
-```
-
-Assert exactly 8 Available, 7 Under review/Held, 0 Fulfilled, 0 Expired. Assert active Transit Benefit is operational without a ChargingHub.
+Mock projection `{issuedUnits:15, availableUnits:8, heldUnits:7, fulfilledUnits:0, expiredUnits:0, unitLabel:'Green Route Credits', recentActivity:[]}`. Assert exact server quantities and operational Transit Benefit without ChargingHub.
 
 - [ ] **Step 5: Remove client-side accounting from WalletScreen**
 
-Delete canonical use of `unavailableCreditIds`, credit-status reducers, and raw request-status balance math. Render only the server projection and active ProgramBenefits.
+Delete canonical credit-status reducers/unavailable-credit math. Render server projection and active ProgramBenefits only.
 
-- [ ] **Step 6: Implement generic `ProgramBenefitRedemptionFlow`**
+- [ ] **Step 6: Implement generic ProgramBenefitRedemptionFlow**
 
-The flow must generate `crypto.randomUUID()` once per intentional submit, validate requested unit bounds/increment from ProgramBenefit, submit only `programBenefitId`, `requestedUnits`, `idempotencyKey`, and show requested/review state. EV charging benefits may display optional ChargingHub metadata with explicit no-reservation/no-payment copy; non-charging benefits never require charging metadata.
+Generate one `crypto.randomUUID()` per intentional submission; enforce benefit unit bounds/increment; submit only programBenefitId/requestedUnits/idempotencyKey. EV benefit may display ChargingHub metadata and no-reservation/no-payment copy; non-charging benefits never require charging metadata.
 
-- [ ] **Step 7: Remove canonical Green Wallet mutation responsibility from AppContext**
+- [ ] **Step 7: Remove canonical wallet mutations from AppContext**
 
-WalletScreen and ProgramBenefitRedemptionFlow must not call `addGreenRouteCredit`, `createRedemptionRequest`, or `reviewRedemptionRequest` as source of truth. Delete deprecated context methods if repository search finds no remaining callers; otherwise leave them clearly marked demo-only and unreachable from canonical wallet screens.
+WalletScreen/ProgramBenefitRedemptionFlow must not use addGreenRouteCredit/createRedemptionRequest/reviewRedemptionRequest as truth. Remove methods if no callers remain; otherwise leave only clearly marked demo-only callers outside canonical wallet path.
 
 - [ ] **Step 8: Run frontend verification**
 
@@ -1240,20 +848,9 @@ git commit -m "feat(wallet): render canonical program benefit wallet"
 - Test: `backend/relay/test_green_wallet_contract.py`
 - Test: `src/screens/WalletScreen.v1.test.tsx`
 
-**Interfaces:**
-- Produces: v1 as the only operational Green Wallet write path; legacy history remains inspectable.
-- Consumes: Tasks 1-10.
-
 - [ ] **Step 1: Add tests proving legacy paths cannot bypass v1**
 
-Prove:
-
-```text
-- no public API creates GreenRouteCredit directly
-- canonical participant UI never PATCHes lifecycle status
-- v1 participant redemption never submits arbitrary profile/credit ownership fields
-- historical credits remain readable and labeled provenance_state=legacy
-```
+Prove no public credit POST, canonical UI never PATCHes lifecycle status, v1 redemption never submits arbitrary participant/credit ownership, historical credits remain readable/legacy-labeled.
 
 - [ ] **Step 2: Search exact legacy dependencies**
 
@@ -1261,21 +858,21 @@ Prove:
 rg "EVChargeCreditRedemptionFlow|creditId|chargingHubId|createRedemptionRequest|reviewRedemptionRequest|greenRouteCredits" src
 ```
 
-Every remaining hit must be either removed from canonical wallet code or explicitly retained as an unrelated demonstration/test fixture.
+Every remaining hit must be removed from canonical wallet code or explicitly be an unrelated demo/test fixture.
 
 - [ ] **Step 3: Retire charging-only canonical flow**
 
-If no canonical caller remains, delete `EVChargeCreditRedemptionFlow.tsx`. If another demonstration screen still imports it, keep it only with a prominent legacy/demo-only comment and ensure `WalletScreen.tsx` does not import it.
+Delete EVChargeCreditRedemptionFlow if no canonical caller remains; otherwise mark it legacy/demo-only and ensure WalletScreen does not import it.
 
-- [ ] **Step 4: Disable legacy canonical write route**
+- [ ] **Step 4: Disable legacy write route**
 
-Remove `RedemptionRequestViewSet` from the operational v1 frontend path. If the old `/api/redemption-requests/` route is retained for legacy regression, make it read-only after the cutover and keep explicit tests proving POST/PATCH are unavailable there.
+After v1 frontend cutover, retain old `/api/redemption-requests/` only as read-only compatibility/history or remove it if no consumers remain. Add tests proving POST/PATCH are unavailable there.
 
 - [ ] **Step 5: Update API contract documentation**
 
-Document v1 institution-scoped endpoints as canonical, legacy resources as history/compatibility only, and keep the research-beta/no-settlement boundary explicit.
+Document v1 institution-scoped endpoints as canonical, legacy resources as compatibility/history only, and keep research-beta/no-settlement wording explicit.
 
-- [ ] **Step 6: Run full backend/frontend suites**
+- [ ] **Step 6: Run full suites**
 
 ```bash
 cd backend
@@ -1307,85 +904,25 @@ git commit -m "refactor(wallet): retire legacy wallet write paths"
 - Modify: `src/screens/WalletScreen.v1.test.tsx`
 - Create: `docs/GREEN_WALLET_V1_ACCEPTANCE.md`
 
-**Interfaces:**
-- Produces: durable acceptance evidence and blocker list.
-- Consumes: entire Lifecycle v1.
-
 - [ ] **Step 1: Build one synthetic Pasadena institution and two auditable issuance buckets**
 
-Use:
+Use Pasadena Mobility Research Institute; users participant/staff/admin/viewer plus Glendale participant; verified_participation policy with fixture-only 5 units/event, participant cap 20, program cap 100, expiry 90 days; active EV Charge Benefit and Transit Benefit.
 
-```text
-Institution: Pasadena Mobility Research Institute
-Users:
-  pasadena-participant = participant
-  pasadena-staff = program_staff
-  pasadena-admin = institution_admin
-  pasadena-viewer = viewer
-  glendale-participant = participant in another tenant
-Policy: verified_participation
-Fixture-only policy values:
-  5 units per qualifying event
-  participant cap 20
-  program cap 100
-  expiry 90 days
-Benefits:
-  EV Charge Benefit = active, optional ChargingHub metadata
-  Transit Benefit = active, no ChargingHub
-```
+Create one evidence event => Award A 5. Create two distinct new evidence events => Award B 10. Patch issuance times so Award A expires first. Expected wallet issued/available 15.
 
-Create Evidence A with one qualifying event => IssuanceDecision A => 5-unit Award A. Create Evidence B/C with two separate qualifying events => IssuanceDecision B => 10-unit Award B. Freeze/patch issuance times so Award A expires before Award B.
+- [ ] **Step 2: Prove pooled 7-unit Transit Benefit redemption**
 
-Expected initial wallet: issued 15, available 15.
+Expected allocation A=5/B=2; after request available 8, held 7; staff start review succeeds; viewer and staff terminal attempts fail; admin fulfill succeeds; final available 8, held 0, fulfilled 7.
 
-- [ ] **Step 2: Prove pooled 7-unit redemption**
+- [ ] **Step 3: Prove EV charging uses same accounting without settlement claims**
 
-Participant requests 7 units against Transit Benefit with client UUID.
-
-Expected:
-
-```text
-Allocation A = 5
-Allocation B = 2
-available = 8
-held = 7
-fulfilled = 0
-expired = 0
-```
-
-Then:
-
-```text
-program_staff -> start review succeeds
-viewer -> fulfill denied
-program_staff -> fulfill denied
-institution_admin -> fulfill succeeds
-```
-
-Expected final projection: available 8, held 0, fulfilled 7, expired 0.
-
-- [ ] **Step 3: Prove EV charging uses the same accounting path without settlement claims**
-
-Create a separate synthetic EV Charge Benefit request and assert no ChargingSession/payment/settlement object is created and participant copy/API metadata does not claim a charger reservation or automatic payment.
+Create separate synthetic EV Charge Benefit request and assert no ChargingSession/payment/settlement object or claim is created.
 
 - [ ] **Step 4: Add negative/concurrency acceptance cases**
 
-Prove:
+Cross-tenant denial, same-tenant wrong participant denial, evidence reuse denial, duplicate approval/UUID protection, overcommit, caps, duplicate terminal protection, denial-after-expiry RELEASE+EXPIRE, expiration retry idempotency.
 
-```text
-- Glendale participant cannot view/redeem Pasadena wallet
-- second Pasadena participant cannot spend first participant balance
-- evidence cannot be reused for second issuance
-- duplicate approval does not create second ISSUE
-- duplicate UUID does not create second HOLD
-- overcommit fails
-- participant/program caps are enforced
-- second terminal decision creates no extra DEBIT/RELEASE
-- denial after natural expiry yields RELEASE + EXPIRE with no restored availability
-- expiration retry is idempotent
-```
-
-- [ ] **Step 5: Verify migrations from 0005 through latest on disposable data**
+- [ ] **Step 5: Verify migrations 0005 -> 0006 -> 0007 -> 0005 -> 0007 -> latest on disposable data**
 
 ```bash
 cd backend
@@ -1398,9 +935,9 @@ python manage.py migrate relay 0007
 python manage.py migrate
 ```
 
-Document that once accepted v1 ledger/provenance data exists, destructive schema rollback is not considered safe; application rollback/forward-fix must preserve accepted audit data.
+After accepted v1 audit data exists, document application rollback/forward-fix rather than destructive schema rollback.
 
-- [ ] **Step 6: Run complete verification suite**
+- [ ] **Step 6: Run complete verification**
 
 ```bash
 cd backend
@@ -1419,7 +956,7 @@ Expected: PASS.
 
 - [ ] **Step 7: Record durable acceptance evidence**
 
-In `docs/GREEN_WALLET_V1_ACCEPTANCE.md`, record exact branch/head SHA, migrations, exact backend/frontend test totals, synthetic fixtures, wallet projections, RBAC negatives, cross-tenant negatives, idempotency/concurrency/cap results, frontend DOM evidence, build/security results, rollback procedure, and every remaining blocker. Do not call Lifecycle v1 operational if any proof-chain segment fails.
+`docs/GREEN_WALLET_V1_ACCEPTANCE.md` must record exact SHA, migrations, exact test totals, fixtures, wallet projections, RBAC/cross-tenant/idempotency/concurrency/cap results, frontend DOM evidence, security/build results, rollback procedure, and every remaining blocker. Do not call Lifecycle v1 operational if any proof segment fails.
 
 - [ ] **Step 8: Commit Task 12**
 
@@ -1431,8 +968,6 @@ git commit -m "test(wallet): prove lifecycle v1 Pasadena acceptance chain"
 ---
 
 ## Final Verification Gate
-
-Run exactly:
 
 ```bash
 cd backend
@@ -1449,28 +984,16 @@ git status --short
 git log --oneline --decorate -15
 ```
 
-Required results:
-
-- no uncommitted generated files;
-- migrations 0001-0007 present in order;
-- all backend tests pass;
-- all frontend tests pass;
-- TypeScript check passes;
-- security check passes;
-- production build passes;
-- no canonical Green Wallet UI computes balances locally;
-- no canonical participant redemption submits arbitrary Profile or credit ownership fields;
-- no canonical terminal transition is performed by generic PATCH;
-- no live charging/payment/Charging Intelligence code was introduced.
+Required results: clean git state; migrations 0001-0007 in order; backend/frontend/type/security/build all pass; no canonical frontend balance math; no arbitrary Profile/credit identity inputs; no generic PATCH terminal transition; no Charging Intelligence/payment code added.
 
 ## Plan Self-Review
 
-**Spec coverage:** Tasks 1-12 cover participant identity/authorization, policy activation and rule evaluation, evidence provenance and anti-double-award, deterministic issuance, ISSUE accounting, caps, generic ProgramBenefit targeting, pooled oldest-expiring allocations, mandatory idempotency, capacity reservations, role-separated review, atomic terminal transitions, authoritative ledger projection, automatic expiration, explicit institution-scoped APIs, frontend cutover, legacy retirement, and Pasadena acceptance.
+**Spec coverage:** Tasks 1-12 cover identity/authorization, versioned policy activation, evidence provenance and anti-double-award, deterministic issuance, ISSUE accounting, caps, ProgramBenefit targeting, pooled oldest-expiring allocations, idempotency, capacity reservations, role-separated atomic review, authoritative projection, expiration, institution-scoped APIs, frontend cutover, legacy retirement, and Pasadena acceptance.
 
-**Placeholder scan:** No implementation step depends on an unspecified rule, default award, cap, expiry, file name, or test module. Synthetic constants are explicitly fixture-only. Existing general regression tests run through `relay.tests` and current Green Wallet test modules.
+**Placeholder scan:** No step depends on an unspecified production default, file name, test module, rule, cap, or expiry. Synthetic numeric values are fixture-only. Existing general regression coverage is invoked explicitly through `relay.tests` and named Green Wallet modules.
 
-**Type consistency:** Later tasks use the exact interfaces established earlier: `resolve_participant_profile`, `activate_policy`, `evaluate_policy`, `evaluate_issuance`, `approve_issuance`, `project_credit_bucket`, `project_wallet`, `create_redemption`, `start_review`, `finalize_redemption`, and `expire_due_credits`.
+**Type consistency:** Later tasks use the interfaces established earlier: `resolve_participant_profile`, `activate_policy`, `evaluate_policy`, `evaluate_issuance`, `approve_issuance`, `project_credit_bucket`, `project_wallet`, `create_redemption`, `start_review`, `finalize_redemption`, `expire_due_credits`.
 
-**Accounting consistency:** Existing policy cap/expiry columns are canonical; rule-specific values remain in `parameters`. V1 pooled RedemptionRequests keep legacy single-credit/ChargingHub FKs nullable until cutover. ADJUSTMENT uses signed `quantity_delta`; all other normal event quantities are positive. Evidence is single-use for v1 issuance to prevent double awards.
+**Accounting consistency:** Existing ProgramBenefitPolicy cap/expiry columns are canonical; only rule-specific values live in `parameters`. V1 pooled requests keep legacy credit/ChargingHub FKs nullable until cutover. ADJUSTMENT uses signed quantity_delta; all normal non-adjustment event quantities are positive. Evidence is single-use for v1 issuance.
 
-**Rollback boundary:** schema is additive/relaxing through 0006 and constraint-hardening through 0007. Before accepted v1 audit data, forward/backward verification is required. After accepted v1 data exists, destructive schema rollback is not treated as safe; preserve data and use application rollback/forward-fix.
+**Rollback boundary:** 0006 is additive/relaxing and 0007 hardens constraints. Before accepted v1 audit data, forward/backward verification is required. After accepted v1 data exists, destructive rollback is not treated as safe; preserve data and use application rollback/forward-fix.
