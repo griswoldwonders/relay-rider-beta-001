@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { mapLocations, selectAccessPointCandidates } from '../mapLocations';
 
+const WIKIPEDIA_HOST = 'wikipedia.org';
+const isWikipediaHost = (hostname: string): boolean => hostname === WIKIPEDIA_HOST || hostname.endsWith(`.${WIKIPEDIA_HOST}`);
+
 describe('location evidence / provenance', () => {
   it('gives every location an evidence source type and a checked-on date', () => {
     expect(mapLocations.every(location => Boolean(location.evidence?.sourceType))).toBe(true);
     expect(mapLocations.every(location => Boolean(location.evidence?.checkedOn))).toBe(true);
   });
 
+  it('treats only wikipedia.org and its subdomains as Wikipedia hosts', () => {
+    expect(isWikipediaHost('wikipedia.org')).toBe(true);
+    expect(isWikipediaHost('en.wikipedia.org')).toBe(true);
+    expect(isWikipediaHost('evilwikipedia.org')).toBe(false);
+  });
+
   it('marks the Wikipedia-sourced transit entries as provisional, not an official/directory source', () => {
-    const wikipediaEntries = mapLocations.filter(location => location.sourceUrl.includes('wikipedia.org'));
+    const wikipediaEntries = mapLocations.filter(location => isWikipediaHost(new URL(location.sourceUrl).hostname));
 
     expect(wikipediaEntries.length).toBeGreaterThan(0);
     expect(wikipediaEntries.every(location => location.evidence.sourceType === 'provisional-reference')).toBe(true);
