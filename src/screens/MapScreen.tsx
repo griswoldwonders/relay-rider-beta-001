@@ -14,17 +14,13 @@ import {
 import { Header } from '../components/Header';
 import { CorridorMap, MapFeatureKind } from '../components/CorridorMap';
 import { useApp } from '../context/AppContext';
-import { mapLocations } from '../data/mapLocations';
+import { mapLocations, selectAccessPointCandidates } from '../data/mapLocations';
 import {
   sessionDemandZones,
   sessionPlannedRoutes,
   simulatedCommuterDemand,
   simulatedPlannedRoutes,
 } from '../data/mapParticipantLayers';
-
-interface MapScreenProps {
-  onSuggestZone: () => void;
-}
 
 type LayerFilter = 'all' | 'demand' | 'planned-route' | 'anchor' | 'transit' | 'ev-hub' | 'school';
 
@@ -43,7 +39,7 @@ const layerOptions: Array<{ value: LayerFilter; label: string }> = [
   { value: 'school', label: 'Schools' },
 ];
 
-export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
+export const MapScreen: React.FC = () => {
   const { routeSignals, evParticipantSignals } = useApp();
   const [layerFilter, setLayerFilter] = useState<LayerFilter>('all');
   const [selectedFeature, setSelectedFeature] = useState<SelectedFeature>(null);
@@ -58,10 +54,12 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
     [evParticipantSignals],
   );
 
+  const accessPointCandidates = useMemo(() => selectAccessPointCandidates(mapLocations), []);
+
   const filteredLocations = useMemo(() => {
     if (layerFilter === 'all') return mapLocations;
     if (layerFilter === 'anchor') {
-      return mapLocations.filter(location => location.kind === 'anchor' && !location.type.toLowerCase().includes('transit'));
+      return accessPointCandidates;
     }
     if (layerFilter === 'transit') {
       return mapLocations.filter(location => location.type.toLowerCase().includes('transit'));
@@ -73,7 +71,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
       return mapLocations.filter(location => location.kind === 'school');
     }
     return [];
-  }, [layerFilter]);
+  }, [accessPointCandidates, layerFilter]);
 
   const visibleDemandZones = layerFilter === 'all' || layerFilter === 'demand' ? demandZones : [];
   const visiblePlannedRoutes = layerFilter === 'all' || layerFilter === 'planned-route' ? plannedRoutes : [];
@@ -116,7 +114,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-navy">Pasadena ↔ Eagle Rock ↔ Glendale</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-wide text-navy">See where commuter demand meets clean-route supply.</h2>
               <p className="mt-2 text-sm leading-relaxed text-gray-700">
-                Compare generalized commuter-demand signals, EV/hybrid planned routes, candidate Access Points, transit locations, and verified charging infrastructure in one corridor view.
+                Compare generalized commuter-demand signals, EV/hybrid planned routes, candidate Access Points, transit locations, and source-documented charging infrastructure in one corridor view. Each location card includes an evidence label, source type, and checked date.
               </p>
             </div>
           </div>
@@ -126,27 +124,27 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
           <div className="card p-4">
             <div className="flex items-center gap-2 text-iris"><Users size={16} /><span className="text-xs font-semibold uppercase tracking-wider">Commute needs</span></div>
             <p className="mt-2 text-2xl font-semibold text-navy">{totalCommuterNeeds}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Simulated corridor aggregate + your current session signals</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Source documentation appears on each location card</p>
           </div>
           <div className="card p-4">
             <div className="flex items-center gap-2 text-lagoon"><Route size={16} /><span className="text-xs font-semibold uppercase tracking-wider">Planned routes</span></div>
             <p className="mt-2 text-2xl font-semibold text-navy">{totalPlannedRoutes}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">EV/hybrid route-interest signals, not operating routes</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">No generalized route-interest signals are available in this session</p>
           </div>
           <div className="card p-4">
             <div className="flex items-center gap-2 text-navy"><TrainFront size={16} /><span className="text-xs font-semibold uppercase tracking-wider">Transit points</span></div>
             <p className="mt-2 text-2xl font-semibold text-navy">{transitCount}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Current source-verified prototype locations</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Evidence: source type and checked date</p>
           </div>
           <div className="card p-4">
             <div className="flex items-center gap-2 text-iris"><BatteryCharging size={16} /><span className="text-xs font-semibold uppercase tracking-wider">EV hubs</span></div>
             <p className="mt-2 text-2xl font-semibold text-navy">{chargingCount}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Charging infrastructure; live availability can change</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Charging infrastructure candidate; live availability can change</p>
           </div>
           <div className="card p-4 col-span-2">
             <div className="flex items-center gap-2 text-navy"><GraduationCap size={16} /><span className="text-xs font-semibold uppercase tracking-wider">Schools / campuses</span></div>
             <p className="mt-2 text-2xl font-semibold text-navy">{schoolCount}</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Candidate campus Access Points; GoPass/U-Pass eligibility varies by school</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Candidate campus Access Points; not approved yet</p>
           </div>
         </section>
 
@@ -158,6 +156,13 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
               onClick={() => {
                 setLayerFilter(option.value);
                 setSelectedFeature(null);
+              }}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setLayerFilter(option.value);
+                  setSelectedFeature(null);
+                }
               }}
               className={`activity-chip ${layerFilter === option.value ? 'is-active' : ''}`}
             >
@@ -187,7 +192,7 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
           <div className="flex items-start gap-3">
             <ShieldCheck size={18} className="mt-0.5 flex-shrink-0 text-iris" />
             <p className="text-xs leading-relaxed text-gray-700">
-              <strong>Research Beta:</strong> Commuter-demand and planned-route corridor layers include simulated aggregate data for demonstration. Your own session submissions may be added as generalized signals when their area can be resolved. Public locations and charging infrastructure are source-verified where noted. No layer represents live participant tracking, guaranteed route availability, or an approved Access Point.
+            <strong>Research Beta:</strong> Commuter-demand and planned-route corridor layers may contain simulated aggregate demonstration data when shown. Your own session submissions may be added as generalized signals when their area can be resolved. Source documentation is shown on each location card; approval is not implied. No layer represents live participant tracking, guaranteed route availability, or an approved Access Point.
             </p>
           </div>
         </div>
@@ -198,22 +203,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
               <h2 className="section-title !mb-1">Commuter demand zones</h2>
               <p className="text-xs text-gray-500">Tap a zone to inspect the generalized research signal.</p>
             </div>
-            {visibleDemandZones.map(zone => (
-              <button
-                key={zone.id}
-                type="button"
-                onClick={() => handleSelectFeature('demand', zone.id)}
-                className="card w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-navy">{zone.name}</h3>
-                    <p className="mt-1 text-xs text-gray-500">{zone.peakWindow} · {zone.parkingPressure} parking pressure</p>
+            {visibleDemandZones.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-gray-300 bg-white/70 p-4 text-xs text-gray-600">
+                No generalized commuter-demand signals are available in this session.
+              </p>
+            ) : (
+              visibleDemandZones.map(zone => (
+                <button
+                  key={zone.id}
+                  type="button"
+                  onClick={() => handleSelectFeature('demand', zone.id)}
+                  className="card w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-navy">{zone.name}</h3>
+                      <p className="mt-1 text-xs text-gray-500">{zone.peakWindow} · {zone.parkingPressure} parking pressure</p>
+                    </div>
+                    <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{zone.commuterCount}</span>
                   </div>
-                  <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">{zone.commuterCount}</span>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </section>
         )}
 
@@ -223,22 +234,28 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
               <h2 className="section-title !mb-1">EV/hybrid planned-route bands</h2>
               <p className="text-xs text-gray-500">These represent routes participants already intend to travel, not dispatch availability.</p>
             </div>
-            {visiblePlannedRoutes.map(route => (
-              <button
-                key={route.id}
-                type="button"
-                onClick={() => handleSelectFeature('planned-route', route.id)}
-                className="card w-full text-left"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-navy">{route.name}</h3>
-                    <p className="mt-1 text-xs text-gray-500">{route.peakWindow} · {route.evCount} EV · {route.hybridCount} hybrid</p>
+            {visiblePlannedRoutes.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-gray-300 bg-white/70 p-4 text-xs text-gray-600">
+                No generalized route-interest signals are available in this session.
+              </p>
+            ) : (
+              visiblePlannedRoutes.map(route => (
+                <button
+                  key={route.id}
+                  type="button"
+                  onClick={() => handleSelectFeature('planned-route', route.id)}
+                  className="card w-full text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-navy">{route.name}</h3>
+                      <p className="mt-1 text-xs text-gray-500">{route.peakWindow} · {route.evCount} EV · {route.hybridCount} hybrid</p>
+                    </div>
+                    <span className="rounded-full bg-light-green px-3 py-1 text-xs font-semibold text-navy">{route.routeCount}</span>
                   </div>
-                  <span className="rounded-full bg-light-green px-3 py-1 text-xs font-semibold text-navy">{route.routeCount}</span>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </section>
         )}
 
@@ -254,61 +271,79 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
 
             <div className="space-y-4">
               {filteredLocations.map(location => {
-                const isEvHub = location.kind === 'ev-hub';
-                const isSchool = location.kind === 'school';
-                const isTransit = location.type.toLowerCase().includes('transit');
+                const evidenceLabel = location.evidence.sourceType === 'provisional-reference'
+                  ? 'Provisional source'
+                  : location.accessPointCandidate
+                    ? 'Candidate Access Point — not approved'
+                    : location.kind === 'ev-hub'
+                      ? 'Source-documented charging infrastructure'
+                      : location.kind === 'school'
+                        ? 'School / campus'
+                        : 'Transit Access Point';
                 const isSelected = selectedFeature?.kind === 'location' && selectedFeature.id === location.id;
 
                 return (
-                  <article
-                    id={`location-${location.id}`}
+                  <div
                     key={location.id}
-                    className={`card scroll-mt-24 transition ${isSelected ? 'ring-2 ring-mobility-green' : ''}`}
-                    onClick={() => handleSelectFeature('location', location.id)}
+                    className={`card scroll-mt-24 transition w-full ${isSelected ? 'ring-2 ring-mobility-green' : ''}`}
+                    id={`location-${location.id}`}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${isEvHub ? 'bg-light-blue text-iris' : isSchool ? 'bg-light-green text-navy' : 'bg-light-green text-navy'}`}>
-                        {isEvHub ? <BatteryCharging size={21} /> : isSchool ? <GraduationCap size={21} /> : isTransit ? <TrainFront size={21} /> : <MapPin size={21} />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h3 className="font-semibold tracking-wide text-navy">{location.name}</h3>
-                            <p className="mt-1 text-xs text-gray-500">{location.type} · {location.city}</p>
-                          </div>
-                          <span className={`whitespace-nowrap rounded-full border border-lagoon/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider ${isEvHub ? 'bg-light-blue text-iris' : 'bg-light-green text-navy'}`}>
-                            {isEvHub ? 'EV hub' : isSchool ? 'School' : isTransit ? 'Transit' : 'Candidate'}
-                          </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectFeature('location', location.id)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${location.kind === 'ev-hub' ? 'bg-light-blue text-iris' : location.kind === 'school' ? 'bg-light-green text-navy' : 'bg-light-green text-navy'}`}>
+                          {location.kind === 'ev-hub' ? <BatteryCharging size={21} /> : location.kind === 'school' ? <GraduationCap size={21} /> : location.type.toLowerCase().includes('transit') ? <TrainFront size={21} /> : <MapPin size={21} />}
                         </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-semibold tracking-wide text-navy">{location.name}</h3>
+                              <p className="mt-1 text-xs text-gray-500">{location.type} · {location.city} · {location.evidence.sourceType.replace('-', ' ')} · checked {location.evidence.checkedOn}</p>
+                            </div>
+                            <span className={`whitespace-nowrap rounded-full border border-lagoon/20 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-wider ${location.accessPointCandidate ? 'bg-light-green text-navy' : 'bg-light-blue text-iris'}`}>
+                              {evidenceLabel}
+                            </span>
+                          </div>
 
-                        <p className="mt-4 text-xs leading-relaxed text-gray-600">{location.address}</p>
-                        {location.chargerSummary && <p className="mt-3 rounded-2xl bg-light-blue p-3 text-xs leading-relaxed text-gray-700">{location.chargerSummary}</p>}
-                        {location.transitPassProgram && (
-                          <p className="mt-3 rounded-2xl bg-light-green p-3 text-xs leading-relaxed text-gray-700">
-                            <strong>{location.transitPassProgram.label}:</strong> {location.transitPassProgram.summary}
-                          </p>
-                        )}
-                        <p className="mt-3 text-xs leading-relaxed text-gray-600">{location.notes}</p>
-
-                        <a href={location.sourceUrl} target="_blank" rel="noreferrer" onClick={event => event.stopPropagation()} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-iris">
-                          Verify with {location.sourceLabel}<ExternalLink size={12} />
-                        </a>
+                          <p className="mt-4 text-xs leading-relaxed text-gray-600">{location.address}</p>
+                          {location.chargerSummary && <p className="mt-3 rounded-2xl bg-light-blue p-3 text-xs leading-relaxed text-gray-700">{location.chargerSummary}</p>}
+                          {location.transitPassProgram && (
+                            <p className="mt-3 rounded-2xl bg-light-green p-3 text-xs leading-relaxed text-gray-700">
+                              <strong>{location.transitPassProgram.label}:</strong> {location.transitPassProgram.summary}
+                            </p>
+                          )}
+                          <p className="mt-3 text-xs leading-relaxed text-gray-600">{location.notes}</p>
+                        </div>
                       </div>
+                    </button>
+
+                    <div className="px-0 pb-0 pt-4 pl-16">
+                      <a href={location.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-iris">
+                        Verify with {location.sourceLabel}<ExternalLink size={12} />
+                      </a>
                     </div>
-                  </article>
+                  </div>
                 );
               })}
             </div>
           </section>
         )}
 
-        <button onClick={onSuggestZone} className="btn-primary">Suggest an Access Point for Review</button>
-        <p className="text-center text-xs text-gray-500">Suggestions create a research signal only. They do not activate or approve a location.</p>
+        <button type="button" disabled className="btn-primary opacity-50 cursor-not-allowed" aria-describedby="suggest-access-point-unavailable">
+          Suggest an Access Point for Review
+        </button>
+        <p id="suggest-access-point-unavailable" className="text-center text-xs text-gray-500">
+          Formal Access Point submissions are not open in the research beta. This control is currently unavailable while site-rule, safety, and partner review processes are established.
+        </p>
       </div>
 
       {(selectedLocation || selectedDemand || selectedRoute) && (
-        <aside
-          className="fixed inset-x-3 bottom-20 z-[1100] mx-auto max-w-md rounded-[28px] border border-black/10 bg-white p-5 shadow-2xl"
+          <aside
+          className="fixed inset-x-3 bottom-20 z-[1100] mx-auto max-h-[calc(100vh-6rem)] max-w-md overflow-y-auto rounded-[28px] border border-black/10 bg-white p-5 shadow-2xl"
+          role="complementary"
           aria-label="Selected map feature details"
         >
           <div className="flex items-start justify-between gap-4">
@@ -365,7 +400,16 @@ export const MapScreen: React.FC<MapScreenProps> = ({ onSuggestZone }) => {
 
           {selectedLocation && (
             <div className="mt-4 space-y-3 text-xs text-gray-700">
-              <p>{selectedLocation.type} · {selectedLocation.city}</p>
+              <p>{selectedLocation.type} · {selectedLocation.city} · {selectedLocation.evidence.sourceType.replace('-', ' ')} · checked {selectedLocation.evidence.checkedOn}</p>
+              <p className="rounded-full border border-lagoon/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-navy">
+                {selectedLocation.evidence.sourceType === 'provisional-reference'
+                  ? 'Provisional source'
+                  : selectedLocation.accessPointCandidate
+                    ? 'Candidate Access Point — not approved'
+                    : selectedLocation.kind === 'ev-hub'
+                      ? 'Source-documented charging infrastructure'
+                      : 'Transit / school location'}
+              </p>
               <p>{selectedLocation.address}</p>
               {selectedLocation.chargerSummary && <p className="rounded-2xl bg-light-blue p-3">{selectedLocation.chargerSummary}</p>}
               {selectedLocation.transitPassProgram && (
