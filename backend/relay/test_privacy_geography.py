@@ -3,7 +3,15 @@ from math import inf, nan
 
 from django.test import TestCase, override_settings
 
-from relay.models import Cohort, Institution, Site
+from relay.models import (
+    Cohort,
+    CommuteImport,
+    CommuterRecord,
+    DataSource,
+    Institution,
+    Site,
+)
+from relay.services.exports import commuter_records_csv, dashboard_payload
 from relay.services.privacy_geography import (
     TRANSFORMATION_VERSION,
     CorridorAggregate,
@@ -59,6 +67,42 @@ class PrivacyGeographyTests(TestCase):
             institution=self.institution,
             site=self.site,
             cohort=self.cohort,
+        )
+        self.data_source = DataSource.objects.create(
+            institution=self.institution,
+            site=self.site,
+            name='Synthetic H3 proof source',
+            source_type='synthetic',
+            provenance_label='synthetic',
+        )
+        self.commute_import = CommuteImport.objects.create(
+            institution=self.institution,
+            site=self.site,
+            cohort=self.cohort,
+            data_source=self.data_source,
+            file_name='h3-non-regression.csv',
+            file_sha256='0' * 64,
+            status='completed',
+            total_rows=1,
+            valid_rows=1,
+            invalid_rows=0,
+            validation_summary={'provenance_label': 'synthetic'},
+        )
+        self.commuter_record = CommuterRecord.objects.create(
+            institution=self.institution,
+            site=self.site,
+            cohort=self.cohort,
+            commute_import=self.commute_import,
+            external_id='EXISTING-1',
+            origin_zone='Eagle Rock',
+            destination_zone='Pasadena Campus',
+            commute_days=['Mon'],
+            arrival_window='07:30-08:00',
+            departure_window='16:30-17:00',
+            current_mode='drive_alone',
+            vehicle_fuel_type='gasoline',
+            source_row_number=2,
+            source_payload={'origin_zone': 'Eagle Rock'},
         )
 
     def test_scope_rejects_site_from_another_institution(self):
@@ -349,10 +393,28 @@ class PrivacyGeographyTests(TestCase):
         )
 
     def test_commuter_record_schema_does_not_gain_h3_fields(self):
-        from relay.models import CommuterRecord
-
         field_names = {field.name for field in CommuterRecord._meta.get_fields()}
         self.assertNotIn('origin_h3', field_names)
         self.assertNotIn('destination_h3', field_names)
         self.assertNotIn('origin_h3_cell', field_names)
         self.assertNotIn('destination_h3_cell', field_names)
+
+    def test_existing_commuter_export_does_not_emit_restricted_h3_cells(self):
+        derived = transform_observations(
+            scope=self.scope,
+            observations=[make_observation('R1')],
+        )[0]
+        export_text = commuter_records_csv(self.institution)
+        self.assertIn('Eagle Rock', export_text)
+        self.assertIn('Pasadena Campus', export_text)
+        self.assertNotIn(derived.origin_h3_cell, export_text)
+        self.assertNotIn(derived.destination_h3_cell, export_text)
+
+    def test_existing_dashboard_does_not_emit_restricted_h3_cells(self):
+        derived = transform_observations(
+            scope=self.scope,
+            observations=[make_observation('R1')],
+        )[0]
+        payload_text = repr(dashboard_payload(self.institution))
+        self.assertNotIn(derived.origin_h3_cell, payload_text)
+        self.assertNotIn(derived.destination_h3_cell, payload_text)
