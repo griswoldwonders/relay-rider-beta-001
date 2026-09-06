@@ -1,0 +1,33 @@
+external_id,origin_zone,destination_zone,commute_days,arrival_window,departure_window,schedule_flex_minutes,current_mode,occupants,vehicle_fuel_type,parking_difficulty,ev_interest,access_point_willing,consent_confirmed
+PDI-C001,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-C002,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C003,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:30-17:15,15,drive_alone,,gasoline,medium,no,yes,yes
+PDI-C004,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,09:00-09:30,18:00-18:30,15,transit,,none,low,no,yes,yes
+PDI-C005,Glendale Central,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:30-17:15,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-C006,Glendale Central,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C007,Glendale Central,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:00-16:45,15,carpool,2,gasoline,medium,no,yes,yes
+PDI-C008,Highland Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-C009,Highland Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:15-08:45,17:15-18:00,15,transit,,none,low,no,yes,yes
+PDI-C010,South Pasadena,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C011,Alhambra,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-C012,Alhambra,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:30-09:00,17:30-18:15,15,drive_alone,,gasoline,medium,no,yes,yes
+PDI-C013,El Sereno,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:30-17:15,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C014,Altadena,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-C015,Altadena,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,bike,,none,low,no,no,yes
+PDI-C016,East Pasadena,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,hybrid,medium,yes,yes,yes
+PDI-C017,Pasadena Northwest,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C018,Pasadena Northwest,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:30-08:00,16:30-17:15,15,walk,,none,low,no,no,yes
+PDI-C019,Glassell Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C020,Monterey Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-C021,San Gabriel,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,medium,no,yes,yes
+PDI-C022,Arcadia,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,medium,yes,yes,yes
+PDI-R001,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:50-17:20,15,drive_alone,,bev,low,yes,yes,yes
+PDI-R002,Glendale Central,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:40-17:10,15,drive_alone,,phev,low,yes,yes,yes
+PDI-R003,Highland Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:50-17:20,15,drive_alone,,bev,low,yes,yes,yes
+PDI-R004,Alhambra,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:50-17:20,15,drive_alone,,hybrid,low,no,yes,yes
+PDI-R005,Altadena,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:50-17:20,15,drive_alone,,bev,low,yes,yes,yes
+PDI-R006,Glassell Park,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:50-08:10,16:50-17:20,15,drive_alone,,phev,low,yes,yes,yes
+PDI-X001,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:30-08:00,17:00-17:45,15,drive_alone,,gasoline,very_high,yes,yes,yes
+PDI-X002,,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,gasoline,high,yes,yes,yes
+PDI-X003,Glendale Central,Pasadena Central,Mon|Tue|Wed|Thu|Fri,08:00-08:30,17:00-17:45,15,drive_alone,,none,high,yes,yes,yes
+PDI-C001,Eagle Rock,Pasadena Central,Mon|Tue|Wed|Thu|Fri,07:45-08:15,16:45-17:30,15,drive_alone,,gasoline,very_high,yes,yes,yes
