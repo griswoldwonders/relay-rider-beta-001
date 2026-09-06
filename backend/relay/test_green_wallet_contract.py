@@ -3,7 +3,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import ChargingHub, GreenRouteCredit, Institution, Membership, RedemptionRequest
+from .models import ChargingHub, GreenRouteCredit, Institution, Membership, Profile, RedemptionRequest
 
 
 class GreenWalletModelContractTests(TestCase):
@@ -129,9 +129,16 @@ class ParticipantWalletProjectionTests(APITestCase):
     def setUp(self):
         self.institution = Institution.objects.create(name='Institution A', slug='institution-a')
         self.user = User.objects.create_user(username='member', password='pw')
-        Membership.objects.create(user=self.user, institution=self.institution, role='viewer')
+        Membership.objects.create(user=self.user, institution=self.institution, role='participant')
+        self.profile = Profile.objects.create(
+            institution=self.institution,
+            user=self.user,
+            name='Participant',
+            role='participant',
+        )
         self.credit = GreenRouteCredit.objects.create(
             institution=self.institution,
+            profile=self.profile,
             amount_units='7.00',
             unit_label='Green Route Credits',
             note='Research-beta participation',

@@ -1,8 +1,15 @@
 from django.contrib import admin
 from .models import ChargingHub, Corridor, EVParticipantSignal, GreenRouteCredit, Institution, Membership, Profile, ProgramBenefitPolicy, RedemptionRequest, RelayZone, RouteSignal, WalletLedgerEntry
 
-for model in [Institution, Membership, Profile, RouteSignal, EVParticipantSignal, RelayZone, Corridor, GreenRouteCredit, ChargingHub, RedemptionRequest, ProgramBenefitPolicy]:
+for model in [Institution, Membership, RouteSignal, EVParticipantSignal, RelayZone, Corridor, GreenRouteCredit, ChargingHub, RedemptionRequest, ProgramBenefitPolicy]:
     admin.site.register(model)
+
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    """Profile ownership is assigned only through the governed bind-user API."""
+
+    readonly_fields = ('user',)
 
 
 @admin.register(WalletLedgerEntry)

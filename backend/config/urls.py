@@ -2,7 +2,21 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from relay.views import ChargingHubViewSet, CorridorViewSet, GreenRouteCreditViewSet, ProfileViewSet, ProgramBenefitPolicyViewSet, RedemptionRequestViewSet, RelayZoneViewSet, RouteSignalViewSet, EVParticipantSignalViewSet, InstitutionDashboardView, InstitutionCommuterExportView
+from relay.views import (
+    ChargingHubViewSet,
+    CorridorViewSet,
+    DecisionCardReviewView,
+    EVParticipantSignalViewSet,
+    GreenRouteCreditViewSet,
+    InstitutionCommuterExportView,
+    InstitutionDashboardView,
+    ProfileBindUserView,
+    ProfileViewSet,
+    ProgramBenefitPolicyViewSet,
+    RedemptionRequestViewSet,
+    RelayZoneViewSet,
+    RouteSignalViewSet,
+)
 from relay.signup_view import SignupView
 
 router = DefaultRouter()
@@ -31,6 +45,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/signup/', SignupView.as_view(), name='signup'),
+    path('api/profiles/<int:profile_id>/bind-user/', ProfileBindUserView.as_view(), name='profile-bind-user'),
+    path('api/decision-cards/<int:card_id>/review/', DecisionCardReviewView.as_view(), name='decision-card-review'),
     path('api/institutions/<int:institution_id>/dashboard/', InstitutionDashboardView.as_view(), name='institution-dashboard'),
     path('api/institutions/<int:institution_id>/commuter-records.csv', InstitutionCommuterExportView.as_view(), name='institution-commuter-export'),
 ]

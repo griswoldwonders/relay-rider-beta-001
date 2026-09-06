@@ -3,10 +3,32 @@ from rest_framework.permissions import BasePermission
 from .models import Membership
 
 
+STAFF_ROLES = {'institution_admin', 'program_staff'}
+PARTICIPANT_ROLE = 'participant'
+
+
 def user_institution_ids(user):
     if not user or not user.is_authenticated:
         return set()
     return set(Membership.objects.filter(user=user).values_list('institution_id', flat=True))
+
+
+def user_staff_institution_ids(user):
+    if not user or not user.is_authenticated:
+        return set()
+    return set(Membership.objects.filter(
+        user=user,
+        role__in=STAFF_ROLES,
+    ).values_list('institution_id', flat=True))
+
+
+def user_participant_institution_ids(user):
+    if not user or not user.is_authenticated:
+        return set()
+    return set(Membership.objects.filter(
+        user=user,
+        role=PARTICIPANT_ROLE,
+    ).values_list('institution_id', flat=True))
 
 
 def user_is_platform_admin(user):
@@ -36,6 +58,20 @@ class IsTenantMember(BasePermission):
         return institution_id in user_institution_ids(request.user)
 
 
+class CanSubmitRedemptionRequest(IsTenantMember):
+    """Only participants or staff may submit governed redemption requests."""
+
+    def has_permission(self, request, view):
+        if not super().has_permission(request, view):
+            return False
+        if user_is_platform_admin(request.user):
+            return True
+        return Membership.objects.filter(
+            user=request.user,
+            role__in={PARTICIPANT_ROLE, *STAFF_ROLES},
+        ).exists()
+
+
 class CanReviewRedemptionRequest(IsTenantMember):
     """Tenant membership plus a staff-level role for write actions on review."""
 
@@ -44,7 +80,6 @@ class CanReviewRedemptionRequest(IsTenantMember):
             return False
         if user_is_platform_admin(request.user):
             return True
-        staff_roles = {'institution_admin', 'program_staff'}
         return Membership.objects.filter(
-            user=request.user, institution_id=obj.institution_id, role__in=staff_roles
+            user=request.user, institution_id=obj.institution_id, role__in=STAFF_ROLES
         ).exists()

@@ -184,14 +184,14 @@ class RedemptionRequestTenancyTests(TenancyRBACTestCase):
         self.redemption_b.refresh_from_db()
         self.assertEqual(self.redemption_b.status, 'requested')
 
-    def test_viewer_role_cannot_review_update(self):
+    def test_viewer_role_cannot_discover_or_review_update(self):
         self.client.force_authenticate(user=self.viewer_a)
         response = self.client.patch(
             f'/api/redemption-requests/{self.redemption_a.id}/',
             {'status': 'under-review'},
             format='json',
         )
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_platform_admin_can_review_any_institution(self):
         self.client.force_authenticate(user=self.platform_admin)
@@ -238,8 +238,8 @@ class RedemptionRequestTenancyTests(TenancyRBACTestCase):
             ).exists()
         )
 
-    def test_create_uses_credit_institution_for_multi_membership_user(self):
-        Membership.objects.create(user=self.user_a, institution=self.institution_b, role='viewer')
+    def test_create_uses_credit_institution_for_multi_membership_staff_user(self):
+        Membership.objects.create(user=self.user_a, institution=self.institution_b, role='program_staff')
         self.client.force_authenticate(user=self.user_a)
         response = self.client.post('/api/redemption-requests/', {
             'credit': self.credit_b.id,
