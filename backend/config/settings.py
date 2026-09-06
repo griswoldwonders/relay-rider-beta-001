@@ -105,6 +105,11 @@ USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+RELAY_H3_RESOLUTION = int(os.environ.get('RELAY_H3_RESOLUTION', '7'))
+RELAY_H3_MIN_PUBLISHABLE_COUNT = int(
+    os.environ.get('RELAY_H3_MIN_PUBLISHABLE_COUNT', '5')
+)
+
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'DEFAULT_AUTHENTICATION_CLASSES': [
