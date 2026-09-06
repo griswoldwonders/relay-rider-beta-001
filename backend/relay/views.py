@@ -353,8 +353,13 @@ def _institution_for_user(user, institution_id):
 
     if user_is_platform_admin(user):
         return institution
-    if institution.id not in user_staff_institution_ids(user):
-        raise PermissionDenied('You do not have staff access to this institution')
+    can_read_institutional_output = Membership.objects.filter(
+        user=user,
+        institution=institution,
+        role__in={'institution_admin', 'program_staff', 'viewer'},
+    ).exists()
+    if not can_read_institutional_output:
+        raise PermissionDenied('You do not have institutional output access')
     return institution
 
 
