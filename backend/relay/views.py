@@ -353,8 +353,8 @@ def _institution_for_user(user, institution_id):
 
     if user_is_platform_admin(user):
         return institution
-    if not Membership.objects.filter(user=user, institution=institution).exists():
-        raise PermissionDenied('You do not have access to this institution')
+    if institution.id not in user_staff_institution_ids(user):
+        raise PermissionDenied('You do not have staff access to this institution')
     return institution
 
 
