@@ -64,9 +64,10 @@ class PasadenaProofV1ValidationTests(TestCase):
         self.assertEqual(commute_import.total_rows, 32)
         self.assertEqual(commute_import.valid_rows, 28)
         self.assertEqual(commute_import.invalid_rows, 4)
-        self.assertEqual(commute_import.records.count(), 32)
+        self.assertEqual(commute_import.records.count(), 31)
         self.assertEqual(commute_import.records.filter(validation_status='valid').count(), 28)
-        self.assertEqual(commute_import.records.filter(validation_status='invalid').count(), 4)
+        self.assertEqual(commute_import.records.filter(validation_status='invalid').count(), 3)
+        self.assertEqual(len(commute_import.validation_summary['rejected_rows']), 1)
         self.assertEqual(commute_import.validation_summary['provenance_label'], 'synthetic')
         self.assertEqual(len(commute_import.file_sha256), 64)
 
@@ -84,14 +85,16 @@ class PasadenaProofV1ValidationTests(TestCase):
         self.assertEqual(record.validation_status, 'invalid')
         self.assertIn('vehicle_fuel_type is required for drive_alone', record.validation_errors)
 
-    def test_duplicate_external_id_is_retained_but_excluded_from_valid_records(self):
+    def test_duplicate_external_id_is_rejected_with_raw_provenance_retained(self):
         commute_import = self._import()
-        duplicates = commute_import.records.filter(external_id='PDI-C001').order_by('source_row_number')
+        rejected = commute_import.validation_summary['rejected_rows']
 
-        self.assertEqual(duplicates.count(), 2)
-        self.assertEqual(duplicates[0].validation_status, 'valid')
-        self.assertEqual(duplicates[1].validation_status, 'invalid')
-        self.assertIn('external_id must be unique within import', duplicates[1].validation_errors)
+        self.assertEqual(len(rejected), 1)
+        self.assertEqual(rejected[0]['source_row_number'], 33)
+        self.assertEqual(rejected[0]['external_id'], 'PDI-C001')
+        self.assertIn('external_id must be unique within import', rejected[0]['validation_errors'])
+        self.assertEqual(rejected[0]['source_payload']['external_id'], 'PDI-C001')
+        self.assertEqual(commute_import.records.filter(external_id='PDI-C001').count(), 1)
 
     def test_missing_origin_zone_remains_invalid(self):
         commute_import = self._import()
