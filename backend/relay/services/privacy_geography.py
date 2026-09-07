@@ -115,6 +115,16 @@ def resolve_privacy_geography_scope(
     )
 
 
+def _revalidate_scope(scope: PrivacyGeographyScope) -> PrivacyGeographyScope:
+    if not isinstance(scope, PrivacyGeographyScope):
+        raise PrivacyGeographyError('invalid privacy geography scope')
+    return resolve_privacy_geography_scope(
+        institution=scope.institution,
+        site=scope.site,
+        cohort=scope.cohort,
+    )
+
+
 def _effective_resolution(resolution: int | None) -> int:
     value = settings.RELAY_H3_RESOLUTION if resolution is None else resolution
     if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 15:
@@ -183,8 +193,7 @@ def transform_observations(
     observations: Iterable[GeographyObservation],
     resolution: int | None = None,
 ) -> tuple[PrivacyGeographyRecord, ...]:
-    if not isinstance(scope, PrivacyGeographyScope):
-        raise PrivacyGeographyError('invalid privacy geography scope')
+    scope = _revalidate_scope(scope)
 
     h3_resolution = _effective_resolution(resolution)
     seen_ids: set[str] = set()
