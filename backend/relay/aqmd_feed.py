@@ -7,6 +7,7 @@ analysis; it is not a second persistence authority and never accepts writes.
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views import View
 
 from .models import CommuterRecord, Institution, Rule2202CalculationRun
@@ -117,7 +118,7 @@ class InstitutionAqmdFeedView(View):
 
         response = JsonResponse({
             "contract_version": AQMD_FEED_CONTRACT_VERSION,
-            "generated_at": __import__("django.utils.timezone", fromlist=["now"]).now().isoformat(),
+            "generated_at": timezone.now().isoformat(),
             "institution": {
                 "id": str(institution.id),
                 "name": institution.name,
