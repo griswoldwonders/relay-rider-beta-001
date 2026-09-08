@@ -46,7 +46,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/signup/', SignupView.as_view(), name='signup'),
-    path('api/profile-bindings/<int:profile_id>/', ProfileBindUserView.as_view(), name='profile-bind-user'),
+    path('api/profiles/<int:profile_id>/bind-user/', ProfileBindUserView.as_view(), name='profile-bind-user'),
     path('api/decision-cards/<int:card_id>/review/', DecisionCardReviewView.as_view(), name='decision-card-review'),
     path('api/institutions/<int:institution_id>/dashboard/', InstitutionDashboardView.as_view(), name='institution-dashboard'),
     path('api/institutions/<int:institution_id>/commuter-records.csv', InstitutionCommuterExportView.as_view(), name='institution-commuter-export'),
