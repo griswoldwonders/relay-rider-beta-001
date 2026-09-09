@@ -1,9 +1,10 @@
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from relay.models import (
     Cohort,
@@ -14,6 +15,7 @@ from relay.models import (
     Institution,
     Site,
 )
+from relay.services.commute_schema import validate_and_normalize_rows
 from relay.services.evidence_projection import (
     EvidenceProjectionUnavailable,
     normalize_record_for_evidence,
@@ -62,6 +64,51 @@ class EvidenceProjectionModelTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             binding.full_clean()
+
+
+class EvidenceReadyImportContractTests(SimpleTestCase):
+    def _row(self, **overrides):
+        row = {
+            'external_id': 'EMP-1',
+            'origin_zone': 'Eagle Rock',
+            'destination_zone': 'Pasadena',
+            'commute_days': 'Mon|Tue',
+            'arrival_window': '07:30-08:00',
+            'departure_window': '16:30-17:00',
+            'current_mode': 'drive_alone',
+            'consent_confirmed': 'yes',
+            'schedule_flex_minutes': '15',
+            'occupants': '',
+            'vehicle_fuel_type': 'gasoline',
+            'parking_difficulty': 'high',
+            'ev_interest': 'no',
+            'access_point_willing': 'yes',
+        }
+        row.update(overrides)
+        return row
+
+    def test_optional_date_and_distance_normalize_when_present(self):
+        [(normalized, errors)] = validate_and_normalize_rows([
+            self._row(observation_date='2026-09-08', one_way_miles='8.40')
+        ])
+        self.assertEqual(errors, [])
+        self.assertEqual(normalized['observation_date'], date(2026, 9, 8))
+        self.assertEqual(normalized['one_way_miles'], Decimal('8.40'))
+
+    def test_optional_date_and_distance_remain_none_when_omitted(self):
+        [(normalized, errors)] = validate_and_normalize_rows([self._row()])
+        self.assertEqual(errors, [])
+        self.assertIsNone(normalized['observation_date'])
+        self.assertIsNone(normalized['one_way_miles'])
+
+    def test_invalid_evidence_fields_are_auditable_errors(self):
+        [(normalized, errors)] = validate_and_normalize_rows([
+            self._row(observation_date='09/08/2026', one_way_miles='-2')
+        ])
+        self.assertIn('observation_date must be an ISO date (YYYY-MM-DD)', errors)
+        self.assertIn('one_way_miles must be a non-negative decimal', errors)
+        self.assertIsNone(normalized['observation_date'])
+        self.assertIsNone(normalized['one_way_miles'])
 
 
 class EvidenceProjectionNormalizationTests(TestCase):
@@ -184,3 +231,14 @@ class EvidenceProjectionNormalizationTests(TestCase):
                 actor=self.user,
                 participant_key_secret='test-secret',
             )
+
+
+class EvidenceBrowserAuthorshipMigrationTests(SimpleTestCase):
+    def test_supabase_migration_blocks_browser_mutation_of_relay_rider_evidence(self):
+        migration = Path(__file__).resolve().parents[2] / 'supabase' / 'migrations' / '20260909171500_restrict_relay_rider_evidence_browser_authorship.sql'
+        sql = migration.read_text(encoding='utf-8')
+        self.assertIn("source_system", sql)
+        self.assertIn("relay_rider", sql)
+        self.assertIn("authenticated", sql)
+        self.assertIn("TG_OP", sql)
+        self.assertIn("BEFORE INSERT OR UPDATE OR DELETE", sql)
