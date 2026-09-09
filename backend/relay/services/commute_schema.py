@@ -2,12 +2,14 @@
 
 Django models remain the persistence authority. Pandera owns the tabular input
 contract; this module converts raw CSV rows into the exact normalized values
-already persisted by the institutional vertical slice and retains the legacy
-human-readable validation messages for audit continuity.
+persisted by the institutional vertical slice. Evidence-ready fields are
+optional so research-beta imports remain backward compatible.
 """
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Iterable, Mapping
 
 import pandas as pd
@@ -32,6 +34,8 @@ OPTIONAL_COLUMNS = (
     'parking_difficulty',
     'ev_interest',
     'access_point_willing',
+    'observation_date',
+    'one_way_miles',
 )
 
 ALL_COLUMNS = REQUIRED_COLUMNS + OPTIONAL_COLUMNS
@@ -76,7 +80,28 @@ def _is_nonnegative_integer_or_blank(value) -> bool:
     try:
         return int(raw) >= 0
     except (TypeError, ValueError):
-        return True  # integer-format validation reports this separately
+        return True
+
+
+def _is_iso_date_or_blank(value) -> bool:
+    raw = _raw_text(value)
+    if raw == '':
+        return True
+    try:
+        date.fromisoformat(raw)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_nonnegative_decimal_or_blank(value) -> bool:
+    raw = _raw_text(value)
+    if raw == '':
+        return True
+    try:
+        return Decimal(raw) >= 0
+    except (InvalidOperation, ValueError):
+        return False
 
 
 def _parse_optional_nonnegative_int(value):
@@ -86,6 +111,27 @@ def _parse_optional_nonnegative_int(value):
     try:
         parsed = int(raw)
     except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _parse_optional_date(value):
+    raw = _raw_text(value)
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
+def _parse_optional_nonnegative_decimal(value):
+    raw = _raw_text(value)
+    if not raw:
+        return None
+    try:
+        parsed = Decimal(raw)
+    except (InvalidOperation, ValueError):
         return None
     return parsed if parsed >= 0 else None
 
@@ -100,32 +146,21 @@ def _shared_mode_has_occupants(frame: pd.DataFrame) -> pd.Series:
 def _carpool_occupancy_in_range(frame: pd.DataFrame) -> pd.Series:
     modes = frame['current_mode'].map(_lower_text)
     occupants = frame['occupants'].map(_parse_optional_nonnegative_int)
-    values = [
-        mode != 'carpool' or count is None or 2 <= count <= 6
-        for mode, count in zip(modes, occupants)
-    ]
+    values = [mode != 'carpool' or count is None or 2 <= count <= 6 for mode, count in zip(modes, occupants)]
     return pd.Series(values, index=frame.index)
 
 
 def _vanpool_occupancy_in_range(frame: pd.DataFrame) -> pd.Series:
     modes = frame['current_mode'].map(_lower_text)
     occupants = frame['occupants'].map(_parse_optional_nonnegative_int)
-    values = [
-        mode != 'vanpool' or count is None or 7 <= count <= 15
-        for mode, count in zip(modes, occupants)
-    ]
+    values = [mode != 'vanpool' or count is None or 7 <= count <= 15 for mode, count in zip(modes, occupants)]
     return pd.Series(values, index=frame.index)
 
 
 def _required_column(name: str):
     return pa.Column(
         object,
-        checks=pa.Check(
-            _is_present,
-            element_wise=True,
-            ignore_na=False,
-            name=f'{name}_required',
-        ),
+        checks=pa.Check(_is_present, element_wise=True, ignore_na=False, name=f'{name}_required'),
         nullable=True,
         required=True,
     )
@@ -169,18 +204,10 @@ COMMUTE_IMPORT_SCHEMA = pa.DataFrameSchema(
         ),
         'vehicle_fuel_type': pa.Column(object, nullable=True, required=True),
         'parking_difficulty': pa.Column(object, nullable=True, required=True),
-        'ev_interest': pa.Column(
-            object,
-            checks=pa.Check(_is_bool_token, element_wise=True, ignore_na=False, name='ev_interest_bool'),
-            nullable=True,
-            required=True,
-        ),
-        'access_point_willing': pa.Column(
-            object,
-            checks=pa.Check(_is_bool_token, element_wise=True, ignore_na=False, name='access_point_willing_bool'),
-            nullable=True,
-            required=True,
-        ),
+        'ev_interest': pa.Column(object, checks=pa.Check(_is_bool_token, element_wise=True, ignore_na=False, name='ev_interest_bool'), nullable=True, required=True),
+        'access_point_willing': pa.Column(object, checks=pa.Check(_is_bool_token, element_wise=True, ignore_na=False, name='access_point_willing_bool'), nullable=True, required=True),
+        'observation_date': pa.Column(object, checks=pa.Check(_is_iso_date_or_blank, element_wise=True, ignore_na=False, name='observation_date_iso'), nullable=True, required=True),
+        'one_way_miles': pa.Column(object, checks=pa.Check(_is_nonnegative_decimal_or_blank, element_wise=True, ignore_na=False, name='one_way_miles_nonnegative_decimal'), nullable=True, required=True),
     },
     checks=[
         pa.Check(_shared_mode_has_occupants, name='shared_mode_occupants_required'),
@@ -194,8 +221,6 @@ COMMUTE_IMPORT_SCHEMA = pa.DataFrameSchema(
 
 
 def missing_required_columns(headers: Iterable[str]) -> list[str]:
-    """Return missing required headers in deterministic order."""
-
     available = set(headers)
     return sorted(set(REQUIRED_COLUMNS) - available)
 
@@ -218,8 +243,6 @@ def _parse_nonnegative_int(value, *, optional=False):
 
 
 def normalize_commute_row(row: Mapping[str, object]) -> dict:
-    """Normalize one raw CSV row to the existing CommuterRecord field contract."""
-
     return {
         'external_id': _raw_text(row.get('external_id')),
         'origin_zone': _raw_text(row.get('origin_zone')),
@@ -235,12 +258,12 @@ def normalize_commute_row(row: Mapping[str, object]) -> dict:
         'ev_interest': _parse_bool(row.get('ev_interest')),
         'access_point_willing': _parse_bool(row.get('access_point_willing')),
         'consent_confirmed': _parse_bool(row.get('consent_confirmed')),
+        'observation_date': _parse_optional_date(row.get('observation_date')),
+        'one_way_miles': _parse_optional_nonnegative_decimal(row.get('one_way_miles')),
     }
 
 
 def _compatibility_errors(row: Mapping[str, object]) -> list[str]:
-    """Preserve the pre-Pandera row-level audit messages exactly."""
-
     errors: list[str] = []
     for field in REQUIRED_COLUMNS:
         if not _raw_text(row.get(field)):
@@ -273,6 +296,14 @@ def _compatibility_errors(row: Mapping[str, object]) -> list[str]:
         if not _is_bool_token(row.get(field)):
             errors.append(f'{field} must be yes/no or true/false')
 
+    observation_date_raw = _raw_text(row.get('observation_date'))
+    if observation_date_raw and not _is_iso_date_or_blank(observation_date_raw):
+        errors.append('observation_date must be an ISO date (YYYY-MM-DD)')
+
+    miles_raw = _raw_text(row.get('one_way_miles'))
+    if miles_raw and not _is_nonnegative_decimal_or_blank(miles_raw):
+        errors.append('one_way_miles must be a non-negative decimal')
+
     mode = _lower_text(row.get('current_mode'))
     if mode in SHARED_MODES and not occupants:
         errors.append(f'occupants is required for {mode}')
@@ -289,12 +320,6 @@ def _schema_frame(row: Mapping[str, object]) -> pd.DataFrame:
 
 
 def validate_and_normalize_rows(rows: Iterable[Mapping[str, object]]) -> list[tuple[dict, list[str]]]:
-    """Validate raw rows with Pandera and return normalized rows plus audit errors.
-
-    Rows are validated independently so each invalid source row retains its own
-    validation evidence instead of being dropped from a bulk frame.
-    """
-
     results: list[tuple[dict, list[str]]] = []
     for row in rows:
         raw_row = dict(row)
