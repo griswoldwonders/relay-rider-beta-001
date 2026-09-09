@@ -45,6 +45,6 @@ drop trigger if exists enforce_relay_rider_evidence_server_authority
   on public.evidence_commute_observations;
 
 create trigger enforce_relay_rider_evidence_server_authority
-before insert or update or delete on public.evidence_commute_observations
+BEFORE INSERT OR UPDATE OR DELETE on public.evidence_commute_observations
 for each row
 execute function private.enforce_relay_rider_evidence_server_authority();
