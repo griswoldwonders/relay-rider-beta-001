@@ -165,6 +165,12 @@ jobs:
           printf '%s\n' "$output"
           grep -q 'Rule 2202 status=completed' <<< "$output"
 
+      - name: Verify canonical evidence projection boundary
+        run: python manage.py verify_evidence_projection_contract
+        env:
+          RELAY_ALLOW_SYNTHETIC_EVIDENCE_FIXTURE: "true"
+          RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET: "ci-only-evidence-secret"
+
       - name: Verify Django tables are isolated from public schema
         run: |
           python - <<'PY'

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -153,6 +154,8 @@ class CommuterRecord(TimestampedModel):
     validation_errors = models.JSONField(default=list, blank=True)
     source_row_number = models.PositiveIntegerField()
     source_payload = models.JSONField(default=dict, blank=True)
+    observation_date = models.DateField(null=True, blank=True)
+    one_way_miles = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -161,6 +164,46 @@ class CommuterRecord(TimestampedModel):
 
     def __str__(self):
         return f'{self.external_id}: {self.origin_zone} → {self.destination_zone}'
+
+
+class EvidenceProjectionBinding(TimestampedModel):
+    """Explicit bridge from canonical Django identities to public evidence UUID identities."""
+
+    institution = models.ForeignKey(Institution, on_delete=models.CASCADE, related_name='evidence_projection_bindings')
+    site = models.ForeignKey(Site, on_delete=models.CASCADE, related_name='evidence_projection_bindings')
+    cohort = models.ForeignKey(Cohort, null=True, blank=True, on_delete=models.CASCADE, related_name='evidence_projection_bindings')
+    organization_uuid = models.UUIDField()
+    site_uuid = models.UUIDField()
+    cohort_uuid = models.UUIDField(null=True, blank=True)
+    source_uuid = models.UUIDField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+
+    def clean(self):
+        errors = {}
+        if self.site_id and self.institution_id and self.site.institution_id != self.institution_id:
+            errors['site'] = 'site must belong to the binding institution'
+        if self.cohort_id:
+            if self.institution_id and self.cohort.institution_id != self.institution_id:
+                errors['cohort'] = 'cohort must belong to the binding institution'
+            elif self.site_id and self.cohort.site_id != self.site_id:
+                errors['cohort'] = 'cohort must belong to the binding site'
+            if not self.cohort_uuid:
+                errors['cohort_uuid'] = 'cohort_uuid is required when a canonical cohort is bound'
+        elif self.cohort_uuid:
+            errors['cohort_uuid'] = 'cohort_uuid requires a canonical cohort binding'
+        if errors:
+            raise ValidationError(errors)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['institution', 'site', 'cohort', 'organization_uuid', 'site_uuid'],
+                name='unique_evidence_projection_binding',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.institution}/{self.site} → {self.organization_uuid}/{self.site_uuid}'
 
 
 class EngineScore(TimestampedModel):
