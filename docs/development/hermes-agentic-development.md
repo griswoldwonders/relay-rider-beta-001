@@ -32,18 +32,21 @@ The initial design proposed `worktree`, `worktree_sync`, `delegation.worktree_is
 
 ## One-time local installation
 
-Run these commands from a trusted, dedicated Relay Rider worktree after reviewing the branch contents. The hook command must use the absolute path to that worktree's checked-out policy file; do not put the path or any credential in this repository.
+Run the installer from a trusted Relay Rider worktree after reviewing its branch contents. It copies the reviewed policy to an operator-controlled location outside the worktree and prints a hook entry. Do not run an agent from the copied hook directory.
+
+```bash
+python scripts/hermes/install_relay_rider_policy.py
+```
+
+Then, with an operator reviewing the current configuration, merge the printed hook entry with existing `hooks.pre_tool_call` entries rather than replacing them. Keep these settings enabled:
 
 ```bash
 hermes config set approvals.mode smart
 hermes config set security.redact_secrets true
 hermes config set hooks_auto_accept false
-hermes config set hooks.pre_tool_call '[{"matcher":"terminal|write_file|patch|read_file|search_files","command":"python C:/ABSOLUTE/PATH/TO/relay-rider/scripts/hermes/relay_rider_policy.py","timeout":5,"fail_closed":true}]'
-HERMES_ACCEPT_HOOKS=1 hermes hooks doctor
-hermes hooks list
 ```
 
-`HERMES_ACCEPT_HOOKS=1` is used only to record consent for this reviewed hook. Do not set `hooks_auto_accept: true`, because that would automatically approve future hook registrations. Restart Hermes after installation so a newly started agent session registers the hook.
+Approve the copied hook once from an interactive Hermes session and run `hermes hooks doctor`. Do not use `HERMES_ACCEPT_HOOKS=1` in unattended automation: it approves every newly registered hook for that invocation. Restart Hermes after installation so a newly started agent session registers the copied hook.
 
 ## Policy behavior
 
