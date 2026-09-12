@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -233,6 +234,10 @@ class RelayRiderPolicyTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(destination.read_text(encoding="utf-8"), POLICY_PATH.read_text(encoding="utf-8"))
+            metadata_path = destination.with_suffix(".sha256")
+            self.assertTrue(metadata_path.is_file(), "installer must publish integrity metadata")
+            self.assertEqual(metadata_path.read_text(encoding="ascii").strip(),
+                             hashlib.sha256(destination.read_bytes()).hexdigest())
             self.assertIn("hooks.pre_tool_call", result.stdout)
             self.assertIn(str(destination), result.stdout)
 
