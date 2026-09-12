@@ -9,6 +9,7 @@ pre-tool hooks.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,9 @@ def main() -> int:
     destination = args.destination.expanduser().resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(SOURCE_POLICY, destination)
+    destination.with_suffix(".sha256").write_text(
+        hashlib.sha256(destination.read_bytes()).hexdigest() + "\n", encoding="ascii"
+    )
 
     hook = {
         "matcher": MATCHER,

@@ -45,11 +45,7 @@ jobs:
 
       - name: Scan tracked files for common credential patterns
         shell: bash
-        run: |
-          if git grep -nIE '(sk-[A-Za-z0-9_-]{20,}|pat[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----)'; then
-            echo "Potential credential material found in tracked files."
-            exit 1
-          fi
+        run: python scripts/scan_credentials.py
 
   dependency-review:
     if: github.event_name == 'pull_request'
