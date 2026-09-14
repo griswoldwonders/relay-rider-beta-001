@@ -13,6 +13,8 @@ from relay.models import AssessmentAuditEvent, EvidenceProjectionBinding
 
 
 PROJECTOR_VERSION = 'relay-evidence-v1-20260909'
+SOURCE_SYSTEM_RELAY_RIDER_PROJECTION = 'relay_rider_projection'
+LEGACY_SOURCE_SYSTEM_RELAY_RIDER = 'relay_rider'
 MOTOR_VEHICLE_MODES = {'drive_alone', 'carpool', 'vanpool'}
 MODE_MAP = {
     'drive_alone': 'drive_alone',
@@ -60,6 +62,7 @@ class ProjectionResult:
     updated: int = 0
     skipped: int = 0
     blocked: int = 0
+    failed: int = 0
     issues: list[ProjectionIssue] = field(default_factory=list)
 
     def to_dict(self):
@@ -68,8 +71,10 @@ class ProjectionResult:
             'updated': self.updated,
             'skipped': self.skipped,
             'blocked': self.blocked,
+            'failed': self.failed,
             'issues': [asdict(issue) for issue in self.issues],
             'projector_version': PROJECTOR_VERSION,
+            'calculation_output_only_not_certification': True,
         }
 
 
@@ -113,6 +118,8 @@ def normalize_record_for_evidence(record, *, participant_key_secret: str):
     issues: list[ProjectionIssue] = []
     mode_token = (record.current_mode or '').strip().lower().replace('-', '_').replace(' ', '_')
     mode = MODE_MAP.get(mode_token)
+    if not record.consent_confirmed:
+        issues.append(ProjectionIssue('CONSENT_INVALID', 'consent_confirmed is required for evidence projection', record.id))
     if not mode:
         issues.append(ProjectionIssue('MODE_UNSUPPORTED', f'Unsupported commute mode: {record.current_mode}', record.id))
     if not record.observation_date:
@@ -131,15 +138,18 @@ def normalize_record_for_evidence(record, *, participant_key_secret: str):
     source = record.commute_import.data_source
     projection_key = f'commuter_record:{record.id}:{PROJECTOR_VERSION}'
     original_payload = {
-        'source_system': 'relay_rider',
+        'source_system': SOURCE_SYSTEM_RELAY_RIDER_PROJECTION,
         'relay_projection_key': projection_key,
         'projector_version': PROJECTOR_VERSION,
+        'contract_version': PROJECTOR_VERSION,
         'canonical_import_id': record.commute_import_id,
         'canonical_record_id': record.id,
         'canonical_record_updated_at': record.updated_at.isoformat(),
+        'source_import_id': record.commute_import_id,
         'source_file_sha256': record.commute_import.file_sha256,
         'source_row_number': record.source_row_number,
         'source_provenance': source.provenance_label,
+        'source_type': source.source_type,
     }
     return {
         'participant_key': _participant_key(record, participant_key_secret),
@@ -211,9 +221,9 @@ def _verify_public_identity(cursor, binding):
             raise EvidenceProjectionUnavailable('mapped public data source is outside the mapped organization/site or does not exist')
 
 
-def _verify_target(cursor, table: str, target_id, binding):
+def _require_target_in_tenant(cursor, table: str, target_id, binding):
     if not target_id:
-        return
+        return None
     if table not in {'evidence_baselines', 'evidence_observation_periods'}:
         raise ValueError('unsupported evidence target table')
     cursor.execute(
@@ -224,8 +234,12 @@ def _verify_target(cursor, table: str, target_id, binding):
     row = cursor.fetchone()
     if row is None:
         raise EvidenceProjectionUnavailable(f'{table} target is outside the mapped tenant or does not exist')
-    if row[0] is not None:
-        raise EvidenceProjectionUnavailable(f'{table} target is locked')
+    return row[0]
+
+
+def _target_is_locked(cursor, table: str, target_id, binding) -> bool:
+    locked_at = _require_target_in_tenant(cursor, table, target_id, binding)
+    return locked_at is not None
 
 
 def _existing_projection(cursor, binding, projection_key):
@@ -263,7 +277,7 @@ def _insert_projection(cursor, binding, row, baseline_id, observation_period_id)
             row['participant_key'], row['observation_date'], row['origin_zone'], row['commute_mode'], row['source_mode'],
             row['one_way_miles'], row['vehicle_occupancy'], row['reported_to_site'], row['remote_day'], row['ev_hybrid_status'],
             row['parking_difficulty'], row['arrival_window'], row['departure_window'], row['validation_status'],
-            row['exclusion_reason'], row['source_row_number'], json.dumps(row['original_payload'], sort_keys=True),
+            row['exclusion_reason'], row['source_row_number'], json.dumps(row['original_payload'], sort_keys=True, default=str),
         ],
     )
     return cursor.fetchone()[0]
@@ -286,13 +300,90 @@ def _update_projection(cursor, evidence_id, binding, row, baseline_id, observati
             row['participant_key'], row['observation_date'], row['origin_zone'], row['commute_mode'], row['source_mode'],
             row['one_way_miles'], row['vehicle_occupancy'], row['reported_to_site'], row['remote_day'], row['ev_hybrid_status'],
             row['parking_difficulty'], row['arrival_window'], row['departure_window'], row['validation_status'],
-            row['exclusion_reason'], row['source_row_number'], json.dumps(row['original_payload'], sort_keys=True),
+            row['exclusion_reason'], row['source_row_number'], json.dumps(row['original_payload'], sort_keys=True, default=str),
             str(evidence_id), str(binding.organization_uuid),
         ],
     )
 
 
-@transaction.atomic
+def _record_audit(commute_import, actor, action, result, extra=None):
+    metadata = result.to_dict()
+    if extra:
+        metadata.update(extra)
+    AssessmentAuditEvent.objects.create(
+        institution=commute_import.institution,
+        site=commute_import.site,
+        actor=actor,
+        action=action,
+        entity_type='CommuteImport',
+        entity_id=str(commute_import.id),
+        metadata=metadata,
+    )
+
+
+def _project_records(commute_import, binding, secret, baseline_id, observation_period_id) -> ProjectionResult:
+    result = ProjectionResult()
+    with connection.cursor() as cursor:
+        _verify_public_identity(cursor, binding)
+        _require_target_in_tenant(cursor, 'evidence_baselines', baseline_id, binding)
+        _require_target_in_tenant(cursor, 'evidence_observation_periods', observation_period_id, binding)
+
+        for record in commute_import.records.select_related(
+            'commute_import', 'commute_import__data_source'
+        ).order_by('id'):
+            if record.validation_status != 'valid':
+                result.skipped += 1
+                result.issues.append(ProjectionIssue(
+                    'RECORD_NOT_VALID',
+                    'canonical record is not validation_status=valid',
+                    record.id,
+                ))
+                continue
+
+            row, issues = normalize_record_for_evidence(record, participant_key_secret=secret)
+            if issues:
+                result.blocked += 1
+                result.issues.extend(issues)
+                continue
+
+            projection_key = row['original_payload']['relay_projection_key']
+            existing = _existing_projection(cursor, binding, projection_key)
+            if existing:
+                evidence_id, existing_baseline, existing_period = existing
+                effective_baseline = baseline_id or existing_baseline
+                effective_period = observation_period_id or existing_period
+                if (
+                    _target_is_locked(cursor, 'evidence_baselines', existing_baseline, binding)
+                    or _target_is_locked(cursor, 'evidence_observation_periods', existing_period, binding)
+                    or _target_is_locked(cursor, 'evidence_baselines', effective_baseline, binding)
+                    or _target_is_locked(cursor, 'evidence_observation_periods', effective_period, binding)
+                ):
+                    result.blocked += 1
+                    result.issues.append(ProjectionIssue(
+                        'TARGET_LOCKED',
+                        'locked evidence baseline or observation period cannot be overwritten',
+                        record.id,
+                    ))
+                    continue
+                _update_projection(cursor, evidence_id, binding, row, effective_baseline, effective_period)
+                result.updated += 1
+            else:
+                if (
+                    _target_is_locked(cursor, 'evidence_baselines', baseline_id, binding)
+                    or _target_is_locked(cursor, 'evidence_observation_periods', observation_period_id, binding)
+                ):
+                    result.blocked += 1
+                    result.issues.append(ProjectionIssue(
+                        'TARGET_LOCKED',
+                        'locked evidence baseline or observation period cannot receive new projections',
+                        record.id,
+                    ))
+                    continue
+                _insert_projection(cursor, binding, row, baseline_id, observation_period_id)
+                result.inserted += 1
+    return result
+
+
 def project_commute_import_to_evidence(
     commute_import,
     *,
@@ -306,43 +397,29 @@ def project_commute_import_to_evidence(
     The operation is intentionally PostgreSQL-only because it crosses from the
     canonical `relay_app` schema into the existing public evidence schema.
     """
-    if connection.vendor != 'postgresql':
-        raise EvidenceProjectionUnavailable('Evidence projection requires PostgreSQL')
-    secret = _resolve_secret(participant_key_secret)
-    binding = _resolve_binding(commute_import)
     result = ProjectionResult()
-
-    with connection.cursor() as cursor:
-        _verify_public_identity(cursor, binding)
-        _verify_target(cursor, 'evidence_baselines', baseline_id, binding)
-        _verify_target(cursor, 'evidence_observation_periods', observation_period_id, binding)
-
-        for record in commute_import.records.filter(validation_status='valid').order_by('id'):
-            row, issues = normalize_record_for_evidence(record, participant_key_secret=secret)
-            if issues:
-                result.blocked += 1
-                result.issues.extend(issues)
-                continue
-
-            projection_key = row['original_payload']['relay_projection_key']
-            existing = _existing_projection(cursor, binding, projection_key)
-            if existing:
-                evidence_id, existing_baseline, existing_period = existing
-                _verify_target(cursor, 'evidence_baselines', existing_baseline, binding)
-                _verify_target(cursor, 'evidence_observation_periods', existing_period, binding)
-                _update_projection(cursor, evidence_id, binding, row, baseline_id or existing_baseline, observation_period_id or existing_period)
-                result.updated += 1
-            else:
-                _insert_projection(cursor, binding, row, baseline_id, observation_period_id)
-                result.inserted += 1
-
-    AssessmentAuditEvent.objects.create(
-        institution=commute_import.institution,
-        site=commute_import.site,
-        actor=actor,
-        action='evidence_projection.completed',
-        entity_type='CommuteImport',
-        entity_id=str(commute_import.id),
-        metadata=result.to_dict(),
-    )
-    return result
+    try:
+        if connection.vendor != 'postgresql':
+            raise EvidenceProjectionUnavailable('Evidence projection requires PostgreSQL')
+        secret = _resolve_secret(participant_key_secret)
+        binding = _resolve_binding(commute_import)
+        with transaction.atomic():
+            result = _project_records(
+                commute_import,
+                binding,
+                secret,
+                baseline_id,
+                observation_period_id,
+            )
+            _record_audit(commute_import, actor, 'evidence_projection.completed', result)
+        return result
+    except Exception as exc:
+        result.failed = 1
+        _record_audit(
+            commute_import,
+            actor,
+            'evidence_projection.failed',
+            result,
+            extra={'error': str(exc)},
+        )
+        raise

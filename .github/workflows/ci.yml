@@ -171,6 +171,11 @@ jobs:
           RELAY_ALLOW_SYNTHETIC_EVIDENCE_FIXTURE: "true"
           RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET: "ci-only-evidence-secret"
 
+      - name: Run evidence projection Django tests on PostgreSQL
+        run: python manage.py test relay.test_evidence_projection -v 2
+        env:
+          RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET: "ci-only-evidence-secret"
+
       - name: Verify Django tables are isolated from public schema
         run: |
           python - <<'PY'

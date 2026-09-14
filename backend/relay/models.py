@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 
 class TimestampedModel(models.Model):
@@ -194,11 +195,25 @@ class EvidenceProjectionBinding(TimestampedModel):
         if errors:
             raise ValidationError(errors)
 
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=['institution', 'site', 'cohort', 'organization_uuid', 'site_uuid'],
                 name='unique_evidence_projection_binding',
+            ),
+            models.UniqueConstraint(
+                fields=['institution', 'site', 'cohort'],
+                condition=Q(active=True, cohort__isnull=False),
+                name='unique_active_evidence_binding_with_cohort',
+            ),
+            models.UniqueConstraint(
+                fields=['institution', 'site'],
+                condition=Q(active=True, cohort__isnull=True),
+                name='unique_active_evidence_binding_null_cohort',
             ),
         ]
 

@@ -29,7 +29,15 @@ The release-candidate graph is linear and preserves the already-merged Green Wal
 → 0006_institutional_vertical_slice
 ```
 
-`0006_institutional_vertical_slice` depends on `0005_green_wallet_ledger_and_policy`. CI must prove forward application through `0006`, rollback from `0006` to `0005`, reapplication of `0006`, and no missing migrations before promotion.
+`0006_institutional_vertical_slice` depends on `0005_green_wallet_ledger_and_policy`. Later linear migrations add operational hardening (`0007`), evidence-ready canonical fields and `EvidenceProjectionBinding` (`0008`), and active-binding uniqueness (`0009`). CI must prove the graph remains linear and `makemigrations --check` is clean.
+
+Evidence projection is a server-side, institution-scoped write from canonical `CommuteImport` rows into `public.evidence_*`. It is not a second source of truth. Run it only against PostgreSQL with `RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET` and an explicit UUID binding:
+
+```bash
+python manage.py project_commute_import_to_evidence --import-id <id>
+```
+
+Rule 2202 and evidence projection outputs remain research-beta calculation results, not certification.
 
 ## Vertical-slice data flow
 
