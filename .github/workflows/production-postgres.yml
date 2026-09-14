@@ -28,6 +28,8 @@ jobs:
       DJANGO_DEBUG: 'false'
       DJANGO_SECRET_KEY: ${{ secrets.RELAY_RIDER_DJANGO_SECRET_KEY }}
       DJANGO_ALLOWED_HOSTS: ${{ vars.RELAY_RIDER_DJANGO_ALLOWED_HOSTS }}
+      DJANGO_CORS_ALLOWED_ORIGINS: ${{ vars.RELAY_RIDER_DJANGO_CORS_ALLOWED_ORIGINS }}
+      RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET: ${{ secrets.RELAY_RIDER_EVIDENCE_PARTICIPANT_KEY_SECRET }}
     defaults:
       run:
         working-directory: backend
@@ -47,6 +49,18 @@ jobs:
           fi
           if [[ -z "${DJANGO_SECRET_KEY:-}" ]]; then
             echo 'RELAY_RIDER_DJANGO_SECRET_KEY is not configured in the protected production environment.' >&2
+            exit 1
+          fi
+          if [[ -z "${DJANGO_ALLOWED_HOSTS:-}" ]]; then
+            echo 'RELAY_RIDER_DJANGO_ALLOWED_HOSTS is not configured in the protected production environment.' >&2
+            exit 1
+          fi
+          if [[ -z "${DJANGO_CORS_ALLOWED_ORIGINS:-}" ]]; then
+            echo 'RELAY_RIDER_DJANGO_CORS_ALLOWED_ORIGINS is not configured in the protected production environment.' >&2
+            exit 1
+          fi
+          if [[ -z "${RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET:-}" ]]; then
+            echo 'RELAY_RIDER_EVIDENCE_PARTICIPANT_KEY_SECRET is not configured in the protected production environment.' >&2
             exit 1
           fi
 

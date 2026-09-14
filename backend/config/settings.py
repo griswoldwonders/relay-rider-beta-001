@@ -1,12 +1,35 @@
 import os
-import re
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+
+from .env import (
+    build_databases,
+    env_flag,
+    parse_csv_env,
+    require_csv_env,
+    require_env,
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-relay-rider-local-key')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() in ('1', 'true', 'yes')
-ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if host.strip()]
+DEBUG = env_flag('DJANGO_DEBUG', 'true')
+
+if DEBUG:
+    SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-relay-rider-local-key')
+    ALLOWED_HOSTS = parse_csv_env('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost')
+    CORS_ALLOWED_ORIGINS = parse_csv_env(
+        'DJANGO_CORS_ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173',
+    )
+    RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET = os.environ.get(
+        'RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET',
+        '',
+    ).strip()
+else:
+    SECRET_KEY = require_env('DJANGO_SECRET_KEY')
+    ALLOWED_HOSTS = require_csv_env('DJANGO_ALLOWED_HOSTS')
+    CORS_ALLOWED_ORIGINS = require_csv_env('DJANGO_CORS_ALLOWED_ORIGINS')
+    RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET = require_env(
+        'RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET'
+    )
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -23,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -32,14 +56,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        'DJANGO_CORS_ALLOWED_ORIGINS',
-        'http://localhost:5173,http://127.0.0.1:5173',
-    ).split(',')
-    if origin.strip()
-]
+CSRF_TRUSTED_ORIGINS = parse_csv_env('DJANGO_CSRF_TRUSTED_ORIGINS') or list(CORS_ALLOWED_ORIGINS)
 
 ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{
@@ -54,56 +71,30 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-def _database_from_url(database_url: str):
-    """Translate a PostgreSQL DATABASE_URL into Django database settings.
-
-    PostgreSQL is the canonical deployment database. SQLite is retained only
-    as the zero-secret local/test fallback. DJANGO_DB_SCHEMA may be set to a
-    dedicated schema (production canonical value: relay_app) so Django-owned
-    tables do not collide with legacy Supabase/PostgREST domain tables in
-    public. Rule 2202 functions remain callable through public.
-    """
-    parsed = urlparse(database_url)
-    if parsed.scheme not in ('postgres', 'postgresql'):
-        raise RuntimeError('DATABASE_URL must use postgres:// or postgresql://')
-
-    query = parse_qs(parsed.query)
-    options = {
-        'sslmode': query.get('sslmode', ['require'])[0],
-        'connect_timeout': int(query.get('connect_timeout', ['10'])[0]),
-    }
-
-    schema = os.environ.get('DJANGO_DB_SCHEMA', '').strip()
-    if schema:
-        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', schema):
-            raise RuntimeError('DJANGO_DB_SCHEMA must be a simple PostgreSQL identifier')
-        options['options'] = f'-c search_path={schema},public'
-
-    return {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': unquote(parsed.path.lstrip('/')),
-        'USER': unquote(parsed.username or ''),
-        'PASSWORD': unquote(parsed.password or ''),
-        'HOST': parsed.hostname or '',
-        'PORT': str(parsed.port or 5432),
-        'CONN_MAX_AGE': int(os.environ.get('DJANGO_DB_CONN_MAX_AGE', '60')),
-        'OPTIONS': options,
-    }
-
-
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
-if DATABASE_URL:
-    DATABASES = {'default': _database_from_url(DATABASE_URL)}
-else:
-    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+DATABASES = build_databases(debug=DEBUG, sqlite_path=BASE_DIR / 'db.sqlite3')
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'America/Los_Angeles'
 USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+if not DEBUG:
+    STORAGES = {
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    # Do not enable SECURE_SSL_REDIRECT. Render health checks hit the
+    # container over HTTP; TLS is terminated at the proxy.
 
 RELAY_H3_RESOLUTION = int(os.environ.get('RELAY_H3_RESOLUTION', '7'))
 RELAY_H3_MIN_PUBLISHABLE_COUNT = int(

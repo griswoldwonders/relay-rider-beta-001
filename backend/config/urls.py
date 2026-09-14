@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
@@ -31,17 +32,24 @@ router.register('redemption-requests', RedemptionRequestViewSet)
 router.register('program-benefit-policies', ProgramBenefitPolicyViewSet)
 
 
+def healthz(_request):
+    return JsonResponse({'service': 'relay-rider-api', 'status': 'ok'})
+
+
 def home(request):
-    return JsonResponse({
-        'service': 'Relay Rider local Django API',
+    payload = {
+        'service': 'relay-rider-api',
         'status': 'ok',
-        'api': request.build_absolute_uri('/api/'),
-        'admin': request.build_absolute_uri('/admin/'),
-    })
+    }
+    if settings.DEBUG:
+        payload['api'] = request.build_absolute_uri('/api/')
+        payload['admin'] = request.build_absolute_uri('/admin/')
+    return JsonResponse(payload)
 
 
 urlpatterns = [
     path('', home),
+    path('healthz', healthz),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/signup/', SignupView.as_view(), name='signup'),

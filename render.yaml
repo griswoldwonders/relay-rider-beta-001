@@ -1,0 +1,31 @@
+# Render Blueprint for the Django API only.
+# Do not attach a Render Postgres instance: production persistence is
+# Supabase PostgreSQL schema relay_app. Do not migrate on process start.
+# Required secrets/vars (set in the Render dashboard, never in this file):
+# DATABASE_URL, DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS,
+# DJANGO_CORS_ALLOWED_ORIGINS, RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET
+services:
+  - type: web
+    name: relay-rider-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.10"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_DB_SCHEMA
+        value: relay_app
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: DJANGO_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: RELAY_EVIDENCE_PARTICIPANT_KEY_SECRET
+        sync: false
