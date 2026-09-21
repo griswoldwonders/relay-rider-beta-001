@@ -21,7 +21,7 @@ _GIT_PUSH = re.compile(r"\bgit\b(?:(?![;&|\n]).)*?\bpush\b(?P<tail>[^;&|\n]*)", 
 _GIT_RESET_HARD = re.compile(r"\bgit\b(?:(?![;&|\n]).)*?\breset\b(?:(?![;&|\n]).)*?--hard\b", re.IGNORECASE)
 _GIT_CLEAN_FORCE = re.compile(r"\bgit\b(?:(?![;&|\n]).)*?\bclean\b(?:(?![;&|\n]).)*?(?:--force\b|-[-a-z]*f[-a-z]*)", re.IGNORECASE)
 _APPROVED_PUSH = re.compile(
-    r"^\s*(?:--\S+\s+)*origin\s+(?:\S+:)?(?:hermes|hermes-subagent)/[A-Za-z0-9][A-Za-z0-9._/-]*\s*$",
+    r"^\s*origin\s+(?:\S+:)?(?:hermes|hermes-subagent)/[A-Za-z0-9][A-Za-z0-9._/-]*\s*$",
     re.IGNORECASE,
 )
 
@@ -86,13 +86,13 @@ def terminal_block_reason(command: str) -> str | None:
         return "Relay Rider policy cannot validate an empty terminal command."
     lowered = command.lower()
 
-    if re.search(r"\bgit\s+-C\s+(?:\.\.[/\\]|[A-Za-z]:[/\\]|[/\\])", command, re.IGNORECASE):
-        return "Relay Rider policy blocks terminal commands that escape the assigned worktree."
-    if re.search(r"[<>]\s*[\"']?\.\.[/\\]", command):
-        return "Relay Rider policy blocks terminal commands that write outside the assigned worktree."
+    if re.search(r"\bgit\s+-C\b", command, re.IGNORECASE):
+        return "Relay Rider policy blocks git -C commands because the assigned worktree cannot be verified."
+    if ">" in command:
+        return "Relay Rider policy blocks terminal redirection because the assigned worktree cannot be verified."
     if contains_git_internal_path(command):
         return "Relay Rider policy blocks terminal access to .git internals."
-    if re.search(r"\bgit\s+merge\b", lowered):
+    if re.search(r"\bgit\b(?:(?![;&|\n]).)*\bmerge\b", lowered):
         return "Relay Rider policy blocks git merges; founder approval is required."
     if re.search(r"\bgh\s+pr\s+merge\b", lowered):
         return "Relay Rider policy blocks pull-request merges; founder approval is required."
@@ -143,7 +143,7 @@ def file_access_block_reason(tool_input: Any, cwd: str, *, writing: bool) -> str
     if not isinstance(tool_input, dict):
         return "Relay Rider policy cannot validate a file-write request."
     file_glob = tool_input.get("file_glob")
-    if not writing and isinstance(file_glob, str) and is_secret_path(file_glob):
+    if not writing and isinstance(file_glob, str) and (is_secret_path(file_glob) or "env" in file_glob.lower()):
         return "Relay Rider policy blocks searches for credential material."
     targets = list(file_targets(tool_input))
     if not targets:
@@ -152,6 +152,8 @@ def file_access_block_reason(tool_input: Any, cwd: str, *, writing: bool) -> str
     root, root_windows = canonical_path(cwd, cwd)
     for raw_path in targets:
         path, path_windows = canonical_path(raw_path, cwd)
+        if writing and path.replace("\\", "/").endswith("/relay_rider_policy.py"):
+            return "Relay Rider policy blocks writes to its policy hook source."
         if not writing and is_secret_path(path):
             return "Relay Rider policy blocks reads of credential material."
         if path_windows != root_windows:
