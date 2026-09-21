@@ -13,14 +13,54 @@ from relay.services.commute_schema import (
 )
 
 
+def _window_order_error(value, field_name):
+    """Return a deterministic audit error when a HH:MM-HH:MM window is reversed."""
+
+    raw = str(value or '').strip()
+    parts = raw.split('-', 1)
+    if len(parts) != 2:
+        return None
+    start, end = (part.strip() for part in parts)
+    if len(start) != 5 or len(end) != 5:
+        return None
+    try:
+        start_hour, start_minute = (int(part) for part in start.split(':', 1))
+        end_hour, end_minute = (int(part) for part in end.split(':', 1))
+    except (TypeError, ValueError):
+        return None
+    if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23 and 0 <= start_minute <= 59 and 0 <= end_minute <= 59):
+        return None
+    if (start_hour, start_minute) >= (end_hour, end_minute):
+        return f'{field_name} start must be before end'
+    return None
+
+
+def _additional_import_errors(raw_row):
+    """Validate import-level invariants that are not row-shape concerns."""
+
+    errors = []
+    for field_name in ('arrival_window', 'departure_window'):
+        error = _window_order_error(raw_row.get(field_name), field_name)
+        if error:
+            errors.append(error)
+
+    mode = str(raw_row.get('current_mode') or '').strip().lower()
+    fuel_type = str(raw_row.get('vehicle_fuel_type') or '').strip().lower()
+    if mode == 'drive_alone' and fuel_type in {'', 'none', 'unknown'}:
+        errors.append('vehicle_fuel_type is required for drive_alone')
+    return errors
+
+
 @transaction.atomic
 def import_commute_csv(*, institution, site, cohort, data_source, actor, file_name, content):
     """Validate and persist canonical commuter records with row-level provenance.
 
     Pandera owns the canonical tabular validation contract. Invalid rows are
-    still persisted with retained validation errors so source quality remains
-    auditable. Only valid rows are eligible for downstream engine/calculation
-    use.
+    retained with validation evidence so source quality remains auditable. Rows
+    that cannot satisfy a canonical database invariant, such as a duplicate
+    external ID within one import, are retained in the import validation summary
+    rather than inserted as conflicting CommuterRecord rows. Only valid rows are
+    eligible for downstream engine/calculation use.
     """
 
     if cohort.site_id != site.id or site.institution_id != institution.id or cohort.institution_id != institution.id:
@@ -52,8 +92,28 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
 
     valid_rows = 0
     invalid_rows = 0
+    rejected_rows = []
+    seen_external_ids = set()
     for row_number, (raw_row, validation_result) in enumerate(zip(raw_rows, validated_rows), start=2):
-        normalized, errors = validation_result
+        normalized, schema_errors = validation_result
+        errors = list(schema_errors)
+        errors.extend(_additional_import_errors(raw_row))
+
+        external_id = normalized['external_id']
+        duplicate_external_id = bool(external_id) and external_id in seen_external_ids
+        if external_id:
+            seen_external_ids.add(external_id)
+        if duplicate_external_id:
+            errors.append('external_id must be unique within import')
+            invalid_rows += 1
+            rejected_rows.append({
+                'source_row_number': row_number,
+                'external_id': external_id,
+                'validation_errors': errors,
+                'source_payload': raw_row,
+            })
+            continue
+
         validation_status = 'invalid' if errors else 'valid'
         if errors:
             invalid_rows += 1
@@ -72,7 +132,7 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
             **normalized,
         )
 
-    commute_import.total_rows = valid_rows + invalid_rows
+    commute_import.total_rows = len(raw_rows)
     commute_import.valid_rows = valid_rows
     commute_import.invalid_rows = invalid_rows
     commute_import.status = 'validated' if invalid_rows == 0 else 'completed'
@@ -80,6 +140,7 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
         'required_columns': sorted(REQUIRED_COLUMNS),
         'valid_rows': valid_rows,
         'invalid_rows': invalid_rows,
+        'rejected_rows': rejected_rows,
         'provenance_label': data_source.provenance_label,
     }
     commute_import.save(update_fields=[
@@ -98,6 +159,7 @@ def import_commute_csv(*, institution, site, cohort, data_source, actor, file_na
             'total_rows': commute_import.total_rows,
             'valid_rows': valid_rows,
             'invalid_rows': invalid_rows,
+            'rejected_rows': len(rejected_rows),
             'source_id': data_source.id,
         },
     )
