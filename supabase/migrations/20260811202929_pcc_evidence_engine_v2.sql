@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260811202929 pcc_evidence_engine_v2.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

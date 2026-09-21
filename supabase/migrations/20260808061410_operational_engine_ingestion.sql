@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260808061410 operational_engine_ingestion.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

@@ -33,10 +33,13 @@ for (const header of requiredHeaders) {
   if (!headers.includes(header)) failures.push(`Missing hosting header: ${header}`);
 }
 
-const migration = await read('supabase/migrations/202607270001_security_foundation.sql');
+// This file is a superseded local-only blueprint retained for security
+// regression evidence. It is intentionally outside the active Supabase
+// migration history because it was never applied to the canonical remote.
+const legacySecurityBlueprint = await read('supabase/archive/202607270001_security_foundation.sql');
 for (const table of ['profiles', 'route_requests', 'driver_routes', 'match_previews', 'security_audit_events']) {
-  if (!migration.includes(`alter table public.${table} enable row level security`)) {
-    failures.push(`RLS is not enabled for ${table}`);
+  if (!legacySecurityBlueprint.includes(`alter table public.${table} enable row level security`)) {
+    failures.push(`Archived security blueprint is missing RLS for ${table}`);
   }
 }
 

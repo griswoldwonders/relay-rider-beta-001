@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260808022825 strengthen_research_beta_consent_assertions.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

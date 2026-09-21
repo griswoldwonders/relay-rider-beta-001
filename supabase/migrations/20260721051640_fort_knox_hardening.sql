@@ -1,0 +1,3 @@
+-- Recovered migration-history anchor for 20260721051640 fort_knox_hardening.
+-- Authoritative historical SQL is preserved in production supabase_migrations.schema_migrations.
+-- Already applied; this anchor prevents accidental replay as a new migration.

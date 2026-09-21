@@ -1,0 +1,32 @@
+alter function public.calculate_avr(integer, numeric) set search_path = pg_catalog;
+alter function public.vehicle_trip_weight(text, integer) set search_path = pg_catalog;
+alter function public.calculate_ert(integer, numeric, numeric) set search_path = pg_catalog;
+alter function public.calculate_vtec_peak(numeric, numeric) set search_path = pg_catalog;
+alter function public.calculate_vtec_other(numeric, boolean, numeric) set search_path = pg_catalog;
+alter function public.calculate_vtec_offpeak_avr(integer, numeric, numeric) set search_path = pg_catalog;
+alter function public.calculate_reduced_staffing_avr(integer, integer, numeric, integer, numeric, integer) set search_path = pg_catalog;
+alter function public.inter_pollutant_credit(text, numeric) set search_path = pg_catalog;
+alter function public.get_avr_zone_target(integer) set search_path = pg_catalog;
+alter function public.validate_avr_survey(numeric, date, date) set search_path = pg_catalog;
+
+revoke all on function public.calculate_avr(integer, numeric) from public, anon, authenticated;
+revoke all on function public.vehicle_trip_weight(text, integer) from public, anon, authenticated;
+revoke all on function public.calculate_ert(integer, numeric, numeric) from public, anon, authenticated;
+revoke all on function public.calculate_vtec_peak(numeric, numeric) from public, anon, authenticated;
+revoke all on function public.calculate_vtec_other(numeric, boolean, numeric) from public, anon, authenticated;
+revoke all on function public.calculate_vtec_offpeak_avr(integer, numeric, numeric) from public, anon, authenticated;
+revoke all on function public.calculate_reduced_staffing_avr(integer, integer, numeric, integer, numeric, integer) from public, anon, authenticated;
+revoke all on function public.inter_pollutant_credit(text, numeric) from public, anon, authenticated;
+revoke all on function public.get_avr_zone_target(integer) from public, anon, authenticated;
+revoke all on function public.validate_avr_survey(numeric, date, date) from public, anon, authenticated;
+
+grant execute on function public.calculate_avr(integer, numeric) to service_role;
+grant execute on function public.vehicle_trip_weight(text, integer) to service_role;
+grant execute on function public.calculate_ert(integer, numeric, numeric) to service_role;
+grant execute on function public.calculate_vtec_peak(numeric, numeric) to service_role;
+grant execute on function public.calculate_vtec_other(numeric, boolean, numeric) to service_role;
+grant execute on function public.calculate_vtec_offpeak_avr(integer, numeric, numeric) to service_role;
+grant execute on function public.calculate_reduced_staffing_avr(integer, integer, numeric, integer, numeric, integer) to service_role;
+grant execute on function public.inter_pollutant_credit(text, numeric) to service_role;
+grant execute on function public.get_avr_zone_target(integer) to service_role;
+grant execute on function public.validate_avr_survey(numeric, date, date) to service_role;

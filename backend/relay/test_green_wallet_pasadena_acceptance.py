@@ -8,7 +8,7 @@ from .models import ChargingHub, GreenRouteCredit, Institution, Membership, Prof
 
 
 class PasadenaGreenWalletAcceptanceTest(APITestCase):
-    """Synthetic end-to-end Green Wallet proof against the merged main baseline."""
+    """Synthetic end-to-end Green Wallet proof against the hardened beta contract."""
 
     def setUp(self):
         self.pasadena = Institution.objects.create(
@@ -23,14 +23,15 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         )
 
         self.admin = User.objects.create_user(username='pasadena-admin', password='synthetic')
-        self.viewer = User.objects.create_user(username='pasadena-viewer', password='synthetic')
-        self.outsider = User.objects.create_user(username='glendale-viewer', password='synthetic')
+        self.participant_user = User.objects.create_user(username='pasadena-participant', password='synthetic')
+        self.outsider = User.objects.create_user(username='glendale-participant', password='synthetic')
         Membership.objects.create(user=self.admin, institution=self.pasadena, role='institution_admin')
-        Membership.objects.create(user=self.viewer, institution=self.pasadena, role='viewer')
-        Membership.objects.create(user=self.outsider, institution=self.other, role='viewer')
+        Membership.objects.create(user=self.participant_user, institution=self.pasadena, role='participant')
+        Membership.objects.create(user=self.outsider, institution=self.other, role='participant')
 
         self.participant = Profile.objects.create(
             institution=self.pasadena,
+            user=self.participant_user,
             name='Synthetic Pasadena Commuter',
             email='synthetic.commuter@example.test',
             role='participant',
@@ -39,8 +40,10 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         )
         self.other_participant = Profile.objects.create(
             institution=self.other,
+            user=self.outsider,
             name='Synthetic Glendale Commuter',
             email='synthetic.glendale@example.test',
+            role='participant',
         )
 
         self.hub = ChargingHub.objects.create(
@@ -83,8 +86,8 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         print(f'ACCEPTANCE_EVIDENCE {label} {json.dumps(payload, default=str, sort_keys=True)}')
 
     def test_pasadena_green_wallet_full_proof_chain(self):
-        # Institution -> Membership -> Participant/Profile -> explicit credit -> participant wallet API.
-        self.client.force_authenticate(user=self.viewer)
+        # Institution -> participant membership -> owned Profile -> explicit credit -> wallet API.
+        self.client.force_authenticate(user=self.participant_user)
         credits = self.client.get('/api/green-route-credits/')
         self.assertEqual(credits.status_code, status.HTTP_200_OK)
         credit_row = next(row for row in credits.data if row['id'] == self.credit.id)
@@ -95,7 +98,6 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         self.assertEqual(credit_row['estimated_miles_reduced'], '4.50')
         self.emit('wallet_credit_payload', credit_row)
 
-        # Participant submits a governed request. Viewer participation is allowed; review is not.
         created = self.client.post('/api/redemption-requests/', {
             'credit': self.credit.id,
             'profile': self.participant.id,
@@ -110,16 +112,15 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         request_id = created.data['id']
         self.emit('redemption_requested_payload', created.data)
 
-        # Viewer cannot conduct administrative review.
-        viewer_review = self.client.patch(
+        # Participant cannot conduct administrative review.
+        participant_review = self.client.patch(
             f'/api/redemption-requests/{request_id}/',
             {'status': 'under-review'},
             format='json',
         )
-        self.assertEqual(viewer_review.status_code, status.HTTP_403_FORBIDDEN)
-        self.emit('viewer_review_denial', {'status_code': viewer_review.status_code})
+        self.assertEqual(participant_review.status_code, status.HTTP_403_FORBIDDEN)
+        self.emit('participant_review_denial', {'status_code': participant_review.status_code})
 
-        # Institution admin advances the canonical state machine.
         self.client.force_authenticate(user=self.admin)
         under_review = self.client.patch(
             f'/api/redemption-requests/{request_id}/',
@@ -144,7 +145,6 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         self.assertEqual(fulfilled.data['fulfillment_method'], 'manual_program_action')
         self.emit('redemption_fulfilled_payload', fulfilled.data)
 
-        # The wallet credit remains issuance history; the fulfilled request makes its units unavailable.
         self.credit.refresh_from_db()
         self.assertEqual(self.credit.status, 'issued')
         requests = self.client.get('/api/redemption-requests/')
@@ -159,7 +159,6 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
             'ui_availability_rule': 'non-denied request consumes availability',
         })
 
-        # Overcommit prevention: 7 units are already committed/fulfilled, so 6 more would exceed 12.
         overcommit = self.client.post('/api/redemption-requests/', {
             'credit': self.credit.id,
             'profile': self.participant.id,
@@ -170,8 +169,7 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         self.assertEqual(overcommit.status_code, status.HTTP_400_BAD_REQUEST)
         self.emit('overcommit_denial', {'status_code': overcommit.status_code, 'payload': overcommit.data})
 
-        # Denial path releases held units and permits a later replacement request.
-        self.client.force_authenticate(user=self.viewer)
+        self.client.force_authenticate(user=self.participant_user)
         denied_request = self.client.post('/api/redemption-requests/', {
             'credit': self.denial_credit.id,
             'profile': self.participant.id,
@@ -194,7 +192,7 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
         self.assertEqual(denied.status_code, status.HTTP_200_OK)
         self.assertEqual(denied.data['status'], 'denied')
 
-        self.client.force_authenticate(user=self.viewer)
+        self.client.force_authenticate(user=self.participant_user)
         replacement = self.client.post('/api/redemption-requests/', {
             'credit': self.denial_credit.id,
             'profile': self.participant.id,
@@ -209,7 +207,6 @@ class PasadenaGreenWalletAcceptanceTest(APITestCase):
             'replacement_units': replacement.data['requested_units'],
         })
 
-        # Cross-tenant isolation on both read and create paths.
         self.client.force_authenticate(user=self.outsider)
         cross_read = self.client.get(f'/api/green-route-credits/{self.credit.id}/')
         self.assertIn(cross_read.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))

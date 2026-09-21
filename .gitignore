@@ -10,4 +10,5 @@ dist/
 backend/db.sqlite3
 backend/**/__pycache__/
 backend/**/*.pyc
+scripts/hermes/**/__pycache__/
 backend/.venv/
