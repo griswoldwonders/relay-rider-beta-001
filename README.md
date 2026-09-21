@@ -47,15 +47,17 @@ Transit entries are external transportation options, not Relay Rider-operated se
 
 ## Incentives
 
-Relay Rider includes **Green Route Credits** as capped promotional participation benefits. They may be used in the prototype to recognize activities such as:
+Relay Rider includes **Green Route Credits** as capped promotional participation benefits inside the **Green Wallet**. Open it from Home or Profile through the wallet introduction, or preview directly with `?screen=wallet`.
 
-- Completing a qualified commute profile
-- Sustainable commute challenges
-- Transit participation
-- Access Point feedback
-- EV/clean-route participation or recognition
+The embedded **demo / simulated** module includes a commuter dashboard, partner voucher, charging-claim form, activity ledger, rules/privacy, and a program-administrator preview. Its fixture is **Maya Chen — Pasadena–Glendale Clean Commute Pilot — $18.60 remaining**. Voucher **RR-PGC-9A7K-2026** is simulated and not redeemable. Dollar and kWh caps illustrate sponsor-benefit rules; they do not establish cash value for canonical Green Route Credit units.
 
-Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or direct charging reimbursements**.
+- **Open hub redemption wallet** retains the existing classic hub-benefit preview.
+- **Open hub review queue** retains the existing administrative queue (`?screen=wallet-admin`).
+- The embedded demo persists simulated input in browser `localStorage`; use synthetic data only. Classic wallet state remains separate in session memory, with an existing, unwired API adapter for the canonical Django backend. No demo claims, balances, or campaigns are synchronized to the classic wallet or API.
+
+Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or live charging reimbursements**. Relay Rider is not a charging network, eMSP, or universal wallet. This embed adds no live ChargePoint, Tesla, Stripe, or OCPI connection and no AQMD/Rule 2202 credit minting.
+
+See [Green Wallet integration](docs/GREEN_WALLET_INTEGRATION.md) for storage boundaries, demo limitations, preview routes, and source provenance: `griswoldwonders/relay-rider-green-wallet` at `ceda8cf949d745558d04060d9b31e176dc6f7a3f`, integration pack `integrations/relay-rider-beta-001`.
 
 
 ## Product inspiration from adjacent open-source projects
