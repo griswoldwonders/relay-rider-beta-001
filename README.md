@@ -49,11 +49,11 @@ Transit entries are external transportation options, not Relay Rider-operated se
 
 Relay Rider includes **Green Route Credits** as capped promotional participation benefits inside the **Green Wallet**. Open it from Home or Profile through the wallet introduction, or preview directly with `?screen=wallet`.
 
-The embedded **demo / simulated** module includes a commuter dashboard, partner voucher, charging-claim form, activity ledger, rules/privacy, and a program-administrator preview. Its fixture is **Maya Chen — Pasadena–Glendale Clean Commute Pilot — $18.60 remaining**. Voucher **RR-PGC-9A7K-2026** is simulated and not redeemable. Dollar and kWh caps illustrate sponsor-benefit rules; they do not establish cash value for canonical Green Route Credit units.
+The embedded **demo / simulated** module includes a commuter dashboard, partner voucher, charging-claim form, activity ledger, rules/privacy, and a program-administrator preview. Its fixture is **Maya Chen — Pasadena–Glendale Clean Commute Pilot — $2.60 / 21.8 kWh available after holds**. Voucher **RR-PGC-9A7K-2026** is simulated and not redeemable. Dollar and kWh caps illustrate sponsor-benefit rules; they do not establish cash value for canonical Green Route Credit units.
 
 - **Open hub redemption wallet** retains the existing classic hub-benefit preview.
 - **Open hub review queue** retains the existing administrative queue (`?screen=wallet-admin`).
-- The embedded demo persists simulated input in browser `localStorage`; use synthetic data only. Classic wallet state remains separate in session memory, with an existing, unwired API adapter for the canonical Django backend. No demo claims, balances, or campaigns are synchronized to the classic wallet or API.
+- The embedded demo uses page-session memory only; use synthetic data only. It retains changes during in-app navigation and resets on reload, Reset demo, or Clear session data. Balances derive from consumed and held ledger units, and campaign drafts do not change effective demo rules. Classic wallet state remains separate in session memory, with an existing, unwired API adapter for the canonical Django backend. No demo claims, balances, or campaigns are synchronized to the classic wallet or API.
 
 Green Route Credits are **not cash, wages, fares, guaranteed payments, certified carbon offsets, LCFS credits, or live charging reimbursements**. Relay Rider is not a charging network, eMSP, or universal wallet. This embed adds no live ChargePoint, Tesla, Stripe, or OCPI connection and no AQMD/Rule 2202 credit minting.
 

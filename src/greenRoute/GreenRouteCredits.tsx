@@ -1,21 +1,20 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from 'react';
+import { type FormEvent, type ReactNode, useState, useSyncExternalStore } from 'react';
 import {
   LEDGER_STATUSES,
   PARTNER_SITES,
   PROGRAM,
   dollars,
-  estimateClaim,
+  submitClaim as submitDemoClaim,
+  reviewClaim as reviewDemoClaim,
+  createCampaignDraft,
   kwhLabel,
-  parseMoneyToCents,
   remainingFromLedger,
-  validateClaimForm,
   type LedgerEntry,
   type LedgerStatus,
   type PartnerSite,
-  type ProgramState,
   type ClaimEstimate,
 } from './program';
-import { loadProgramState, saveProgramState } from './storage';
+import { loadProgramState, subscribeProgramState, updateProgramState, resetProgramSession } from './storage';
 
 const COMMUTER_NAV = [
   ['dashboard', 'Dashboard'],
@@ -59,10 +58,11 @@ export type GreenRouteCreditsProps = {
 export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: GreenRouteCreditsProps) {
   const [role, setRole] = useState<Role>('commuter');
   const [view, setView] = useState<View>('dashboard');
-  const [state, setState] = useState<ProgramState>(loadProgramState);
+  const state = useSyncExternalStore(subscribeProgramState, loadProgramState);
   const [modal, setModal] = useState<PartnerSite | LedgerEntry | null>(null);
   const [filter, setFilter] = useState('all');
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [claim, setClaim] = useState({
     network: 'Demo Partner Network',
     locationName: '',
@@ -88,15 +88,10 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
     weekdayOnly: true,
   });
 
-  function persist(next: ProgramState) {
-    saveProgramState(next);
-    setState(next);
-  }
-
-  const remaining = useMemo(() => ({
-    cents: state.remainingCents,
-    kwhTenths: state.remainingKwhTenths,
-  }), [state]);
+  const liveRemaining = remainingFromLedger(state.ledger);
+  const remaining = { cents: liveRemaining.remainingCents, kwhTenths: liveRemaining.remainingKwhTenths };
+  const claims = state.ledger.filter(row => /claim/i.test(row.eventType));
+  const [campaignErrors, setCampaignErrors] = useState<string[]>([]);
 
   const dollarPct = Math.min(100, Math.round(((PROGRAM.monthlyBenefitCents - remaining.cents) / PROGRAM.monthlyBenefitCents) * 100));
   const kwhPct = Math.min(100, Math.round(((PROGRAM.monthlyKwhTenths - remaining.kwhTenths) / PROGRAM.monthlyKwhTenths) * 100));
@@ -106,89 +101,64 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
     setModal(null);
   }
 
-  function copyCode() {
-    navigator.clipboard?.writeText(PROGRAM.demoVoucherCode);
-    setCopied(true);
+  async function copyCode() {
+    setCopied(false);
+    setCopyError(false);
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(PROGRAM.demoVoucherCode);
+      setCopied(true);
+    } catch { setCopyError(true); }
+  }
+
+  function resetDemo() {
+    resetProgramSession();
+    setModal(null); setCopied(false); setCopyError(false);
+    setClaimResult(null); setClaimErrors([]); setCampaignErrors([]);
+    setClaim({ network: 'Demo Partner Network', locationName: '', cityCorridor: '', sessionDate: '',
+      startTime: '', energyKwh: '', energyCharge: '', idleFee: '', parkingFee: '', tax: '',
+      receiptId: '', commuteRelated: false, exclusionsAcknowledged: false, note: '' });
+    setCampaign({ name: '', monthlyCap: '30.00', sessionCap: '12.00', weekdayOnly: true });
+    setRole('commuter'); setView('dashboard'); setFilter('all');
   }
 
   function submitClaim() {
-    const checked = validateClaimForm(claim);
-    if (checked.errors.length || checked.energyChargeCents == null || checked.kwhTenths == null || !claim.sessionDate) {
-      setClaimErrors(checked.errors.length ? checked.errors : ['Complete required claim fields.']);
-      setClaimResult(null);
-      return;
-    }
-    const estimate = estimateClaim({
-      energyChargeCents: checked.energyChargeCents,
-      idleFeeCents: parseMoneyToCents(claim.idleFee) || 0,
-      parkingFeeCents: parseMoneyToCents(claim.parkingFee) || 0,
-      taxCents: parseMoneyToCents(claim.tax) || 0,
-      remainingCents: state.remainingCents,
+    updateProgramState(current => {
+      const result = submitDemoClaim(current, claim, crypto.randomUUID());
+      setClaimErrors(result.errors);
+      setClaimResult(result.estimate ?? null);
+      return result.state;
     });
-    const id = `CLM-${Date.now()}`;
-    const entry: LedgerEntry = {
-      id,
-      date: claim.sessionDate,
-      eventType: 'Charging claim',
-      source: `${claim.locationName} · ${claim.cityCorridor} · Demo data`,
-      kwhTenths: checked.kwhTenths,
-      amountCents: estimate.estimatedCents,
-      signedCents: 0,
-      status: LEDGER_STATUSES.pending,
-      referenceId: claim.receiptId || id,
-      detail: claim.note || 'Simulated claim pending administrative review.',
-      network: claim.network,
-      estimate,
-    };
-    persist({
-      ...state,
-      ledger: [entry, ...state.ledger],
-      claims: [entry, ...state.claims],
-      remainingKwhTenths: Math.max(0, state.remainingKwhTenths - (checked.kwhTenths || 0)),
-    });
-    setClaimErrors([]);
-    setClaimResult(estimate);
   }
 
   function reviewClaim(id: string, status: LedgerStatus, note: string) {
-    const claims = state.claims.map((row) => (row.id === id ? { ...row, status, reviewNote: note } : row));
-    const ledger = state.ledger.map((row) => (row.id === id ? { ...row, status, signedCents: status === LEDGER_STATUSES.approved ? -row.amountCents : 0 } : row));
-    let remainingCents = state.remainingCents;
-    const target = state.claims.find((row) => row.id === id);
-    if (status === LEDGER_STATUSES.approved && target) {
-      remainingCents = Math.max(0, remainingCents - target.amountCents);
-    }
-    persist({ ...state, claims, ledger, remainingCents });
+    updateProgramState(current => reviewDemoClaim(current, id, status, note));
   }
 
   function createCampaign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const next = {
-      id: `cmp-${Date.now()}`,
-      name: campaign.name || 'Untitled simulated campaign',
-      status: 'Simulated — not live',
-      monthlyCapCents: parseMoneyToCents(campaign.monthlyCap) || PROGRAM.monthlyBenefitCents,
-      sessionCapCents: parseMoneyToCents(campaign.sessionCap) || PROGRAM.sessionCapCents,
-      weekdayOnly: campaign.weekdayOnly,
-      sites: PARTNER_SITES.map((site) => site.name),
-    };
-    persist({ ...state, campaigns: [next, ...state.campaigns] });
-    setCampaign({ name: '', monthlyCap: '30.00', sessionCap: '12.00', weekdayOnly: true });
+    updateProgramState(current => {
+      const result = createCampaignDraft(current, campaign, crypto.randomUUID());
+      setCampaignErrors(result.errors);
+      if (!result.errors.length) setCampaign({ name: '', monthlyCap: '30.00', sessionCap: '12.00', weekdayOnly: true });
+      return result.state;
+    });
   }
 
   const filteredLedger = state.ledger.filter((row) => filter === 'all' || row.status === filter);
-  const pendingClaims = state.claims.filter((row) => row.status === LEDGER_STATUSES.pending || row.status === LEDGER_STATUSES.flagged);
-  const liveRemaining = remainingFromLedger(state.ledger);
+  const pendingClaims = claims.filter((row) => row.status === LEDGER_STATUSES.pending || row.status === LEDGER_STATUSES.flagged);
 
   return (
     <div className="grc-shell">
       <header className="grc-hero">
         <span className="gw-eyebrow">Relay Rider Green Route Credits</span>
-        <h1>Employer-sponsored, verified commute-charging support</h1>
-        <p>Capped promotional benefits for verified commute-related EV charging. Demo data / simulated. Not a payment processor, charging network, eMSP, cash wallet, or guaranteed access.</p>
+        <h1>Employer-sponsored commute-charging demo</h1>
+        <p>Synthetic examples of capped program benefits for commute-related EV charging. Demo data / simulated. Not a payment processor, charging network, eMSP, cash wallet, or guaranteed access.</p>
         <span className="grc-demo-flag">This is a demo prototype · Simulated records</span>
       </header>
 
+      <p className="grc-notice">Use synthetic data only. Demo entries stay in page-session memory, survive in-app navigation, and reset on reload or session clearing. No real receipts or personal charging history.</p>
+      <button type="button" className="gw-secondary-button" onClick={resetDemo}>Reset demo</button>
       <div className="grc-roles" role="group" aria-label="Prototype role">
         <button type="button" aria-pressed={role === 'commuter'} onClick={() => { setRole('commuter'); setView('dashboard'); }}>Commuter view</button>
         <button type="button" aria-pressed={role === 'admin'} onClick={() => { setRole('admin'); setView('admin-home'); }}>Program administrator view</button>
@@ -211,11 +181,12 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
           <section className="grc-balance">
             <small>{PROGRAM.name}</small>
             <strong>{dollars(remaining.cents)} remaining</strong>
+            <p>Held for review: {dollars(liveRemaining.heldCents)} / {kwhLabel(liveRemaining.heldKwhTenths)} kWh. Held units are unavailable, not yet spent.</p>
             <p>{kwhLabel(remaining.kwhTenths)} kWh remaining · {PROGRAM.participant} · {PROGRAM.participantStatus}</p>
             <p>Sponsor: {PROGRAM.sponsor} · Monthly benefit up to {dollars(PROGRAM.monthlyBenefitCents)} · {PROGRAM.resetLabel}</p>
             <div className="grc-meters">
-              <div><span>Dollar cap used {dollarPct}%</span><div className="grc-meter" aria-hidden="true"><span style={{ width: `${dollarPct}%` }} /></div></div>
-              <div><span>kWh cap used {kwhPct}%</span><div className="grc-meter" aria-hidden="true"><span style={{ width: `${kwhPct}%` }} /></div></div>
+              <div><span>Dollar cap spent or held {dollarPct}%</span><div className="grc-meter" aria-hidden="true"><span style={{ width: `${dollarPct}%` }} /></div></div>
+              <div><span>kWh cap consumed or held {kwhPct}%</span><div className="grc-meter" aria-hidden="true"><span style={{ width: `${kwhPct}%` }} /></div></div>
             </div>
           </section>
           <div className="grc-grid">
@@ -223,7 +194,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
               <h2>How to use your credits</h2>
               <div className="grc-paths">
                 <button type="button" onClick={() => go('voucher')}><strong>Use a partner voucher</strong><span>Simulated support at participating demo sites.</span></button>
-                <button type="button" onClick={() => go('claim')}><strong>Submit a verified claim</strong><span>Reimbursement path for eligible sessions outside a direct partner network.</span></button>
+                <button type="button" onClick={() => go('claim')}><strong>Submit a demo claim</strong><span>Synthetic review workflow only; no reimbursement is issued.</span></button>
               </div>
             </article>
             <article className="grc-card">
@@ -251,7 +222,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
           </article>
           <article className="grc-card">
             <h2>Privacy first</h2>
-            <p>Relay Rider uses only the information needed to verify eligible program use and report aggregated commute-program outcomes. Your employer sees aggregate program reporting, not an exact personal trip trail by default.</p>
+            <p>Relay Rider uses only the information needed to verify eligible program use and report aggregated commute-program outcomes. This demo sends no employer reports; program reporting and data access require a separately reviewed backend.</p>
           </article>
         </>
       )}
@@ -260,7 +231,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
         <section>
           <article className="grc-card">
             <h2>Use a Partner Charging Voucher</h2>
-            <p>Partner vouchers can reduce eligible charging costs at participating sites. A voucher is not universal charging access and may not work at non-partner charging networks.</p>
+            <p>These fictional sites and voucher codes illustrate a possible partner benefit. They do not provide charging access, live availability, reservations, or discounts.</p>
           </article>
           <div className="grc-sites">
             {PARTNER_SITES.map((site) => (
@@ -282,7 +253,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
       {view === 'claim' && (
         <article className="grc-card">
           <h2>Submit an Eligible Charging Claim</h2>
-          <p>Verified reimbursement for eligible charging sessions outside a direct partner network. Demo submission only.</p>
+          <p>Synthetic claim review only. No receipts are uploaded and no reimbursement is issued. Use dates in the fixed September 2026 demo period.</p>
           <div className="gw-form-row">
             <label>Charging network
               <select value={claim.network} onChange={(e) => setClaim({ ...claim, network: e.target.value })}>
@@ -302,7 +273,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
             <label>Parking fee (optional)<input value={claim.parkingFee} onChange={(e) => setClaim({ ...claim, parkingFee: e.target.value })} /></label>
             <label>Tax (optional)<input value={claim.tax} onChange={(e) => setClaim({ ...claim, tax: e.target.value })} /></label>
             <label>Receipt / session ID<input value={claim.receiptId} onChange={(e) => setClaim({ ...claim, receiptId: e.target.value })} /></label>
-            <label>Upload receipt (stub)<input type="file" /></label>
+            <label>Upload receipt (disabled in demo)<input type="file" disabled /></label>
           </div>
           <label className="grc-check"><input type="checkbox" checked={claim.commuteRelated} onChange={(e) => setClaim({ ...claim, commuteRelated: e.target.checked })} />This session was related to an eligible commute under my program rules.</label>
           <label className="grc-check"><input type="checkbox" checked={claim.exclusionsAcknowledged} onChange={(e) => setClaim({ ...claim, exclusionsAcknowledged: e.target.checked })} />I understand that idle fees, parking fees, taxes, and non-eligible activity are excluded unless my program expressly states otherwise.</label>
@@ -318,7 +289,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
               <div>Eligible energy cost: {dollars(claimResult.eligibleEnergyCents)}</div>
               <div>Per-session cap: {dollars(claimResult.sessionCapCents)}</div>
               <div>Estimated Green Route Credit: {dollars(claimResult.estimatedCents)}</div>
-              <div>Status: Pending administrative review</div>
+              <div>Original submission status: Pending administrative review. See Credit activity for the current decision.</div>
             </div>
           )}
         </article>
@@ -329,7 +300,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
           <h2>Credit activity / ledger</h2>
           <p>Green Route Credits are program benefits recorded in a Relay Rider ledger. They are not cash, stored-value accounts, utility credits, carbon credits, or transferable property.</p>
           <div className="grc-nav">
-            {['all', 'pending', 'approved', 'redeemed', 'reversed', 'expired'].map((item) => (
+            {['all', 'pending', 'flagged', 'approved', 'declined', 'redeemed', 'reversed', 'expired'].map((item) => (
               <button key={item} type="button" aria-current={filter === item ? 'page' : undefined} onClick={() => setFilter(item)}>{item}</button>
             ))}
           </div>
@@ -372,13 +343,13 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
           <section><h3>4. What is excluded</h3><p>Idle fees, parking fees, taxes, reservations, and non-commute charging do not qualify unless a program expressly states otherwise. Benefits cannot be transferred, sold, redeemed for cash, or guaranteed.</p></section>
           <section><h3>5. How partner vouchers differ from verified reimbursement</h3><p>Partner vouchers may reduce eligible costs only at participating demo sites. Verified reimbursement is a claim path for eligible sessions outside a direct partner network. Neither path is universal charging access.</p></section>
           <section><h3>6. How claims are reviewed</h3><p>Submitted claims appear in an administrator queue as pending, then may be approved, declined, or flagged in this prototype. Review does not guarantee payment or charger availability.</p></section>
-          <section><h3>7. Privacy and data minimization</h3><p>Relay Rider uses only the information needed to verify eligible program use and report aggregated commute-program outcomes. Your employer sees aggregate program reporting, not an exact personal trip trail by default.</p></section>
+          <section><h3>7. Privacy and data minimization</h3><p>Relay Rider uses only the information needed to verify eligible program use and report aggregated commute-program outcomes. This demo sends no employer reports; program reporting and data access require a separately reviewed backend.</p></section>
           <section><h3>8. Important program limitations</h3><p>Availability, eligibility, verification, and administrative review apply. Participation does not guarantee reimbursement, voucher acceptance, charging availability, transportation, savings, or emissions outcomes.</p></section>
           <section>
             <h3>Charging-network interoperability</h3>
             <p>Charging-network interoperability has multiple layers:</p>
             <ul>
-              <li>Authorization: whether a driver credential can start a session</li>
+              <li>Authorization: whether a participant credential can start a session</li>
               <li>Charging access: whether a participating network accepts that credential</li>
               <li>Pricing: the tariff and fees applied by a network</li>
               <li>Incentives: whether a sponsor-funded voucher or credit can apply</li>
@@ -399,13 +370,13 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
               <div className="grc-stat"><span>Monthly funding</span><strong>{dollars(PROGRAM.monthlyBenefitCents)}</strong></div>
               <div className="grc-stat"><span>Demo enrollment</span><strong>1 active commuter</strong></div>
               <div className="grc-stat"><span>Utilized (approved/redeemed)</span><strong>{dollars(liveRemaining.consumedCents)}</strong></div>
-              <div className="grc-stat"><span>Remaining snapshot</span><strong>{dollars(state.remainingCents)}</strong></div>
+              <div className="grc-stat"><span>Available after holds</span><strong>{dollars(remaining.cents)}</strong></div>
               <div className="grc-stat"><span>Pending review</span><strong>{pendingClaims.length}</strong></div>
             </div>
           </article>
           <article className="grc-card">
             <h3>Aggregate program reporting</h3>
-            <p>Partner-site redemptions, verified claims, and pending reviews are summarized without exact personal trip trails. kWh remaining in the commuter snapshot: {kwhLabel(state.remainingKwhTenths)} of {kwhLabel(PROGRAM.monthlyKwhTenths)}.</p>
+            <p>Partner-site redemptions, verified claims, and pending reviews are summarized without exact personal trip trails. kWh remaining in the demo ledger: {kwhLabel(remaining.kwhTenths)} of {kwhLabel(PROGRAM.monthlyKwhTenths)}.</p>
           </article>
         </section>
       )}
@@ -413,7 +384,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
       {view === 'admin-claims' && (
         <article className="grc-card">
           <h2>Admin claim review queue</h2>
-          {state.claims.map((row) => (
+          {claims.map((row) => (
             <div className="gw-review-row" key={row.id}>
               <div className="gw-review-main">
                 <strong>{row.eventType} · {dollars(row.amountCents)}</strong>
@@ -434,8 +405,9 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
 
       {view === 'admin-campaigns' && (
         <article className="grc-card">
-          <h2>Admin voucher campaign builder</h2>
-          <p>Simulated campaign rules. This does not publish a live network offer.</p>
+          <h2>Admin voucher campaign drafts</h2>
+          <p>Draft-only planning: saving a draft does not change demo claim eligibility or caps and does not publish an offer. The fixed demo policy remains in effect.</p>
+          {campaignErrors.length > 0 && <ul role="alert">{campaignErrors.map(error => <li key={error}>{error}</li>)}</ul>}
           <form onSubmit={createCampaign}>
             <div className="gw-form-row">
               <label>Campaign name<input value={campaign.name} onChange={(e) => setCampaign({ ...campaign, name: e.target.value })} /></label>
@@ -443,7 +415,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
               <label>Per-session cap<input value={campaign.sessionCap} onChange={(e) => setCampaign({ ...campaign, sessionCap: e.target.value })} /></label>
             </div>
             <label className="grc-check"><input type="checkbox" checked={campaign.weekdayOnly} onChange={(e) => setCampaign({ ...campaign, weekdayOnly: e.target.checked })} />Weekday commute-related charging only</label>
-            <button className="gw-primary-button" type="submit">Save simulated campaign</button>
+            <button className="gw-primary-button" type="submit">Save campaign draft</button>
           </form>
           <ul className="grc-activity">
             {state.campaigns.map((row) => (
@@ -454,12 +426,13 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
       )}
 
       {modal && 'chargers' in modal && (
-        <Modal title="Simulated partner voucher" onClose={() => { setModal(null); setCopied(false); }}>
+        <Modal title="Simulated partner voucher" onClose={() => { setModal(null); setCopied(false); setCopyError(false); }}>
           <p><strong>{modal.name}</strong> · {modal.corridor}</p>
-          <p>Available balance: {dollars(state.remainingCents)}</p>
+          <p>Available balance: {dollars(remaining.cents)}</p>
           <p>Per-session sponsor cap: {dollars(PROGRAM.sessionCapCents)}</p>
           <p>Eligible energy charges only. Idle fees, parking fees, taxes, and reservations are excluded.</p>
           <p className="grc-code">{PROGRAM.demoVoucherCode}</p>
+          {copyError && <p role="status">Copy unavailable — select the demo code manually.</p>}
           <p>Expiry: {PROGRAM.demoVoucherExpiry}</p>
           <p><Badge status="pending" /> Simulated — not redeemable</p>
           <div className="grc-actions">
@@ -470,7 +443,7 @@ export function GreenRouteCredits({ onOpenClassicWallet, onOpenClassicAdmin }: G
       )}
 
       {modal && 'eventType' in modal && (
-        <Modal title="Policy-safe record" onClose={() => setModal(null)}>
+        <Modal title="Synthetic activity record" onClose={() => setModal(null)}>
           <p>{modal.date} · {modal.eventType}</p>
           <p>{modal.source}</p>
           <p>{dollars(modal.amountCents)} · {modal.kwhTenths ? `${kwhLabel(modal.kwhTenths)} kWh` : 'No kWh on this entry'}</p>

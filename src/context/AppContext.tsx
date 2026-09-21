@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { ChargingHub, UserRole, RouteSignal, EVParticipantSignal, UserProfile, GreenRouteCredit, RedemptionRequest } from '../types';
 import { clearLegacySensitiveStorage } from '../security/securityPolicy';
+import { resetProgramSession } from '../greenRoute/storage';
 
 export const chargingHubs: ChargingHub[] = [];
 
@@ -41,7 +42,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addGreenRouteCredit = (credit: GreenRouteCredit) => setGreenRouteCredits(current => [...current, credit]);
   const createRedemptionRequest = (request: RedemptionRequest) => setRedemptionRequests(current => current.some(item => item.creditId === request.creditId && ['requested', 'under-review'].includes(item.status)) ? current : [...current, request]);
   const reviewRedemptionRequest = (id: string, status: 'fulfilled' | 'denied', note: string) => setRedemptionRequests(current => current.map(request => request.id === id ? { ...request, status, reviewNote: note, reviewedAt: new Date().toISOString(), reviewedBy: 'program-admin', fulfillmentMethod: status === 'fulfilled' ? 'manual_program_action' : request.fulfillmentMethod } : request));
-  const clearSessionData = () => { setUserRole(null); setUserProfile(null); setRouteSignals([]); setEVParticipantSignals([]); setGreenRouteCredits([]); setRedemptionRequests([]); clearLegacySensitiveStorage(); };
+  const clearSessionData = () => { resetProgramSession(); setUserRole(null); setUserProfile(null); setRouteSignals([]); setEVParticipantSignals([]); setGreenRouteCredits([]); setRedemptionRequests([]); clearLegacySensitiveStorage(); };
 
   return <AppContext.Provider value={{ userRole, setUserRole, userProfile, setUserProfile, routeSignals, addRouteSignal, updateRouteSignal, evParticipantSignals, addEVParticipantSignal, greenRouteCredits, addGreenRouteCredit, redemptionRequests, createRedemptionRequest, reviewRedemptionRequest, clearSessionData, storageMode: 'session-memory' }}>{children}</AppContext.Provider>;
 };

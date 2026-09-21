@@ -1,15 +1,28 @@
-import { STORAGE_KEY, defaultState, type ProgramState } from './program';
+import { defaultState, type ProgramState } from './program';
+
+// One page-session store. Navigation does not reset it; reload creates a fresh module.
+let state = defaultState();
+const listeners = new Set<() => void>();
 
 export function loadProgramState(): ProgramState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    return { ...defaultState(), ...JSON.parse(raw) };
-  } catch {
-    return defaultState();
-  }
+  return state;
 }
 
-export function saveProgramState(state: ProgramState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export function subscribeProgramState(listener: () => void) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+/** Synchronous functional updates avoid stale React-render snapshots. */
+export function updateProgramState(transition: (current: ProgramState) => ProgramState) {
+  const next = transition(state);
+  if (next !== state) {
+    state = next;
+    listeners.forEach(listener => listener());
+  }
+  return state;
+}
+
+export function resetProgramSession() {
+  updateProgramState(() => defaultState());
 }

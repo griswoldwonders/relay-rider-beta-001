@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest';
+import { resetProgramSession } from './greenRoute/storage';
 import { cleanup, configure, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
@@ -14,7 +15,7 @@ const openPreview = (route: string) => {
 };
 
 const expectEmbeddedWallet = async () => {
-  expect(await screen.findByText('$18.60 remaining')).toBeInTheDocument();
+  expect(await screen.findByText('$2.60 remaining')).toBeInTheDocument();
   expect(screen.getByText(/Pasadena–Glendale Clean Commute Pilot/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Open hub redemption wallet' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Open hub review queue' })).toBeInTheDocument();
@@ -22,12 +23,12 @@ const expectEmbeddedWallet = async () => {
 
 describe('App Green Wallet routing', () => {
   beforeEach(() => {
-    localStorage.clear();
+    resetProgramSession();
   });
 
   afterEach(() => {
     cleanup();
-    localStorage.clear();
+    resetProgramSession();
     window.history.replaceState({}, '', '/');
   });
 

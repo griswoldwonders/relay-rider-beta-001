@@ -1,5 +1,3 @@
-export const STORAGE_KEY = 'rr-green-route-credits-demo-v1';
-
 export const PROGRAM = Object.freeze({
   name: 'Pasadena–Glendale Clean Commute Pilot',
   sponsor: 'Pasadena Corridor Employer Coalition',
@@ -8,7 +6,8 @@ export const PROGRAM = Object.freeze({
   monthlyBenefitCents: 3000,
   monthlyKwhTenths: 500,
   sessionCapCents: 1200,
-  resetLabel: 'Resets October 1, 2026',
+  period: '2026-09',
+  resetLabel: 'Fixed September 2026 demo period — reset manually',
   demoVoucherCode: 'RR-PGC-9A7K-2026',
   demoVoucherExpiry: 'October 31, 2026',
 });
@@ -104,11 +103,17 @@ export type Campaign = {
   sites: string[];
 };
 
+export type ReviewEvent = {
+  claimId: string;
+  from: LedgerStatus | null;
+  to: LedgerStatus;
+  note: string;
+};
+
 export type ProgramState = {
   ledger: LedgerEntry[];
-  remainingCents: number;
-  remainingKwhTenths: number;
-  claims: LedgerEntry[];
+  // Status projections live only in ledger; decision evidence is append-only until reset.
+  reviewEvents: ReviewEvent[];
   campaigns: Campaign[];
 };
 
@@ -124,24 +129,27 @@ export function kwhLabel(tenths: number) {
   return frac ? `${whole}.${frac}` : String(whole);
 }
 
-export function parseKwhToTenths(value: unknown) {
+function parseUnits(value: unknown, precision: number): number | null {
   const text = String(value ?? '').trim();
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
+  const pattern = precision === 1 ? /^\d+(\.\d)?$/ : /^\d+(\.\d{1,2})?$/;
+  if (!pattern.test(text)) return null;
   const [whole, fraction = ''] = text.split('.');
-  return Number(whole) * 10 + Number((fraction + '0').slice(0, 1));
+  const units = Number(whole) * 10 ** precision + Number(fraction.padEnd(precision, '0'));
+  return Number.isSafeInteger(units) ? units : null;
+}
+
+export function parseKwhToTenths(value: unknown) {
+  return parseUnits(value, 1);
 }
 
 export function parseMoneyToCents(value: unknown) {
-  const text = String(value ?? '').trim().replace(/^\$/, '');
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) return null;
-  const [whole, fraction = ''] = text.split('.');
-  return Number(whole) * 100 + Number((fraction + '00').slice(0, 2));
+  return parseUnits(String(value ?? '').trim().replace(/^\$/, ''), 2);
 }
 
 export function isWeekdayIsoDate(isoDate: string) {
-  const [year, month, day] = String(isoDate).split('-').map(Number);
-  if (!year || !month || !day) return false;
-  const utc = new Date(Date.UTC(year, month - 1, day));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate) || isoDate.startsWith('0000')) return false;
+  const utc = new Date(`${isoDate}T00:00:00Z`);
+  if (!Number.isFinite(utc.getTime()) || utc.toISOString().slice(0, 10) !== isoDate) return false;
   const weekday = utc.getUTCDay();
   return weekday >= 1 && weekday <= 5;
 }
@@ -204,22 +212,17 @@ export function remainingFromLedger(
   monthlyCents = PROGRAM.monthlyBenefitCents,
   monthlyKwhTenths = PROGRAM.monthlyKwhTenths,
 ) {
-  const consumedCents = entries
-    .filter((row) => row.status === LEDGER_STATUSES.redeemed || row.status === LEDGER_STATUSES.approved)
-    .reduce((sum, row) => sum + row.amountCents, 0);
-  const consumedKwh = entries
-    .filter(
-      (row) =>
-        row.status === LEDGER_STATUSES.redeemed
-        || row.status === LEDGER_STATUSES.approved
-        || row.status === LEDGER_STATUSES.pending,
-    )
-    .reduce((sum, row) => sum + (row.kwhTenths || 0), 0);
+  const consumed = entries.filter(row => row.status === 'redeemed' || row.status === 'approved');
+  const held = entries.filter(row => row.status === 'pending' || row.status === 'flagged');
+  const sum = (rows: LedgerEntry[], key: 'amountCents' | 'kwhTenths') => rows.reduce((total, row) => total + row[key], 0);
+  const consumedCents = sum(consumed, 'amountCents');
+  const consumedKwhTenths = sum(consumed, 'kwhTenths');
+  const heldCents = sum(held, 'amountCents');
+  const heldKwhTenths = sum(held, 'kwhTenths');
   return {
-    remainingCents: Math.max(0, monthlyCents - consumedCents),
-    remainingKwhTenths: Math.max(0, monthlyKwhTenths - consumedKwh),
-    consumedCents,
-    consumedKwhTenths: consumedKwh,
+    remainingCents: monthlyCents - consumedCents - heldCents,
+    remainingKwhTenths: monthlyKwhTenths - consumedKwhTenths - heldKwhTenths,
+    consumedCents, consumedKwhTenths, heldCents, heldKwhTenths,
   };
 }
 
@@ -238,7 +241,13 @@ export function estimateClaim({
   remainingCents: number;
   sessionCapCents?: number;
 }): ClaimEstimate {
+  const values = [energyChargeCents, idleFeeCents, parkingFeeCents, taxCents, remainingCents, sessionCapCents];
   const excludedCents = idleFeeCents + parkingFeeCents + taxCents;
+  if (values.some(value => !Number.isSafeInteger(value) || value < 0)
+    || energyChargeCents === 0 || sessionCapCents === 0
+    || !Number.isSafeInteger(energyChargeCents + excludedCents)) {
+    throw new Error('Amounts must be safe integer cents, with positive energy and session cap.');
+  }
   const eligibleEnergyCents = Math.max(0, energyChargeCents);
   const afterSessionCap = Math.min(eligibleEnergyCents, sessionCapCents);
   const estimatedCents = Math.min(afterSessionCap, Math.max(0, remainingCents));
@@ -252,6 +261,11 @@ export function estimateClaim({
 }
 
 export type ClaimFormInput = {
+  receiptId?: string;
+  idleFee?: string;
+  parkingFee?: string;
+  tax?: string;
+  note?: string;
   network?: string;
   locationName?: string;
   cityCorridor?: string;
@@ -270,11 +284,11 @@ export function validateClaimForm(input: ClaimFormInput) {
   if (!String(input.cityCorridor || '').trim()) errors.push('Enter a city or corridor.');
   if (!input.sessionDate) errors.push('Enter a session date.');
   else if (!isWeekdayIsoDate(input.sessionDate)) errors.push('Weekday commute-related charging only.');
-  if (!input.startTime) errors.push('Enter a session start time.');
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.startTime || '')) errors.push('Enter a valid session start time (HH:mm).');
   const kwhTenths = parseKwhToTenths(input.energyKwh);
   if (kwhTenths === null || kwhTenths <= 0) errors.push('Enter energy delivered in kWh.');
   const energyChargeCents = parseMoneyToCents(input.energyCharge);
-  if (energyChargeCents === null) errors.push('Enter the energy charge amount.');
+  if (energyChargeCents === null || energyChargeCents <= 0) errors.push('Enter a positive energy charge amount.');
   if (!input.commuteRelated) errors.push('Confirm this session was commute-related.');
   if (!input.exclusionsAcknowledged) errors.push('Acknowledge excluded fees.');
   return { errors, kwhTenths, energyChargeCents };
@@ -282,24 +296,14 @@ export function validateClaimForm(input: ClaimFormInput) {
 
 export function defaultState(): ProgramState {
   const ledger = seedLedger();
-  const remaining = remainingFromLedger(ledger);
-  remaining.remainingCents = 1860;
-  remaining.remainingKwhTenths = 314;
   return {
     ledger,
-    remainingCents: remaining.remainingCents,
-    remainingKwhTenths: remaining.remainingKwhTenths,
-    claims: ledger
-      .filter((row) => row.eventType.includes('claim') || row.eventType.includes('Claim'))
-      .map((row) => ({
-        ...row,
-        reviewNote: '',
-      })),
+    reviewEvents: ledger.map(row => ({ claimId: row.id, from: null, to: row.status, note: 'Synthetic seed record' })),
     campaigns: [
       {
         id: 'cmp-demo-1',
         name: 'September partner-site support',
-        status: 'Simulated — draft campaign',
+        status: 'DRAFT-ONLY',
         monthlyCapCents: 3000,
         sessionCapCents: 1200,
         weekdayOnly: true,
@@ -307,4 +311,73 @@ export function defaultState(): ProgramState {
       },
     ],
   };
+}
+
+/** Only pending/flagged claims can be reviewed. Terminal decisions are idempotent. */
+export function reviewClaim(state: ProgramState, id: string, status: string, note: string): ProgramState {
+  const target = state.ledger.find(row => row.id === id);
+  if (!target || !['pending', 'flagged'].includes(target.status)
+    || (status !== 'approved' && status !== 'declined' && status !== 'flagged')) return state;
+  return { ...state,
+    ledger: state.ledger.map(row => row.id === id ? { ...row, status, reviewNote: note,
+      signedCents: status === 'approved' ? -row.amountCents : 0 } : row),
+    reviewEvents: [...state.reviewEvents, { claimId: id, from: target.status, to: status, note }],
+  };
+}
+
+export type CampaignDraftInput = { name: string; monthlyCap: string; sessionCap: string; weekdayOnly: boolean };
+
+/** Draft metadata only; never consulted by claim eligibility or accounting. */
+export function createCampaignDraft(state: ProgramState, input: CampaignDraftInput, id: string) {
+  const monthlyCapCents = parseMoneyToCents(input.monthlyCap);
+  const sessionCapCents = parseMoneyToCents(input.sessionCap);
+  const errors: string[] = [];
+  if (!input.name.trim()) errors.push('Enter a draft campaign name.');
+  if (monthlyCapCents == null || sessionCapCents == null || monthlyCapCents <= 0 || sessionCapCents <= 0) {
+    errors.push('Draft caps must be finite positive amounts in whole cents.');
+  } else if (sessionCapCents > monthlyCapCents) errors.push('Draft session cap cannot exceed its monthly cap.');
+  if (!id || state.campaigns.some(row => row.id === id)) errors.push('Draft ID already exists or is missing.');
+  if (errors.length || monthlyCapCents == null || sessionCapCents == null) return { state, errors };
+  const draft: Campaign = { id, name: input.name.trim(), status: 'DRAFT-ONLY', monthlyCapCents, sessionCapCents,
+    weekdayOnly: input.weekdayOnly, sites: PARTNER_SITES.map(site => site.name) };
+  return { errors, state: { ...state, campaigns: [draft, ...state.campaigns] } };
+}
+
+export type ClaimResult = { state: ProgramState; errors: string[]; estimate?: ClaimEstimate };
+
+/** Pure demo transition. No external fulfillment, storage, time, or ID generation. */
+export function submitClaim(state: ProgramState, input: ClaimFormInput, id: string): ClaimResult {
+  const checked = validateClaimForm(input);
+  const errors = [...checked.errors];
+  if (input.sessionDate?.slice(0, 7) !== PROGRAM.period) errors.push('Use a synthetic date in the September 2026 demo period.');
+  const referenceId = input.receiptId?.trim();
+  if (!referenceId) errors.push('Enter a synthetic receipt / session ID.');
+  if (!id || state.ledger.some(row => row.id === id || row.referenceId === referenceId)) {
+    errors.push('This claim ID or receipt / session reference already exists.');
+  }
+  const fees = [input.idleFee, input.parkingFee, input.tax].map(value => parseMoneyToCents(value?.trim() || '0'));
+  if (fees.some(value => value === null)) errors.push('Fees must be valid nonnegative amounts.');
+  if (errors.length || checked.energyChargeCents == null || checked.kwhTenths == null || !referenceId) return { state, errors };
+  const remaining = remainingFromLedger(state.ledger);
+  let estimate: ClaimEstimate;
+  try {
+    estimate = estimateClaim({ energyChargeCents: checked.energyChargeCents,
+      idleFeeCents: fees[0]!, parkingFeeCents: fees[1]!, taxCents: fees[2]!,
+      remainingCents: PROGRAM.monthlyBenefitCents });
+  } catch {
+    return { state, errors: ['Amounts or their total exceed safe integer cents.'] };
+  }
+  if (estimate.estimatedCents > remaining.remainingCents) errors.push('Claim exceeds available demo dollar benefit.');
+  if (checked.kwhTenths > remaining.remainingKwhTenths) errors.push('Claim exceeds available demo kWh benefit.');
+  if (errors.length) return { state, errors };
+  const entry: LedgerEntry = {
+    id, date: input.sessionDate!, eventType: 'Charging claim',
+    source: `${input.locationName} · ${input.cityCorridor} · Synthetic data`,
+    kwhTenths: checked.kwhTenths, amountCents: estimate.estimatedCents, signedCents: 0,
+    status: 'pending', referenceId, network: input.network, estimate,
+    detail: input.note || 'Synthetic claim pending demo review.',
+  };
+  return { errors: [], estimate, state: { ...state, ledger: [entry, ...state.ledger],
+    reviewEvents: [...state.reviewEvents, { claimId: id, from: null, to: 'pending', note: 'Synthetic submission; both units held' }],
+  } };
 }
