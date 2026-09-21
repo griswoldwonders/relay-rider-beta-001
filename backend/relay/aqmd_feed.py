@@ -5,10 +5,12 @@ endpoint exposes a versioned, institution-scoped projection for downstream
 analysis; it is not a second persistence authority and never accepts writes.
 """
 
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.views import View
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import CommuterRecord, Institution, Rule2202CalculationRun
 from .permissions import user_is_platform_admin, user_staff_institution_ids
@@ -17,16 +19,16 @@ from .permissions import user_is_platform_admin, user_staff_institution_ids
 AQMD_FEED_CONTRACT_VERSION = "rr-aqmd-feed-v1"
 
 
-class InstitutionAqmdFeedView(View):
+class InstitutionAqmdFeedView(APIView):
     """Return validated, field-minimized commuter evidence for AQMD analysis."""
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, institution_id):
         user = request.user
-        if not user or not user.is_authenticated:
-            return JsonResponse({"detail": "Authentication required."}, status=401)
-
         if not user_is_platform_admin(user) and institution_id not in user_staff_institution_ids(user):
-            return JsonResponse({"detail": "You are not authorized for this institution."}, status=403)
+            return Response({"detail": "You are not authorized for this institution."}, status=403)
 
         institution = get_object_or_404(Institution, pk=institution_id)
         imports = list(
@@ -116,7 +118,7 @@ class InstitutionAqmdFeedView(View):
             "updated_at": item.updated_at.isoformat(),
         } for item in imports]
 
-        response = JsonResponse({
+        response = Response({
             "contract_version": AQMD_FEED_CONTRACT_VERSION,
             "generated_at": timezone.now().isoformat(),
             "institution": {

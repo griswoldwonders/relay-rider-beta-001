@@ -112,7 +112,7 @@ class Command(BaseCommand):
                 raise CommandError(f'Expected one evidence row after repeat projection, found {count}.')
             if not participant_key.startswith('rr_') or record.external_id in participant_key:
                 raise CommandError('Participant pseudonymization contract failed.')
-            if source_system != 'relay_rider' or canonical_record_id != str(record.id) or projector_version != PROJECTOR_VERSION:
+            if source_system != 'relay_rider_projection' or canonical_record_id != str(record.id) or projector_version != PROJECTOR_VERSION:
                 raise CommandError('Evidence provenance contract failed.')
 
             self.stdout.write(self.style.SUCCESS(

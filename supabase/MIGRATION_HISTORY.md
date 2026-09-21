@@ -54,3 +54,10 @@ Do not commit a Supabase database password or a full production `DATABASE_URL` t
 CI runs the institutional vertical slice against PostgreSQL 17 using the same Django migrations, the `relay_app` schema boundary, and the canonical Rule 2202 SQL functions. The CI proof asserts that Rule 2202 completes and that Django tables are created in `relay_app`, not duplicated in `public`.
 
 The linked production Supabase project currently has the `relay_app` schema and verified Rule 2202 functions, but Django application tables have **not** been migrated into that production schema from this chat because doing so requires a securely injected production database credential. No database password is placed in source code, Git history, CI logs, or chat output to bypass that control.
+
+## Unapplied evidence-projection SQL
+
+These files are in the repository for review only. They have **not** been applied to the linked production project from this change, and they must not be applied without an explicit production-deploy approval:
+
+- `supabase/migrations/20260909171500_restrict_relay_rider_evidence_browser_authorship.sql` — blocks `anon`/`authenticated` insert/update/delete of Relay Rider-originated evidence (`source_system` `relay_rider` or `relay_rider_projection`). Treat as unapplied until production records it.
+- `supabase/unapplied/20260914190000_evidence_projection_key_unique_index.sql` — unique index on tenant + `relay_projection_key`. Kept outside `supabase/migrations` so CLI push cannot apply it accidentally.

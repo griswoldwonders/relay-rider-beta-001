@@ -24,7 +24,10 @@ begin
   end if;
 
   if current_user in ('anon', 'authenticated')
-     and (old_source = 'relay_rider' or new_source = 'relay_rider') then
+     and (
+       old_source in ('relay_rider', 'relay_rider_projection')
+       or new_source in ('relay_rider', 'relay_rider_projection')
+     ) then
     raise exception using
       errcode = '42501',
       message = 'Relay Rider-originated evidence is server-projected and read-only through browser roles';
