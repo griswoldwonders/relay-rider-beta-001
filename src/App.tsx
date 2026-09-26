@@ -14,7 +14,7 @@ const MapScreen = lazy(() => import('./screens/MapScreen').then(module => ({ def
 const PartnerConsoleScreen = lazy(() => import('./screens/PartnerConsoleScreen').then(module => ({ default: module.PartnerConsoleScreen })));
 const TripJourneyScreen = lazy(() => import('./screens/TripJourneyScreen').then(module => ({ default: module.TripJourneyScreen })));
 const GreenWalletOnboardingFlow = lazy(() => import('./flows/GreenWalletOnboardingFlow').then(module => ({ default: module.GreenWalletOnboardingFlow })));
-const WalletScreen = lazy(() => import('./screens/WalletScreen').then(module => ({ default: module.WalletScreen })));
+const GreenWalletHost = lazy(() => import('./screens/GreenWalletHost').then(module => ({ default: module.GreenWalletHost })));
 const WalletAdminScreen = lazy(() => import('./screens/WalletAdminScreen').then(module => ({ default: module.WalletAdminScreen })));
 const ImpactDashboardScreen = lazy(() => import('./screens/ImpactDashboardScreen').then(module => ({ default: module.ImpactDashboardScreen })));
 const CommuteOptionsScreen = lazy(() => import('./screens/CommuteOptionsScreen').then(module => ({ default: module.CommuteOptionsScreen })));
@@ -195,7 +195,12 @@ function AppContent() {
           onComplete={() => setCurrentScreen('wallet')}
         />
       )}
-      {currentScreen === 'wallet' && <WalletScreen onBack={() => setCurrentScreen('profile')} />}
+      {currentScreen === 'wallet' && (
+        <GreenWalletHost
+          onBack={() => setCurrentScreen('profile')}
+          onOpenAdmin={() => setCurrentScreen('wallet-admin')}
+        />
+      )}
       {currentScreen === 'wallet-admin' && <WalletAdminScreen onBack={() => setCurrentScreen('wallet')} />}
       {currentScreen === 'impact' && <ImpactDashboardScreen onBack={() => { setCurrentScreen('home'); setCurrentTab('home'); }} />}
       {currentScreen === 'how-it-works' && (

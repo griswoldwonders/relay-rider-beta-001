@@ -15,10 +15,13 @@ export const legacySensitiveStorageKeys = [
   'evParticipantSignals',
   'greenRouteCredits',
   'userRole',
+  'rr-green-route-credits-demo-v1',
 ] as const;
 
 export const clearLegacySensitiveStorage = () => {
-  legacySensitiveStorageKeys.forEach(key => localStorage.removeItem(key));
+  legacySensitiveStorageKeys.forEach(key => {
+    try { localStorage.removeItem(key); } catch { /* Storage may be blocked; never read or reuse it. */ }
+  });
 };
 
 export const securityControls: SecurityControl[] = [
