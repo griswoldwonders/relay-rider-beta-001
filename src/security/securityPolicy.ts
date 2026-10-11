@@ -18,6 +18,7 @@ export const legacySensitiveStorageKeys = [
 ] as const;
 
 export const clearLegacySensitiveStorage = () => {
+  if (typeof localStorage === 'undefined') return;
   legacySensitiveStorageKeys.forEach(key => localStorage.removeItem(key));
 };
 
